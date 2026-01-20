@@ -70,6 +70,14 @@ Contributions welcome! See the [docs/ai-context](docs/ai-context/) folder for ar
 
 ---
 
+## ☕ Support
+
+If you find this project helpful, consider supporting my work:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20Me-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/gavinmcfall)
+
+---
+
 ## License
 
 Bootible is open source software licensed under the [MIT License](LICENSE).
