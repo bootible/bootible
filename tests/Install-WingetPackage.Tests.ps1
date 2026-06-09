@@ -5,6 +5,12 @@ BeforeAll {
     # This avoids executing the full Run.ps1 setup script
     $helpersPath = Join-Path $PSScriptRoot "../config/rog-ally/lib/winget-helpers.ps1"
     . $helpersPath
+
+    # Pester can only mock commands that exist; provide a stub so the suite
+    # also runs on non-Windows hosts where winget is absent
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        function script:winget { throw "winget stub called without a mock" }
+    }
 }
 
 Describe "Install-WingetPackage" {
@@ -64,6 +70,70 @@ Describe "Install-WingetPackage" {
 
             $result | Should -Be $true
             Should -Invoke Start-Job -Times 2
+        }
+    }
+
+    Context "Source Recovery" {
+        BeforeEach {
+            Mock winget { return "" } -ParameterFilter { ($args -join ' ') -match 'list --id' }
+            $Script:WingetSourceRecovered = $false
+        }
+
+        It "Resets sources and retries winget once when the source fails to open" {
+            $script:jobCounter = 0
+            Mock Start-Job {
+                $script:jobCounter++
+                [PSCustomObject]@{ Id = $script:jobCounter; State = 'Running' }
+            }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = -2145844748; Output = "Failed when opening source(s); try the 'source reset' command if the problem persists." } } -ParameterFilter { $Id -eq 1 }
+            Mock Receive-Job { @{ ExitCode = 0; Output = "Successfully installed" } } -ParameterFilter { $Id -eq 2 }
+            Mock Remove-Job { }
+            Mock winget { return "" } -ParameterFilter { ($args -join ' ') -match 'source (reset|update)' }
+
+            $result = Install-WingetPackage -PackageId "Test.Package" -Name "Test Package"
+
+            $result | Should -Be $true
+            Should -Invoke Start-Job -Times 2 -Exactly
+            Should -Invoke winget -ParameterFilter { ($args -join ' ') -match 'source reset' } -Times 1 -Exactly
+        }
+
+        It "Attempts source recovery at most once per run" {
+            $Script:WingetSourceRecovered = $true
+            $script:jobCounter = 0
+            Mock Start-Job {
+                $script:jobCounter++
+                [PSCustomObject]@{ Id = $script:jobCounter; State = 'Running' }
+            }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = -2145844748; Output = "Failed when opening source(s); try the 'source reset' command if the problem persists." } } -ParameterFilter { $Id -eq 1 }
+            Mock Receive-Job { @{ ExitCode = 0; Output = "msstore success" } } -ParameterFilter { $Id -eq 2 }
+            Mock Remove-Job { }
+            Mock winget { return "" } -ParameterFilter { ($args -join ' ') -match 'source (reset|update)' }
+
+            $result = Install-WingetPackage -PackageId "Test.Package" -Name "Test Package"
+
+            $result | Should -Be $true
+            Should -Invoke winget -ParameterFilter { ($args -join ' ') -match 'source reset' } -Times 0 -Exactly
+            Should -Invoke Start-Job -Times 2 -Exactly
+        }
+
+        It "Does not attempt recovery for generic install failures" {
+            $script:jobCounter = 0
+            Mock Start-Job {
+                $script:jobCounter++
+                [PSCustomObject]@{ Id = $script:jobCounter; State = 'Running' }
+            }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = 1; Output = "Installer failed with exit code 1603" } } -ParameterFilter { $Id -eq 1 }
+            Mock Receive-Job { @{ ExitCode = 0; Output = "msstore success" } } -ParameterFilter { $Id -eq 2 }
+            Mock Remove-Job { }
+            Mock winget { return "" } -ParameterFilter { ($args -join ' ') -match 'source (reset|update)' }
+
+            $result = Install-WingetPackage -PackageId "Test.Package" -Name "Test Package"
+
+            $result | Should -Be $true
+            Should -Invoke winget -ParameterFilter { ($args -join ' ') -match 'source reset' } -Times 0 -Exactly
         }
     }
 

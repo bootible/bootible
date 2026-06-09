@@ -96,43 +96,11 @@ if (Get-ConfigValue "install_msi_afterburner" $false) {
     $afterburnerPath = "${env:ProgramFiles(x86)}\MSI Afterburner\MSIAfterburner.exe"
     if (Test-Path $afterburnerPath) {
         Write-Status "MSI Afterburner already installed - skipping" "Success"
-    } elseif ($Script:DryRun) {
-        Write-Status "[DRY RUN] Would install MSI Afterburner via direct download" "Info"
     } else {
-        # Direct download (Chocolatey/winget unreliable for this package)
-        Write-Status "Downloading MSI Afterburner..." "Info"
-        $zipUrl = "https://download.msi.com/uti_exe/vga/MSIAfterburnerSetup.zip"
-        $zipFile = Join-Path $env:TEMP "MSIAfterburnerSetup.zip"
-        $extractPath = Join-Path $env:TEMP "MSIAfterburner"
-
-        try {
-            $ProgressPreference = 'SilentlyContinue'
-            Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
-            $ProgressPreference = 'Continue'
-
-            # Extract ZIP
-            if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
-            Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
-
-            # Find and run the installer
-            $installer = Get-ChildItem -Path $extractPath -Filter "*.exe" -Recurse | Select-Object -First 1
-            if ($installer) {
-                Write-Status "Installing MSI Afterburner..." "Info"
-                Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -NoNewWindow
-                if (Test-Path $afterburnerPath) {
-                    Write-Status "MSI Afterburner installed" "Success"
-                } else {
-                    Write-Status "Installer completed - verify installation" "Info"
-                }
-            } else {
-                Write-Status "Could not find installer in ZIP" "Warning"
-            }
-
-            # Cleanup
-            Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
-            Remove-Item $extractPath -Recurse -Force -ErrorAction SilentlyContinue
-        } catch {
-            Write-Status "Failed to download MSI Afterburner: $_" "Warning"
+        # MSI's CDN blocks scripted direct downloads (Akamai Access Denied),
+        # so install via the community winget manifest instead
+        $installed = Install-WingetPackage -PackageId "Guru3D.Afterburner" -Name "MSI Afterburner"
+        if (-not $installed -and -not $Script:DryRun) {
             Write-Status "Download manually: https://www.msi.com/Landing/afterburner/graphics-cards" "Info"
         }
     }

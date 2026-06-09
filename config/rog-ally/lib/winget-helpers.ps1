@@ -170,6 +170,24 @@ function Install-WingetPackage {
             return $true
         } else {
             Write-Host "    Winget source failed (exit code $($result.ExitCode))" -ForegroundColor Yellow
+
+            # Source open failures (common on fresh installs) are usually fixed
+            # by a source reset - try that once per run, then retry the install
+            $sourceOpenFailure = "$($result.Output)" -match 'opening source'
+            if ($sourceOpenFailure -and -not $Script:WingetSourceRecovered) {
+                $Script:WingetSourceRecovered = $true
+                Write-Host "    Resetting winget sources and retrying..." -ForegroundColor Yellow
+                winget source reset --force 2>&1 | Out-Null
+                winget source update 2>&1 | Out-Null
+
+                $result = & $runWingetWithTimeout $PackageId "winget" $TimeoutSeconds
+                if (-not $result.TimedOut -and $result.ExitCode -eq 0) {
+                    Write-Status "$Name installed (winget after source reset)" "Success"
+                    & $completeLog "success"
+                    return $true
+                }
+                Write-Host "    Retry after source reset failed (exit code $($result.ExitCode))" -ForegroundColor Yellow
+            }
         }
     }
 
