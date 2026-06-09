@@ -55,6 +55,45 @@ function Get-ConfigValue {
     return $value
 }
 
+function Find-PrivateDeviceConfigs {
+    <#
+    .SYNOPSIS
+        Discovers private device configs for a device type.
+    .DESCRIPTION
+        Looks for the device-instance layout first (private/device/<device>/<Instance>/config.yml),
+        falling back to the legacy flat layout (private/<device>/config*.yml).
+        Returns objects with Name and ConfigPath, sorted by name.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$PrivateRoot,
+        [Parameter(Mandatory)][string]$Device
+    )
+
+    $results = @()
+
+    $deviceDir = Join-Path $PrivateRoot (Join-Path "device" $Device)
+    if (Test-Path $deviceDir) {
+        foreach ($dir in (Get-ChildItem -Path $deviceDir -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
+            $configPath = Join-Path $dir.FullName "config.yml"
+            if (Test-Path $configPath) {
+                $results += [pscustomobject]@{ Name = $dir.Name; ConfigPath = $configPath }
+            }
+        }
+        if ($results.Count -gt 0) {
+            return $results
+        }
+    }
+
+    $legacyDir = Join-Path $PrivateRoot $Device
+    if (Test-Path $legacyDir) {
+        foreach ($file in (Get-ChildItem -Path $legacyDir -Filter "config*.yml" -File -ErrorAction SilentlyContinue | Sort-Object BaseName)) {
+            $results += [pscustomobject]@{ Name = $file.BaseName; ConfigPath = $file.FullName }
+        }
+    }
+
+    return $results
+}
+
 function Convert-OrderedDictToHashtable {
     <#
     .SYNOPSIS

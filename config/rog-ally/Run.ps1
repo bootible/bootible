@@ -35,9 +35,64 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Extract instance name from ConfigFile path (e.g., private/device/rog-ally/Vengeance/config.yml -> Vengeance)
+# Roots and shared helpers are needed before transcript start so private
+# device instances can be discovered (instance selection determines log path)
+$Script:BootibleRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$Script:DeviceRoot = $PSScriptRoot
+$Script:PrivateRoot = Join-Path $Script:BootibleRoot "private"
+
+$helpersPath = Join-Path $PSScriptRoot "lib/helpers.ps1"
+if (Test-Path $helpersPath) {
+    . $helpersPath
+}
+$validationPath = Join-Path $PSScriptRoot "lib/config-validation.ps1"
+if (Test-Path $validationPath) {
+    . $validationPath
+}
+
+# Select the private config to merge later. When -ConfigFile is passed (ally.ps1
+# bootstrap), the instance was already chosen. Otherwise (bootible re-run),
+# discover instances in the private repo and prompt if there are several.
 $Script:SelectedInstance = ""
-if ($ConfigFile -and $ConfigFile -match 'device[/\\]rog-ally[/\\]([^/\\]+)[/\\]config\.yml$') {
+$Script:SelectedPrivateConfig = ""
+if (-not $ConfigFile) {
+    $instances = @(Find-PrivateDeviceConfigs -PrivateRoot $Script:PrivateRoot -Device "rog-ally")
+
+    if ($instances.Count -eq 1) {
+        $Script:SelectedPrivateConfig = $instances[0].ConfigPath
+    } elseif ($instances.Count -gt 1) {
+        Write-Host ""
+        Write-Host "Multiple configurations found:" -ForegroundColor Cyan
+        Write-Host ""
+        for ($i = 0; $i -lt $instances.Count; $i++) {
+            $num = $i + 1
+            Write-Host "  " -NoNewline
+            Write-Host "$num" -ForegroundColor Yellow -NoNewline
+            Write-Host ") $($instances[$i].Name)"
+        }
+        Write-Host ""
+
+        while (-not $Script:SelectedPrivateConfig) {
+            $selection = Read-Host "Select configuration [1-$($instances.Count)]"
+            if ($selection -match '^\d+$') {
+                $idx = [int]$selection - 1
+                if ($idx -ge 0 -and $idx -lt $instances.Count) {
+                    $Script:SelectedPrivateConfig = $instances[$idx].ConfigPath
+                    Write-Host ""
+                    Write-Host "Selected: $($instances[$idx].Name)" -ForegroundColor Green
+                }
+            }
+            if (-not $Script:SelectedPrivateConfig) {
+                Write-Host "Invalid selection. Please enter a number between 1 and $($instances.Count)" -ForegroundColor Red
+            }
+        }
+    }
+}
+
+# Extract instance name from the chosen config path (device-instance layout only,
+# e.g. private/device/rog-ally/Vengeance/config.yml -> Vengeance)
+$instanceSource = if ($ConfigFile) { $ConfigFile } else { $Script:SelectedPrivateConfig }
+if ($instanceSource -and $instanceSource -match 'device[/\\]rog-ally[/\\]([^/\\]+)[/\\]config\.yml$') {
     $Script:SelectedInstance = $matches[1]
 }
 
@@ -54,7 +109,7 @@ if ($env:BOOTIBLE_TRANSCRIPT -and (Test-Path $env:BOOTIBLE_TRANSCRIPT)) {
 } else {
     # Start new transcript (running via bootible command directly)
     $Script:TranscriptInherited = $false
-    $privatePath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "private"
+    $privatePath = $Script:PrivateRoot
     $suffix = if ($DryRun) { "_dryrun" } else { "_run" }
     $hostname = $env:COMPUTERNAME.ToLower()
     $logFileName = "$(Get-Date -Format 'yyyy-MM-dd_HHmmss')_${hostname}$suffix.log"
@@ -77,18 +132,6 @@ if ($env:BOOTIBLE_TRANSCRIPT -and (Test-Path $env:BOOTIBLE_TRANSCRIPT)) {
     }
 }
 
-# Import shared helper functions (used by tests too)
-$helpersPath = Join-Path $PSScriptRoot "lib/helpers.ps1"
-if (Test-Path $helpersPath) {
-    . $helpersPath
-}
-$validationPath = Join-Path $PSScriptRoot "lib/config-validation.ps1"
-if (Test-Path $validationPath) {
-    . $validationPath
-}
-$Script:BootibleRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$Script:DeviceRoot = $PSScriptRoot
-$Script:PrivateRoot = Join-Path $Script:BootibleRoot "private"
 $Script:Config = @{}
 
 # Installation result tracking
@@ -1122,7 +1165,6 @@ Write-Status "YAML parser ready" "Success"
 # Always start with defaults, then merge overlays on top
 # Priority: -ConfigFile > private repo selection > local ~/.config > defaults
 $defaultConfig = Join-Path $Script:DeviceRoot "config.yml"
-$privateConfigDir = Join-Path $Script:BootibleRoot "private\rog-ally"
 $localConfig = Join-Path $env:USERPROFILE ".config\bootible\rog-ally\config.yml"
 
 # Always load defaults first
@@ -1144,52 +1186,12 @@ if ($ConfigFile -and (Test-Path $ConfigFile)) {
         Write-Status "Merged local config: $localConfig" "Info"
     }
 
-    # Check for private config files and let user select if multiple
-    if (Test-Path $privateConfigDir) {
-        $configFiles = Get-ChildItem -Path $privateConfigDir -Filter "config*.yml" -File -ErrorAction SilentlyContinue | Sort-Object Name
-
-        if ($configFiles -and $configFiles.Count -gt 0) {
-            $selectedConfig = $null
-
-            if ($configFiles.Count -eq 1) {
-                # Single config - use it automatically
-                $selectedConfig = $configFiles[0].FullName
-                Write-Status "Using config: $($configFiles[0].Name)" "Info"
-            } else {
-                # Multiple configs - let user choose
-                Write-Host ""
-                Write-Host "Multiple configurations found:" -ForegroundColor Cyan
-                Write-Host ""
-                for ($i = 0; $i -lt $configFiles.Count; $i++) {
-                    $num = $i + 1
-                    Write-Host "  " -NoNewline
-                    Write-Host "$num" -ForegroundColor Yellow -NoNewline
-                    Write-Host ") $($configFiles[$i].Name)"
-                }
-                Write-Host ""
-
-                while (-not $selectedConfig) {
-                    $selection = Read-Host "Select configuration [1-$($configFiles.Count)]"
-                    if ($selection -match '^\d+$') {
-                        $idx = [int]$selection - 1
-                        if ($idx -ge 0 -and $idx -lt $configFiles.Count) {
-                            $selectedConfig = $configFiles[$idx].FullName
-                            Write-Host ""
-                            Write-Status "Selected: $($configFiles[$idx].Name)" "Success"
-                        }
-                    }
-                    if (-not $selectedConfig) {
-                        Write-Host "Invalid selection. Please enter a number between 1 and $($configFiles.Count)" -ForegroundColor Red
-                    }
-                }
-            }
-
-            if ($selectedConfig) {
-                $privateSettings = Import-YamlConfig $selectedConfig
-                $Script:Config = Merge-Configs $Script:Config $privateSettings
-                Write-Status "Merged config: $(Split-Path $selectedConfig -Leaf)" "Info"
-            }
-        }
+    # Merge the private config selected during instance discovery (top of script)
+    if ($Script:SelectedPrivateConfig -and (Test-Path $Script:SelectedPrivateConfig)) {
+        $privateSettings = Import-YamlConfig $Script:SelectedPrivateConfig
+        $Script:Config = Merge-Configs $Script:Config $privateSettings
+        $configLabel = if ($Script:SelectedInstance) { $Script:SelectedInstance } else { Split-Path $Script:SelectedPrivateConfig -Leaf }
+        Write-Status "Merged private config: $configLabel" "Info"
     }
 }
 
@@ -1201,8 +1203,8 @@ if (Get-Command Validate-Config -ErrorAction SilentlyContinue) {
     }
 
     if (-not $validation.Valid) {
-        foreach ($error in $validation.Errors) {
-            Write-Status $error "Error"
+        foreach ($validationError in $validation.Errors) {
+            Write-Status $validationError "Error"
         }
         Write-Status "Config validation failed" "Error"
         exit 1
