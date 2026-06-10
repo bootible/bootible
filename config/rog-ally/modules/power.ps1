@@ -6,6 +6,11 @@
 # controllable from here - this module changes what Windows does on
 # idle, lid, and power-button events.
 
+if (-not (Get-Command Get-PowerConfigCommands -ErrorAction SilentlyContinue)) {
+    Write-Status "Power helpers not loaded - skipping power module" "Warning"
+    return
+}
+
 $sleepMode = Get-ConfigValue "sleep_mode" "default"
 $hibernateAfter = Get-ConfigValue "hibernate_after_minutes" 0
 $buttonAction = Get-ConfigValue "power_button_action" ""
@@ -26,9 +31,9 @@ if ($Script:DryRun) {
 
 Write-Status "Applying power configuration (sleep_mode: $sleepMode)..." "Info"
 foreach ($cmd in $commands) {
-    & powercfg @cmd | Out-Null
+    $output = & powercfg @cmd
     if ($LASTEXITCODE -ne 0) {
-        Write-Status "powercfg $($cmd -join ' ') failed (exit $LASTEXITCODE)" "Warning"
+        Write-Status "powercfg $($cmd -join ' ') failed (exit $LASTEXITCODE): $output" "Warning"
     }
 }
 Write-Status "Power configuration applied" "Success"

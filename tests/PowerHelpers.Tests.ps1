@@ -37,4 +37,15 @@ Describe "Get-PowerConfigCommands" {
         $shutdown = @(Get-PowerConfigCommands -SleepMode "default" -HibernateAfterMinutes 0 -PowerButtonAction "shutdown")
         ($shutdown | ForEach-Object { $_ -join ' ' }) | Should -Contain "/setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 3"
     }
+
+    It "Silently ignores an unknown sleep mode" {
+        $result = @(Get-PowerConfigCommands -SleepMode "banana" -HibernateAfterMinutes 0 -PowerButtonAction "")
+        $result.Count | Should -Be 0
+    }
+
+    It "Silently ignores negative hibernate_after_minutes" {
+        $result = @(Get-PowerConfigCommands -SleepMode "hibernate" -HibernateAfterMinutes -5 -PowerButtonAction "")
+        ($result | ForEach-Object { $_ -join ' ' }) | Should -Contain "/hibernate on"
+        ($result | ForEach-Object { $_ -join ' ' }) -match "hibernate-timeout" | Should -BeNullOrEmpty
+    }
 }
