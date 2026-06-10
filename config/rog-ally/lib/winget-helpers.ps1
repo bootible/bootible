@@ -62,7 +62,7 @@ function Install-WingetPackage {
         [string]$PackageId,
         [string]$Name,
         [switch]$Force,
-        [int]$TimeoutSeconds = 300  # 5 minute timeout per source
+        [int]$TimeoutSeconds = 300  # 5 minute timeout per source (larger packages like VLC need more time)
     )
 
     $operationStart = Get-Date
@@ -76,6 +76,7 @@ function Install-WingetPackage {
 
     # Check if already installed first (even in DryRun)
     try {
+        # Check both sources for existing installation
         $installed = winget list --id $PackageId --accept-source-agreements 2>$null
         if ($installed -match $PackageId) {
             Write-Status "$Name already installed - skipping" "Success"
@@ -93,6 +94,8 @@ function Install-WingetPackage {
         $foundInWinget = $false
         $foundInMsStore = $false
 
+        # winget outputs to stderr which triggers ErrorActionPreference=Stop
+        # Temporarily allow stderr without throwing
         $prevEAP = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
@@ -150,8 +153,10 @@ function Install-WingetPackage {
             Remove-Job -Id $job.Id -Force
             return $jobResult
         } else {
+            # Timeout - kill the job and any winget processes it spawned
             Stop-Job -Id $job.Id -ErrorAction SilentlyContinue
             Remove-Job -Id $job.Id -Force -ErrorAction SilentlyContinue
+            # Kill any hanging winget processes
             Get-Process -Name "winget" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             return @{ ExitCode = -1; Output = "Timeout after $TimeoutSeconds seconds"; TimedOut = $true }
         }
@@ -207,7 +212,7 @@ function Install-WingetPackage {
         }
     }
 
-    # Both sources failed
+    # Both sources failed - show error details
     Write-Status "Failed to install $Name from all sources" "Warning"
     if ($result.Output -and -not $result.TimedOut) {
         $errorLines = $result.Output | Where-Object { $_ -match "error|fail|not found|applicable" } | Select-Object -First 3
@@ -248,5 +253,6 @@ function Get-GitHubLatestRelease {
         AssetName   = $asset.name
         DownloadUrl = $asset.browser_download_url
         Size        = $asset.size
+        Digest      = $asset.digest  # "sha256:<hex>" when GitHub provides it; $null otherwise
     }
 }

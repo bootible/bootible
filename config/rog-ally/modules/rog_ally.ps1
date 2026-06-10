@@ -108,47 +108,70 @@ if (Get-ConfigValue "install_msi_afterburner" $false) {
 }
 
 if (Get-ConfigValue "install_ghelper" $false) {
-    $gHelperDir = Join-Path $env:LOCALAPPDATA "GHelper"
-    $gHelperExe = Join-Path $gHelperDir "GHelper.exe"
-
-    if (Test-Path $gHelperExe) {
-        Write-Status "G-Helper already installed - skipping" "Success"
-    } elseif ($Script:DryRun) {
-        Write-Status "[DRY RUN] Would install G-Helper (Armoury Crate alternative) from GitHub releases" "Info"
+    if (-not (Get-Command Get-GitHubLatestRelease -ErrorAction SilentlyContinue)) {
+        Write-Status "Winget helpers not loaded - skipping G-Helper install" "Warning"
     } else {
-        Write-Status "Installing G-Helper (lightweight Armoury Crate alternative)..." "Info"
-        $release = Get-GitHubLatestRelease -Repo "seerge/g-helper" -AssetPattern "GHelper.zip"
-        if (-not $release) {
-            Write-Status "Could not resolve G-Helper release - install manually: https://github.com/seerge/g-helper/releases" "Warning"
+        $gHelperDir = Join-Path $env:LOCALAPPDATA "GHelper"
+        $gHelperExe = Join-Path $gHelperDir "GHelper.exe"
+
+        if (Test-Path $gHelperExe) {
+            Write-Status "G-Helper already installed - skipping" "Success"
+        } elseif ($Script:DryRun) {
+            Write-Status "[DRY RUN] Would install G-Helper (Armoury Crate alternative) from GitHub releases" "Info"
         } else {
-            $zipFile = Join-Path $env:TEMP $release.AssetName
-            try {
-                $ProgressPreference = 'SilentlyContinue'
-                Invoke-WebRequest -Uri $release.DownloadUrl -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
-                $ProgressPreference = 'Continue'
+            Write-Status "Installing G-Helper (lightweight Armoury Crate alternative)..." "Info"
+            $release = Get-GitHubLatestRelease -Repo "seerge/g-helper" -AssetPattern "GHelper.zip"
+            if (-not $release) {
+                Write-Status "Could not resolve G-Helper release - install manually: https://github.com/seerge/g-helper/releases" "Warning"
+            } else {
+                $zipFile = Join-Path $env:TEMP $release.AssetName
+                $prevProgressPreference = $ProgressPreference
+                try {
+                    $ProgressPreference = 'SilentlyContinue'
+                    Invoke-WebRequest -Uri $release.DownloadUrl -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
 
-                $downloaded = (Get-Item $zipFile).Length
-                if ($downloaded -ne $release.Size) {
-                    throw "Size mismatch: expected $($release.Size) bytes, got $downloaded"
+                    # The digest and the download come from the same GitHub channel,
+                    # so this hardens transfer integrity (corruption/truncation),
+                    # not provenance
+                    if ($release.Digest -and $release.Digest -match '^sha256:([0-9a-fA-F]{64})$') {
+                        $expectedHash = $matches[1]
+                        $actualHash = (Get-FileHash -Path $zipFile -Algorithm SHA256).Hash
+                        if ($actualHash -ne $expectedHash) {
+                            throw "SHA256 mismatch for $($release.AssetName): expected $expectedHash, got $actualHash"
+                        }
+                    } else {
+                        $downloaded = (Get-Item $zipFile).Length
+                        if ($downloaded -ne $release.Size) {
+                            throw "Size mismatch: expected $($release.Size) bytes, got $downloaded"
+                        }
+                    }
+
+                    New-Item -ItemType Directory -Path $gHelperDir -Force | Out-Null
+                    Expand-Archive -Path $zipFile -DestinationPath $gHelperDir -Force
+
+                    if (Test-Path $gHelperExe) {
+                        Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'GHelper' -Value "`"$gHelperExe`""
+                        Write-Status "G-Helper $($release.Tag) installed (autostarts at login)" "Success"
+                        try {
+                            Start-Process -FilePath $gHelperExe
+                            Write-Status "G-Helper started" "Success"
+                        } catch {
+                            Write-Status "Could not start G-Helper now (it will autostart at next login): $_" "Warning"
+                        }
+                    } else {
+                        Write-Status "G-Helper archive extracted but GHelper.exe not found - check $gHelperDir" "Warning"
+                    }
+                } catch {
+                    Write-Status "Failed to install G-Helper: $_" "Warning"
+                    Write-Status "Install manually: https://github.com/seerge/g-helper/releases" "Info"
+                } finally {
+                    $ProgressPreference = $prevProgressPreference
+                    Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
                 }
-
-                New-Item -ItemType Directory -Path $gHelperDir -Force | Out-Null
-                Expand-Archive -Path $zipFile -DestinationPath $gHelperDir -Force
-                Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
-
-                if (Test-Path $gHelperExe) {
-                    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'GHelper' -Value "`"$gHelperExe`""
-                    Write-Status "G-Helper $($release.Tag) installed (autostarts at login)" "Success"
-                } else {
-                    Write-Status "G-Helper archive extracted but GHelper.exe not found - check $gHelperDir" "Warning"
-                }
-            } catch {
-                Write-Status "Failed to install G-Helper: $_" "Warning"
-                Write-Status "Install manually: https://github.com/seerge/g-helper/releases" "Info"
             }
         }
+        Write-Status "G-Helper: TDP, fan curves, GPU modes without Armoury Crate" "Info"
     }
-    Write-Status "G-Helper: TDP, fan curves, GPU modes without Armoury Crate" "Info"
 }
 
 if (Get-ConfigValue "install_cpuz" $false) {
