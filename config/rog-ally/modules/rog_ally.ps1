@@ -197,7 +197,9 @@ if (Get-ConfigValue "install_hidhide" $false) {
     $wasAlreadyInstalled = $false
     try {
         $wasAlreadyInstalled = (winget list --id "Nefarius.HidHide" --accept-source-agreements 2>$null) -match "Nefarius.HidHide"
-    } catch {}
+    } catch {
+        # winget list failed, continue with install attempt
+    }
     $installed = Install-WingetPackage -PackageId "Nefarius.HidHide" -Name "HidHide"
     if ($installed -and -not $wasAlreadyInstalled -and -not $Script:DryRun) {
         Write-Status "HidHide installs a kernel filter driver - a REBOOT is required before it takes effect" "Warning"

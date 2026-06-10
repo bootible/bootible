@@ -182,3 +182,40 @@ function Write-SmartAppControlAdvice {
         }
     }
 }
+
+function Get-ScaffoldDirectories {
+    <#
+    .SYNOPSIS
+        Returns the list of directories to scaffold from a config hashtable.
+    .DESCRIPTION
+        Reads 'games_path' and 'roms_path' keys directly from the supplied
+        hashtable (NOT via Get-ConfigValue - zero scope dependencies). Trims
+        whitespace, skips empty or whitespace-only values, and skips relative
+        paths. Relative paths are rejected because resolution is ambiguous
+        under an elevated shell: the working directory may differ from the
+        user's home directory, and silently creating directories in the wrong
+        location is worse than skipping them. Deduplicates case-insensitively,
+        preserving first occurrence. Emits each accepted path onto the pipeline.
+    #>
+    param(
+        [hashtable]$Config
+    )
+
+    $seen = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($key in @('games_path', 'roms_path')) {
+        if (-not $Config.ContainsKey($key)) { continue }
+        $val = [string]($Config[$key])
+        $val = $val.Trim()
+        if ([string]::IsNullOrWhiteSpace($val)) { continue }
+        # [System.IO.Path]::IsPathRooted handles Unix paths on Linux and Windows
+        # drive paths when running on Windows. The drive-letter regex covers
+        # Windows paths (D:\...) when the function is tested on Linux/WSL.
+        $isRooted = [System.IO.Path]::IsPathRooted($val) -or ($val -match '^[A-Za-z]:[\\\/]')
+        if (-not $isRooted) { continue }
+        if ($seen.Add($val)) {
+            $val
+        }
+    }
+}

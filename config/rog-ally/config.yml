@@ -207,6 +207,12 @@ disable_cpu_boost_on_battery: false  # Turn off CPU boost on battery (better the
 configure_hdr: ""                 # "" (unchanged) | on | off  - needs HDRCmd (auto-downloaded)
 set_refresh_rate: 0               # 0 = unchanged | 60 | 120 (must be a mode the panel supports)
 
+# Paths - created if set (absolute Windows paths). Steam library registration
+# is manual: Steam > Settings > Storage (libraryfolders.vdf is unsafe to edit
+# programmatically).
+games_path: ""              # e.g. "D:\\Games"
+roms_path: ""               # e.g. "D:\\Emulation\\ROMs"
+
 # =============================================================================
 # SYSTEM OPTIMIZATION
 # =============================================================================

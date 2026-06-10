@@ -661,6 +661,10 @@ function Validate-ConfigSchema {
         'configure_hdr' = 'enum:,on,off'
         'set_refresh_rate' = 'int'
 
+        # Paths
+        'games_path' = 'string'
+        'roms_path' = 'string'
+
         # Development
         'install_git' = 'bool'
         'install_python' = 'bool'
