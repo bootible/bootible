@@ -55,6 +55,10 @@ $powerHelpersPath = Join-Path $PSScriptRoot "lib/power-helpers.ps1"
 if (Test-Path $powerHelpersPath) {
     . $powerHelpersPath
 }
+$displayHelpersPath = Join-Path $PSScriptRoot "lib/display-helpers.ps1"
+if (Test-Path $displayHelpersPath) {
+    . $displayHelpersPath
+}
 $wingetHelpersPath = Join-Path $PSScriptRoot "lib/winget-helpers.ps1"
 if (Test-Path $wingetHelpersPath) {
     . $wingetHelpersPath
@@ -652,6 +656,10 @@ function Validate-ConfigSchema {
         'power_button_action' = 'enum:,sleep,hibernate,shutdown'
         'disable_cpu_boost_on_battery' = 'bool'
 
+        # Display
+        'configure_hdr' = 'enum:,on,off'
+        'set_refresh_rate' = 'int'
+
         # Development
         'install_git' = 'bool'
         'install_python' = 'bool'
@@ -1126,6 +1134,7 @@ $moduleOrder = @(
     "rog_ally",
     "optimization",   # Optimization after all installs
     "power",          # Power/sleep settings after optimization
+    "display",        # HDR toggle and refresh rate (after power)
     "debloat",        # Debloat last (configures installed apps like PS7)
     "health"          # Post-install checks
 )

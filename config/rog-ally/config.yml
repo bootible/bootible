@@ -198,6 +198,11 @@ hibernate_after_minutes: 0        # 0 = system default timing
 power_button_action: ""           # "" (unchanged) | sleep | hibernate | shutdown
 disable_cpu_boost_on_battery: false  # Turn off CPU boost on battery (better thermals/battery; AC untouched)
 
+# Display
+# HDR and refresh rate for the internal panel. Both default to "leave alone".
+configure_hdr: ""                 # "" (unchanged) | on | off  - needs HDRCmd (auto-downloaded)
+set_refresh_rate: 0               # 0 = unchanged | 60 | 120 (must be a mode the panel supports)
+
 # =============================================================================
 # SYSTEM OPTIMIZATION
 # =============================================================================
