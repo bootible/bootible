@@ -184,6 +184,10 @@ install_hwinfo: true          # Hardware monitoring
 install_msi_afterburner: true # GPU tweaking (limited on Ally)
 # G-Helper - lightweight Armoury Crate alternative (TDP, fans, GPU modes)
 install_ghelper: false
+# HidHide - kernel-mode HID filter (hides physical gamepad from games when
+# using a remapper; prevents double input). Renamed from install_hidmanager.
+# NOTE: requires a reboot after first install.
+install_hidhide: false
 install_cpuz: true            # CPU information
 install_gpuz: true            # GPU information
 
