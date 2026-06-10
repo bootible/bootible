@@ -63,6 +63,10 @@ $receiptPath = Join-Path $PSScriptRoot "lib/receipt.ps1"
 if (Test-Path $receiptPath) {
     . $receiptPath
 }
+$stateSnapshotLibPath = Join-Path $PSScriptRoot "lib/state-snapshot.ps1"
+if (Test-Path $stateSnapshotLibPath) {
+    . $stateSnapshotLibPath
+}
 
 # Select the private config to merge later. When -ConfigFile is passed (ally.ps1
 # bootstrap), the instance was already chosen. Otherwise (bootible re-run),
@@ -1103,6 +1107,31 @@ if (Get-ConfigValue "create_restore_point" $true) {
     }
 }
 
+# Drift report: compare live state against the last known-good snapshot
+$Script:StateSnapshotPath = $null
+if ($Script:SelectedInstance -and (Get-Command Read-StateSnapshot -ErrorAction SilentlyContinue)) {
+    $Script:StateSnapshotPath = Join-Path $Script:PrivateRoot "device\rog-ally\$($Script:SelectedInstance)\state.json"
+    $lastSnapshot = Read-StateSnapshot -Path $Script:StateSnapshotPath
+    if ($lastSnapshot) {
+        $live = Get-LiveState -Config $Script:Config
+        $drift = @(Compare-StateSnapshot -Expected $lastSnapshot -Actual $live)
+        if ($drift.Count -gt 0) {
+            Write-Header "DRIFT DETECTED SINCE LAST RUN"
+            foreach ($item in $drift) {
+                Write-Status "$($item.Key): expected '$($item.Expected)', found '$($item.Actual)'" "Warning"
+                if ($item.Key -eq 'gpu_driver') {
+                    Write-Status "GPU driver changed - bootible reports this but will NOT roll drivers back" "Info"
+                } elseif (-not $Script:DryRun) {
+                    Add-AppliedChange "Repaired drift: $($item.Key)"
+                }
+            }
+            Write-Status "Modules below will re-apply your configuration" "Info"
+        } else {
+            Write-Status "No drift since last run" "Success"
+        }
+    }
+}
+
 # Load and run modules
 $modulesPath = Join-Path $Script:DeviceRoot "modules"
 
@@ -1140,6 +1169,16 @@ foreach ($moduleName in $moduleOrder) {
 
 # Display installation summary
 Write-Summary
+
+# Refresh the known-good snapshot
+if (-not $Script:DryRun -and $Script:StateSnapshotPath -and (Get-Command Save-StateSnapshot -ErrorAction SilentlyContinue)) {
+    try {
+        Save-StateSnapshot -Snapshot (Get-LiveState -Config $Script:Config) -Path $Script:StateSnapshotPath
+        Write-Status "State snapshot saved" "Success"
+    } catch {
+        Write-Status "Could not save state snapshot: $_" "Warning"
+    }
+}
 
 # Write the on-device receipt (real runs only)
 if (-not $Script:DryRun -and (Get-Command New-BootibleReceipt -ErrorAction SilentlyContinue)) {
