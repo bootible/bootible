@@ -19,6 +19,10 @@ if (-not (Get-Command Resolve-DisplayPlan -ErrorAction SilentlyContinue)) {
 $configHdr = Get-ConfigValue "configure_hdr" ""
 $configHz  = Get-ConfigValue "set_refresh_rate" 0
 
+if ($configHz -lt 0) {
+    Write-Status "set_refresh_rate must be a positive Hz value (got $configHz) - ignoring" "Warning"
+}
+
 $plan = @(Resolve-DisplayPlan -ConfigureHdr $configHdr -RefreshRate $configHz)
 
 if ($plan.Count -eq 0) {
@@ -30,6 +34,10 @@ if ($Script:DryRun) {
     foreach ($action in $plan) {
         if ($action.Action -eq "hdr") {
             Write-Status "[DRY RUN] Would turn HDR $($action.Value)" "Info"
+            $dryRunHdrCmd = Join-Path $env:LOCALAPPDATA "Bootible\tools\HDRCmd\HDRCmd.exe"
+            if (-not (Test-Path $dryRunHdrCmd)) {
+                Write-Status "[DRY RUN] Would download HDRCmd from github.com/res2k/HDRTray (first run only)" "Info"
+            }
         } elseif ($action.Action -eq "refresh") {
             Write-Status "[DRY RUN] Would set refresh rate to $($action.Value)Hz" "Info"
         }
@@ -105,9 +113,9 @@ if ($hdrAction) {
         $prevEAP = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
-            & $hdrCmdExe $hdrValue 2>&1 | Out-Null
+            $hdrOutput = & $hdrCmdExe $hdrValue 2>&1
             if ($LASTEXITCODE -ne 0) {
-                Write-Status "HDRCmd exited with code $LASTEXITCODE while setting HDR $hdrValue" "Warning"
+                Write-Status "HDRCmd exited with code $LASTEXITCODE while setting HDR ${hdrValue}: $hdrOutput" "Warning"
             } else {
                 $label = if ($hdrValue -eq "on") { "HDR turned on" } else { "HDR turned off" }
                 Write-Status $label "Success"
@@ -231,6 +239,9 @@ namespace Bootible {
 '@ -ErrorAction Stop
         }
 
+        # EnumDisplaySettings(null, ...) targets the PRIMARY display - on a docked
+        # device with an external primary monitor, the change applies there, not
+        # the internal panel.
         $curW = [Bootible.DisplayHelper]::GetCurrentWidth()
         $curH = [Bootible.DisplayHelper]::GetCurrentHeight()
         $supported = @([Bootible.DisplayHelper]::GetSupportedRefreshRates($curW, $curH))
