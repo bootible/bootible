@@ -68,17 +68,10 @@ BeforeAll {
             ForEach-Object { $null = $Script:ConsumedKeys.Add($_.Groups[1].Value) }
     }
 
-    # Allowlist for keys the scan cannot see.
-    # All structural keys are reached by the literal scan except where a pure
-    # function reads them via $Config[$key] to stay scope-free and Linux-testable.
-    $Script:Allowlist = @(
-        # games_path, roms_path: consumed by Get-ScaffoldDirectories (lib/helpers.ps1)
-        # via direct hashtable access ($Config[$key] in a foreach loop). The function
-        # is intentionally scope-free (no Get-ConfigValue) so it can be unit-tested on
-        # Linux; that design makes the keys invisible to the Get-ConfigValue scan.
-        'games_path',
-        'roms_path'
-    )
+    # Allowlist for keys the scan cannot see (intentionally empty -- all structural
+    # keys are reached by the literal scan: static_ip in base.ps1, package_managers
+    # in base.ps1, password_managers in apps.ps1).
+    $Script:Allowlist = @()
 
     # Parse Validate-ConfigSchema root keys, scoped to the function body so that
     # unrelated 'key' = 'value' hashtables elsewhere in Run.ps1 are not picked up.

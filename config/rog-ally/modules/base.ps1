@@ -271,7 +271,10 @@ try {
 # Steam overwrites it); add the folder in Steam > Settings > Storage.
 
 if (Get-Command Get-ScaffoldDirectories -ErrorAction SilentlyContinue) {
-    $scaffoldDirs = @(Get-ScaffoldDirectories -Config $Script:Config)
+    $scaffoldDirs = @(Get-ScaffoldDirectories -Paths @(
+        (Get-ConfigValue "games_path" ""),
+        (Get-ConfigValue "roms_path" "")
+    ))
     foreach ($dir in $scaffoldDirs) {
         if (Test-Path $dir) {
             Write-Status "Directory exists: $dir" "Info"
