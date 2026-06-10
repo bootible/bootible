@@ -559,8 +559,8 @@ function Validate-ConfigSchema {
         'install_windows_terminal' = 'bool'
         'install_powershell7' = 'bool'
 
-        # Password manager
-        'password_manager' = 'enum:1password,bitwarden,keepassxc,none'
+        # Password managers
+        'password_managers' = 'list'
 
         # Gaming
         'install_steam' = 'bool'
@@ -573,9 +573,7 @@ function Validate-ConfigSchema {
         'install_playnite' = 'bool'
         'install_launchbox' = 'bool'
         'install_ds4windows' = 'bool'
-        'install_hidmanager' = 'bool'
         'install_nexus_mods' = 'bool'
-        'install_reshade' = 'bool'
 
         # Streaming
         'install_moonlight' = 'bool'
@@ -591,30 +589,10 @@ function Validate-ConfigSchema {
         'install_protonvpn' = 'bool'
         'install_anydesk' = 'bool'
         'install_rustdesk' = 'bool'
-        'install_parsec_remote' = 'bool'
 
         # SSH
         'ssh_server_enable' = 'bool'
-        'ssh_import_authorized_keys' = 'bool'
         'ssh_authorized_keys' = 'list'
-        'ssh_key_name' = 'string'
-        'ssh_generate_key' = 'bool'
-        'ssh_add_to_github' = 'bool'
-        'ssh_save_to_private' = 'bool'
-        'ssh_configure_git' = 'bool'
-
-        # Emulation
-        'install_emudeck' = 'bool'
-        'install_retroarch' = 'bool'
-        'install_emulationstation' = 'bool'
-        'install_dolphin' = 'bool'
-        'install_pcsx2' = 'bool'
-        'install_rpcs3' = 'bool'
-        'install_yuzu' = 'bool'
-        'install_ryujinx' = 'bool'
-        'install_cemu' = 'bool'
-        'install_duckstation' = 'bool'
-        'install_ppsspp' = 'bool'
 
         # ROG Ally specific
         'install_armoury_crate' = 'bool'
@@ -632,7 +610,6 @@ function Validate-ConfigSchema {
         'disable_xbox_game_bar' = 'bool'
         'disable_game_dvr' = 'bool'
         'disable_tips' = 'bool'
-        'disable_cortana' = 'bool'
         'enable_game_mode' = 'bool'
         'enable_hardware_gpu_scheduling' = 'bool'
         'disable_fullscreen_optimizations' = 'bool'
@@ -642,19 +619,10 @@ function Validate-ConfigSchema {
         'disable_amd_varibright' = 'bool'
         'steam_disable_guide_focus' = 'bool'
         'steam_start_big_picture' = 'bool'
-        'configure_hdr' = 'bool'
-        'set_refresh_rate' = 'int'
         'enable_storage_sense' = 'bool'
-        'compact_os' = 'bool'
         'run_disk_cleanup' = 'bool'
         'force_time_sync' = 'bool'
         'generate_battery_report' = 'bool'
-
-        # Paths
-        'user_home' = 'string'
-        'games_path' = 'string'
-        'roms_path' = 'string'
-        'bios_path' = 'string'
 
         # Debloat
         'disable_telemetry' = 'bool'

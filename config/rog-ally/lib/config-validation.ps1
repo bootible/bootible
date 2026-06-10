@@ -23,7 +23,6 @@ function Validate-Config {
     # Type validation rules: key => expected type
     $typeRules = @{
         'hostname' = 'string'
-        'ssh_port' = 'int'
         'install_steam' = 'bool'
         'install_discord' = 'bool'
         'install_apps' = 'bool'
@@ -49,13 +48,8 @@ function Validate-Config {
         'static_ip.address' = 'string'
         'static_ip.gateway' = 'string'
         'ssh_server_enable' = 'bool'
-        'ssh_generate_key' = 'bool'
-        'ssh_add_to_github' = 'bool'
-        'ssh_save_to_private' = 'bool'
-        'ssh_configure_git' = 'bool'
         'enable_game_mode' = 'bool'
         'enable_hardware_gpu_scheduling' = 'bool'
-        'set_refresh_rate' = 'int'
     }
 
     foreach ($key in $typeRules.Keys) {
@@ -84,15 +78,6 @@ function Validate-Config {
         }
         if ([string]::IsNullOrWhiteSpace($gateway)) {
             $errors += "Static IP enabled but 'static_ip.gateway' is not set"
-        }
-    }
-
-    # SSH server validation: warn if authorized_keys import enabled but list empty
-    $sshImportKeys = Get-ConfigValue -Key 'ssh_import_authorized_keys' -Default $false
-    if ($sshImportKeys -eq $true -or $sshImportKeys -eq 'true') {
-        $authorizedKeys = Get-ConfigValue -Key 'ssh_authorized_keys' -Default @()
-        if ($null -eq $authorizedKeys -or $authorizedKeys.Count -eq 0) {
-            $warnings += "SSH key import enabled but 'ssh_authorized_keys' list is empty"
         }
     }
 

@@ -26,7 +26,7 @@ This table maps bootible's ROG Ally coverage against the converged "new Windows 
 Genuine gaps that are too large to close in this pass:
 
 - **Preinstalled app (Appx) removal** — needs a curated, per-Windows-build safe-list so removals don't break Store/Xbox/Game Pass dependencies that handhelds rely on, plus an undo story.
-- **Display refresh rate (`set_refresh_rate`)** — requires Win32 `ChangeDisplaySettingsEx` P/Invoke (or a bundled helper binary) with display-mode enumeration and validation against the panel's supported modes.
-- **HDR (`configure_hdr`)** — Windows has no supported scriptable HDR toggle; would need WinRT `Windows.Graphics.Display` APIs with per-display capability detection.
+- **Display refresh rate** — removed from config in the v1.1 dead-key purge (was schema-validated but never implemented). Will be re-added in v1.1 T2 with a real Win32 `ChangeDisplaySettingsEx` P/Invoke implementation.
+- **HDR** — removed from config in the v1.1 dead-key purge (was schema-validated but never implemented). Will be re-added in v1.1 T2 with WinRT `Windows.Graphics.Display` APIs and per-display capability detection.
 - **Windows Update pausing / driver pinning** — GPU driver version changes are now detected and reported by the drift guard that shipped with the state-snapshot work (report-only — no rollback). What remains deferred is prevention: an update-policy module that can pause/defer Windows Update and pin a known-good driver version.
 - **G-Helper updates** — installed once, never auto-updated; a deliberate `-Force` update path is future work.
