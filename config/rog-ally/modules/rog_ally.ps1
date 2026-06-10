@@ -116,7 +116,7 @@ if (Get-ConfigValue "install_ghelper" $false) {
 
         if (Test-Path $gHelperExe) {
             Write-Status "G-Helper already installed - skipping" "Success"
-            if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+            if (-not $Script:DryRun -and (Get-Command Add-InstallResult -ErrorAction SilentlyContinue)) {
                 Add-InstallResult -PackageId 'seerge/g-helper' -Name 'G-Helper' -Status 'skipped' -Source 'direct'
             }
         } elseif ($Script:DryRun) {

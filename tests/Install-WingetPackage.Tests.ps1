@@ -342,6 +342,26 @@ Describe "Install-WingetPackage" {
             }
         }
 
+        It "Records succeeded with Source winget exactly once on post-recovery retry success" {
+            $script:jobCounter = 0
+            Mock Start-Job {
+                $script:jobCounter++
+                [PSCustomObject]@{ Id = $script:jobCounter; State = 'Running' }
+            }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = -2145844748; Output = "Failed when opening source(s); try the 'source reset' command if the problem persists." } } -ParameterFilter { $Id -eq 1 }
+            Mock Receive-Job { @{ ExitCode = 0; Output = "Successfully installed" } } -ParameterFilter { $Id -eq 2 }
+            Mock Remove-Job { }
+            Mock winget { return "" } -ParameterFilter { ($args -join ' ') -match 'source (reset|update)' }
+
+            Install-WingetPackage -PackageId "Test.Package" -Name "Test Package" | Out-Null
+
+            Should -Invoke Add-InstallResult -Times 1 -Exactly -ParameterFilter {
+                $Status -eq 'succeeded' -and $Source -eq 'winget'
+            }
+            Should -Invoke Add-InstallResult -Times 1 -Exactly
+        }
+
         It "Records failed with non-empty Message when all sources fail" {
             Mock Start-Job { [PSCustomObject]@{ Id = 1; State = 'Running' } }
             Mock Wait-Job { $true }
