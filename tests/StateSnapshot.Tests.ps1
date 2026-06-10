@@ -33,6 +33,47 @@ Describe "Compare-StateSnapshot" {
     }
 }
 
+Describe "Get-VerifiedRepairs" {
+    It "Classifies all drift as repaired when post-state matches expected" {
+        $pre = @([pscustomobject]@{ Key = "hibernate_enabled"; Expected = $true; Actual = $false })
+        $expected = @{ hibernate_enabled = $true }
+        $post = @{ hibernate_enabled = $true }
+
+        $result = Get-VerifiedRepairs -PreDrift $pre -Expected $expected -PostState $post
+
+        @($result.Repaired).Count | Should -Be 1
+        $result.Repaired[0].Key | Should -Be "hibernate_enabled"
+        @($result.Unrepaired).Count | Should -Be 0
+    }
+
+    It "Splits mixed outcomes into repaired and unrepaired" {
+        $pre = @(
+            [pscustomobject]@{ Key = "hibernate_enabled"; Expected = $true; Actual = $false },
+            [pscustomobject]@{ Key = "sshd_running"; Expected = $true; Actual = $false }
+        )
+        $expected = @{ hibernate_enabled = $true; sshd_running = $true }
+        $post = @{ hibernate_enabled = $true; sshd_running = $false }
+
+        $result = Get-VerifiedRepairs -PreDrift $pre -Expected $expected -PostState $post
+
+        @($result.Repaired).Count | Should -Be 1
+        $result.Repaired[0].Key | Should -Be "hibernate_enabled"
+        @($result.Unrepaired).Count | Should -Be 1
+        $result.Unrepaired[0].Key | Should -Be "sshd_running"
+    }
+
+    It "Treats a key absent from post-state as unrepaired" {
+        $pre = @([pscustomobject]@{ Key = "sshd_running"; Expected = $true; Actual = $false })
+        $expected = @{ sshd_running = $true }
+
+        $result = Get-VerifiedRepairs -PreDrift $pre -Expected $expected -PostState @{}
+
+        @($result.Repaired).Count | Should -Be 0
+        @($result.Unrepaired).Count | Should -Be 1
+        $result.Unrepaired[0].Key | Should -Be "sshd_running"
+    }
+}
+
 Describe "Snapshot serialization" {
     It "Round-trips a snapshot through JSON" {
         $snapshot = @{ hibernate_enabled = $true; gpu_driver = "31.0.24027"; packages = @("Steam", "Discord") }
@@ -48,5 +89,17 @@ Describe "Snapshot serialization" {
 
     It "Read returns null for a missing file" {
         Read-StateSnapshot -Path (Join-Path $TestDrive "missing.json") | Should -BeNullOrEmpty
+    }
+
+    It "Read returns null for an empty or whitespace-only file" {
+        $file = Join-Path $TestDrive "blank.json"
+        Set-Content -Path $file -Value "   "
+        Read-StateSnapshot -Path $file | Should -Be $null
+    }
+
+    It "Read returns null for an empty JSON object" {
+        $file = Join-Path $TestDrive "empty-object.json"
+        Set-Content -Path $file -Value "{}"
+        Read-StateSnapshot -Path $file | Should -Be $null
     }
 }

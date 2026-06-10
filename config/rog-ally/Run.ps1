@@ -1107,12 +1107,17 @@ if (Get-ConfigValue "create_restore_point" $true) {
     }
 }
 
-# Drift report: compare live state against the last known-good snapshot
+# Drift report: compare live state against the last known-good snapshot.
+# Repair claims are deferred to post-run verification (Get-VerifiedRepairs).
+# Skipped entirely on tag-filtered runs - a partial run cannot claim repair.
 $Script:StateSnapshotPath = $null
-if ($Script:SelectedInstance -and (Get-Command Read-StateSnapshot -ErrorAction SilentlyContinue)) {
+$Script:PreRunDrift = @()
+$Script:LastSnapshot = $null
+if ($Tags.Count -eq 0 -and $Script:SelectedInstance -and (Get-Command Read-StateSnapshot -ErrorAction SilentlyContinue)) {
     $Script:StateSnapshotPath = Join-Path $Script:PrivateRoot "device\rog-ally\$($Script:SelectedInstance)\state.json"
     $lastSnapshot = Read-StateSnapshot -Path $Script:StateSnapshotPath
     if ($lastSnapshot) {
+        $Script:LastSnapshot = $lastSnapshot
         $live = Get-LiveState -Config $Script:Config
         $drift = @(Compare-StateSnapshot -Expected $lastSnapshot -Actual $live)
         if ($drift.Count -gt 0) {
@@ -1121,11 +1126,13 @@ if ($Script:SelectedInstance -and (Get-Command Read-StateSnapshot -ErrorAction S
                 Write-Status "$($item.Key): expected '$($item.Expected)', found '$($item.Actual)'" "Warning"
                 if ($item.Key -eq 'gpu_driver') {
                     Write-Status "GPU driver changed - bootible reports this but will NOT roll drivers back" "Info"
-                } elseif (-not $Script:DryRun) {
-                    Add-AppliedChange "Repaired drift: $($item.Key)"
                 }
             }
-            Write-Status "Modules below will re-apply your configuration" "Info"
+            # gpu_driver is report-only; only the rest are candidates for repair
+            $Script:PreRunDrift = @($drift | Where-Object { $_.Key -ne 'gpu_driver' })
+            if ($Script:PreRunDrift.Count -gt 0) {
+                Write-Status "Modules below will re-apply your configuration" "Info"
+            }
         } else {
             Write-Status "No drift since last run" "Success"
         }
@@ -1170,10 +1177,25 @@ foreach ($moduleName in $moduleOrder) {
 # Display installation summary
 Write-Summary
 
-# Refresh the known-good snapshot
+# Verify drift repairs against post-run state, then refresh the known-good
+# snapshot. The receipt only claims "Repaired drift" for keys whose post-run
+# value verifiably matches the snapshot's expected value.
 if (-not $Script:DryRun -and $Script:StateSnapshotPath -and (Get-Command Save-StateSnapshot -ErrorAction SilentlyContinue)) {
     try {
-        Save-StateSnapshot -Snapshot (Get-LiveState -Config $Script:Config) -Path $Script:StateSnapshotPath
+        $postState = Get-LiveState -Config $Script:Config
+
+        if ($Script:PreRunDrift.Count -gt 0 -and $Script:LastSnapshot) {
+            $repairResult = Get-VerifiedRepairs -PreDrift $Script:PreRunDrift -Expected $Script:LastSnapshot -PostState $postState
+            foreach ($item in @($repairResult.Repaired)) {
+                Add-AppliedChange "Repaired drift: $($item.Key)"
+            }
+            foreach ($item in @($repairResult.Unrepaired)) {
+                Write-Status "Drift not repaired: $($item.Key)" "Warning"
+                Add-AppliedChange "Drift detected (not repaired): $($item.Key)"
+            }
+        }
+
+        Save-StateSnapshot -Snapshot $postState -Path $Script:StateSnapshotPath
         Write-Status "State snapshot saved" "Success"
     } catch {
         Write-Status "Could not save state snapshot: $_" "Warning"

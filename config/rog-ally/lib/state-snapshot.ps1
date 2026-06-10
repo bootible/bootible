@@ -1,8 +1,9 @@
 # Bootible State Snapshot
 # =======================
-# Known-good state capture + drift detection. The snapshot lives in the
-# private repo at device/<platform>/<Instance>/state.json so it syncs
-# with the device's config. Driver drift is REPORT-ONLY (no rollback).
+# Known-good state capture + drift detection. The snapshot is local to the
+# device under the private repo clone (device/<platform>/<Instance>/state.json)
+# and intentionally NOT pushed - a fresh install starts a new baseline rather
+# than screaming drift on every key. Driver drift is REPORT-ONLY (no rollback).
 
 function Compare-StateSnapshot {
     <#
@@ -26,6 +27,34 @@ function Compare-StateSnapshot {
     }
 }
 
+function Get-VerifiedRepairs {
+    <#
+    .SYNOPSIS
+        Splits pre-run drift into repaired vs unrepaired using post-run state.
+    .DESCRIPTION
+        A drifted key counts as repaired only when the post-run value equals
+        the snapshot's expected value. gpu_driver is excluded by callers
+        (report-only). Returns @{ Repaired = [object[]]; Unrepaired = [object[]] }.
+    #>
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$PreDrift,
+        [Parameter(Mandatory)][hashtable]$Expected,
+        [Parameter(Mandatory)][hashtable]$PostState
+    )
+
+    $repaired = @()
+    $unrepaired = @()
+    foreach ($item in $PreDrift) {
+        $post = if ($PostState.ContainsKey($item.Key)) { $PostState[$item.Key] } else { $null }
+        if ("$post" -eq "$($Expected[$item.Key])") {
+            $repaired += $item
+        } else {
+            $unrepaired += $item
+        }
+    }
+    return @{ Repaired = $repaired; Unrepaired = $unrepaired }
+}
+
 function Save-StateSnapshot {
     param(
         [Parameter(Mandatory)][hashtable]$Snapshot,
@@ -44,10 +73,17 @@ function Read-StateSnapshot {
         return $null
     }
     try {
-        $json = Get-Content -Path $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+        $raw = Get-Content -Path $Path -Raw -Encoding UTF8
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return $null
+        }
+        $json = $raw | ConvertFrom-Json
         $hashtable = @{}
         foreach ($prop in $json.PSObject.Properties) {
             $hashtable[$prop.Name] = $prop.Value
+        }
+        if ($hashtable.Count -eq 0) {
+            return $null
         }
         return $hashtable
     } catch {
@@ -66,14 +102,9 @@ function Get-LiveState {
     $state = @{}
 
     try {
-        $prevEAP = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        try {
-            $hibernateOut = (& powercfg /availablesleepstates 2>&1) -join " "
-            $state['hibernate_enabled'] = $hibernateOut -match 'Hibernate'
-        } finally {
-            $ErrorActionPreference = $prevEAP
-        }
+        # Registry read instead of powercfg output parsing - locale-independent
+        $hibernateValue = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' -Name HibernateEnabled -ErrorAction Stop).HibernateEnabled
+        $state['hibernate_enabled'] = ($hibernateValue -eq 1)
     } catch { }
 
     try {
@@ -82,14 +113,22 @@ function Get-LiveState {
     } catch { }
 
     try {
-        $gpu = Get-CimInstance Win32_VideoController -ErrorAction Stop | Select-Object -First 1
-        $state['gpu_driver'] = $gpu.DriverVersion
+        # Filter to physical PCI adapters - streaming tools install virtual
+        # displays that would otherwise flap this probe
+        $gpu = Get-CimInstance Win32_VideoController -ErrorAction Stop |
+            Where-Object { $_.PNPDeviceID -like 'PCI\*' } |
+            Select-Object -First 1
+        if ($gpu) {
+            $state['gpu_driver'] = $gpu.DriverVersion
+        }
     } catch { }
 
     try {
         if ($Config -and $Config.ContainsKey('wallpaper_path') -and $Config['wallpaper_path']) {
+            # Store the actual registry value so replacement (not just unset)
+            # is detected as drift
             $current = (Get-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name WallPaper -ErrorAction Stop).WallPaper
-            $state['wallpaper_set'] = [bool]$current
+            $state['wallpaper_value'] = $current
         }
     } catch { }
 
