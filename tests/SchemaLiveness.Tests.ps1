@@ -11,17 +11,28 @@ BeforeAll {
     $Script:ModulesPath   = Join-Path $PSScriptRoot '../config/rog-ally/modules'
     $Script:LibPath       = Join-Path $PSScriptRoot '../config/rog-ally/lib'
 
-    # Parse config.yml top-level keys (no leading whitespace, not comments)
+    # Parse config.yml top-level keys. The anchor '^[a-z0-9_]+:' only matches
+    # lines that start with a key character, so comment lines can never match.
     $lines = Get-Content $Script:ConfigYmlPath
     $Script:ConfigTopKeys = @(
-        $lines | Where-Object { $_ -match '^([a-z0-9_]+):' -and $_ -notmatch '^\s*#' } |
-            ForEach-Object { if ($_ -match '^([a-z0-9_]+):') { $Matches[1] } }
+        $lines | ForEach-Object { if ($_ -match '^([a-z0-9_]+):') { $Matches[1] } }
     )
 
     # Build consumed-keys set.
     # Sources: modules/*.ps1, lib/*.ps1 (excl. config-validation.ps1), Run.ps1.
-    # config-validation.ps1 excluded: references keys for type-checking only, not behavior.
-    # Dead entries in that file are cleaned in this same commit.
+    # config-validation.ps1 excluded: it references keys for type-checking only,
+    # not behavior, so counting it would mask genuinely dead keys.
+    #
+    # Supported call forms (anything else is invisible to this scan -- fail-closed:
+    # an unrecognized form makes its key look dead and fails the test):
+    #   (a) Get-ConfigValue "key" / 'key'            -- positional literal
+    #       Get-ConfigValue -Key "key" / -Key 'key'  -- named-parameter literal
+    #   (b) Get-ConfigValue "root.sub"               -- structural block; root key consumed
+    #   (c) Config = "key" / 'key'                   -- app-table entry, trusted as consumed
+    #       without verifying that a loop actually reads $app.Config
+    # Known limitation: variable-built keys (e.g. Get-ConfigValue $var) cannot be
+    # detected; if one is ever introduced, add the key to $Script:Allowlist with a
+    # justification comment.
     $sourceFiles = @(
         Get-ChildItem -Path $Script:ModulesPath -Filter '*.ps1' -ErrorAction SilentlyContinue |
             Select-Object -ExpandProperty FullName
@@ -41,34 +52,40 @@ BeforeAll {
         if (-not (Test-Path $file)) { continue }
         $content = Get-Content $file -Raw
 
-        # (a) Get-ConfigValue "key" or 'key' — literal key
-        $patternA = "Get-ConfigValue\s+$q([a-z0-9_]+)$q"
+        # (a) positional or named-parameter literal key
+        $patternA = "Get-ConfigValue\s+(?:-Key\s+)?$q([a-z0-9_]+)$q"
         [regex]::Matches($content, $patternA) |
             ForEach-Object { $null = $Script:ConsumedKeys.Add($_.Groups[1].Value) }
 
-        # (b) Get-ConfigValue "root.sub" — structural block: consume root key
-        $patternDot = "Get-ConfigValue\s+$q([a-z0-9_]+)\."
+        # (b) structural block read: consume the root key
+        $patternDot = "Get-ConfigValue\s+(?:-Key\s+)?$q([a-z0-9_]+)\."
         [regex]::Matches($content, $patternDot) |
             ForEach-Object { $null = $Script:ConsumedKeys.Add($_.Groups[1].Value) }
 
-        # (c) Config = "key" / 'key' — app-table dynamic consumption
+        # (c) app-table dynamic consumption
         $patternConfig = "Config\s*=\s*$q([a-z0-9_]+)$q"
         [regex]::Matches($content, $patternConfig) |
             ForEach-Object { $null = $Script:ConsumedKeys.Add($_.Groups[1].Value) }
     }
 
-    # Structural allowlist (intentionally empty — all structural keys are reached by the
-    # literal scan: static_ip in base.ps1, package_managers in base.ps1,
-    # password_managers in apps.ps1).
+    # Allowlist for keys the scan cannot see (intentionally empty -- all structural
+    # keys are reached by the literal scan: static_ip in base.ps1, package_managers
+    # in base.ps1, password_managers in apps.ps1).
     $Script:Allowlist = @()
 
-    # Parse Validate-ConfigSchema root keys from Run.ps1.
-    # Lines of the form:  '  'some.key.path' = 'type'  '
-    # Extract root key (before first '.') so dotted paths like static_ip.enabled
-    # resolve to the top-level config.yml key.
+    # Parse Validate-ConfigSchema root keys, scoped to the function body so that
+    # unrelated 'key' = 'value' hashtables elsewhere in Run.ps1 are not picked up.
+    # The body runs from the function declaration to the first closing brace at
+    # column 0. Entries may be single- or double-quoted. For dotted paths like
+    # static_ip.enabled, take the root key (before the first '.') so it can be
+    # checked against config.yml top-level keys.
     $runContent = Get-Content $Script:RunPs1Path -Raw
+    $fnMatch = [regex]::Match($runContent, '(?sm)function Validate-ConfigSchema\b.*?^\}')
+    if (-not $fnMatch.Success) {
+        throw "Validate-ConfigSchema function not found in $Script:RunPs1Path"
+    }
     $Script:SchemaRootKeys = @(
-        [regex]::Matches($runContent, "(?m)^\s+'([a-z0-9_.]+)'\s*=\s*'[^']*'") |
+        [regex]::Matches($fnMatch.Value, '(?m)^\s+[''"]([a-z0-9_.]+)[''"]\s*=\s*[''"][^''"]*[''"]') |
             ForEach-Object { ($_.Groups[1].Value -split '\.')[0] } |
             Select-Object -Unique
     )

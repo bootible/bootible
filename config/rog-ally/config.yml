@@ -104,6 +104,7 @@ install_launchbox: false      # Game launcher with emulation focus
 
 # Utilities
 install_ds4windows: false     # DualShock/DualSense controller support
+
 # Mods & Tweaks
 install_nexus_mods: false     # Vortex mod manager
 
@@ -146,7 +147,7 @@ install_rustdesk: false       # Open-source remote desktop
 # =============================================================================
 # SSH
 # =============================================================================
-# SSH server for remote access and key generation for GitHub auth.
+# SSH server for remote access.
 
 install_ssh: false
 
@@ -208,6 +209,7 @@ install_optimization: true
 disable_xbox_game_bar: false  # Xbox Game Bar overlay
 disable_game_dvr: true        # Background game recording
 disable_tips: true            # Windows tips and suggestions
+
 # Gaming tweaks
 enable_game_mode: true        # Windows Game Mode
 enable_hardware_gpu_scheduling: true  # GPU scheduling optimization
