@@ -80,6 +80,9 @@ if (Get-Service sshd -ErrorAction SilentlyContinue) {
     }
 
     Write-Host "[OK] SSH services configured and running" -ForegroundColor Green
+    if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+        Add-AppliedChange "SSH server enabled on port 22"
+    }
 } else {
     Write-Host "[!] sshd service not found - restart may be required" -ForegroundColor Yellow
 }

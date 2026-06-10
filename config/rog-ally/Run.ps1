@@ -40,6 +40,8 @@ $ErrorActionPreference = "Stop"
 $Script:BootibleRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Script:DeviceRoot = $PSScriptRoot
 $Script:PrivateRoot = Join-Path $Script:BootibleRoot "private"
+# Updated by the release process; "main" between releases
+$Script:BootibleVersion = "main"
 
 $helpersPath = Join-Path $PSScriptRoot "lib/helpers.ps1"
 if (Test-Path $helpersPath) {
@@ -56,6 +58,10 @@ if (Test-Path $powerHelpersPath) {
 $wingetHelpersPath = Join-Path $PSScriptRoot "lib/winget-helpers.ps1"
 if (Test-Path $wingetHelpersPath) {
     . $wingetHelpersPath
+}
+$receiptPath = Join-Path $PSScriptRoot "lib/receipt.ps1"
+if (Test-Path $receiptPath) {
+    . $receiptPath
 }
 
 # Select the private config to merge later. When -ConfigFile is passed (ally.ps1
@@ -151,6 +157,7 @@ $Script:InstallResults = @{
     Skipped   = 0
     Packages  = @()
 }
+$Script:AppliedChanges = [System.Collections.Generic.List[string]]::new()
 
 function Add-InstallResult {
     <#
@@ -194,6 +201,17 @@ function Add-InstallResult {
         Source    = $Source
         Message   = $Message
         Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    }
+}
+
+function Add-AppliedChange {
+    <#
+    .SYNOPSIS
+        Records a configuration change for the on-device receipt (real runs only).
+    #>
+    param([string]$Description)
+    if (-not $Script:DryRun) {
+        $Script:AppliedChanges.Add($Description)
     }
 }
 
@@ -1121,6 +1139,22 @@ foreach ($moduleName in $moduleOrder) {
 
 # Display installation summary
 Write-Summary
+
+# Write the on-device receipt (real runs only)
+if (-not $Script:DryRun -and (Get-Command New-BootibleReceipt -ErrorAction SilentlyContinue)) {
+    try {
+        $faqPath = Join-Path $Script:DeviceRoot "files\receipt-faq.md"
+        $faqText = if (Test-Path $faqPath) { Get-Content $faqPath -Raw } else { "" }
+        $instanceLabel = if ($Script:SelectedInstance) { $Script:SelectedInstance } else { "default" }
+        $receipt = New-BootibleReceipt -InstanceName $instanceLabel -Version $Script:BootibleVersion `
+            -InstallResults $Script:InstallResults -AppliedChanges @($Script:AppliedChanges) -FaqText $faqText
+        $desktopPath = [Environment]::GetFolderPath('Desktop')
+        Set-Content -Path (Join-Path $desktopPath "Bootible - Read Me.md") -Value $receipt -Encoding UTF8
+        Write-Status "Receipt written to Desktop: Bootible - Read Me.md" "Success"
+    } catch {
+        Write-Status "Could not write Desktop receipt: $_" "Warning"
+    }
+}
 
 # Gather system information for summary
 function Get-NetworkSummary {

@@ -37,3 +37,6 @@ foreach ($cmd in $commands) {
     }
 }
 Write-Status "Power configuration applied" "Success"
+if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+    Add-AppliedChange "Power: sleep_mode=$sleepMode, button=$buttonAction"
+}

@@ -152,6 +152,9 @@ if (Get-ConfigValue "install_ghelper" $false) {
                     if (Test-Path $gHelperExe) {
                         Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'GHelper' -Value "`"$gHelperExe`""
                         Write-Status "G-Helper $($release.Tag) installed (autostarts at login)" "Success"
+                        if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+                            Add-AppliedChange "G-Helper $($release.Tag) installed (autostart at login)"
+                        }
                         try {
                             Start-Process -FilePath $gHelperExe
                             Write-Status "G-Helper started" "Success"
