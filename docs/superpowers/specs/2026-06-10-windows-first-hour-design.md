@@ -16,6 +16,7 @@ A fresh Windows handheld goes from OOBE to fully configured in one command, with
 **Success criteria (testable):**
 - Fresh Ally X: `irm bootible.dev/rog | iex` → dry-run → `bootible` completes every item on the parity checklist without manual steps
 - After a simulated config regression (e.g. hibernate disabled, Game Bar reinstalled), re-running `bootible` detects and repairs it
+- After a real run, `Bootible - Read Me.md` exists on the Desktop listing installed apps, applied config changes, and FAQ/first-aid for the documented pains (Smart App Control, winget sources, sleep/hibernate)
 - A tagged v1.0 release exists; the one-liner serves it; main is the beta channel
 - Launch post and creator pitches drafted in-repo, reviewed by Gavin
 - The July Vengeance wipe+bootstrap runs on the v1.0 release candidate
@@ -59,6 +60,17 @@ bootible's structural advantage over one-shot scripts: re-running repairs drift.
 ### 5. Checklist parity audit (analysis task feeding small module gaps)
 
 Walk the converged community checklist (XDA starter guide, HowToGeek 20 tips, baldsealion guide, ASUS official) against existing modules; implement small gaps as config keys in existing modules; document intentional exclusions with reasons. Output: a parity table in docs (`docs/checklist-parity.md`) usable as launch collateral ("every item, one command").
+
+### 6. On-device receipt + help file (`lib/receipt.ps1`, new)
+
+After every real run, write `Bootible - Read Me.md` to the device's Desktop (overwritten each run) so the answer to "what did this thing do, and why is X broken?" lives on the device itself.
+
+Contents, generated from run data (no hand-maintained duplication):
+- **What happened**: device/instance name, bootible version, run outcome — apps installed/skipped/failed (from `$Script:InstallResults` / `Write-Summary`), config changes applied per module (hibernate enabled, debloat items, wallpaper, SSH, etc.), and the drift/repair report once update guard lands
+- **FAQ / first aid**: rendered from a maintained template (`config/rog-ally/files/receipt-faq.md`) covering the documented pains — Smart App Control breaking Armoury Crate (symptoms + trade-off), winget source failures (`winget source reset --force`), sleep vs hibernate behavior, where run logs live, how to re-run (`bootible`) and what re-running repairs
+- **Links**: docs-site troubleshooting, GitHub issues, Discord
+
+Dry runs write nothing to the Desktop. Pure-function tests cover receipt content generation (results → markdown) independent of filesystem.
 
 ## Release engineering
 
