@@ -274,4 +274,118 @@ Describe "Install-WingetPackage" {
             Should -Invoke Start-Job -Times 1
         }
     }
+
+    Context "Result recording" {
+        BeforeEach {
+            $Script:DryRun = $false
+            $Script:HasWingetSource = $true
+            $Script:HasMsStoreSource = $true
+            $Script:WingetSourceRecovered = $false
+
+            # Provide a stub so Mock has a target when running outside Run.ps1
+            if (-not (Get-Command Add-InstallResult -ErrorAction SilentlyContinue)) {
+                function script:Add-InstallResult {
+                    param(
+                        [string]$PackageId,
+                        [string]$Name,
+                        [string]$Status,
+                        [string]$Source = '',
+                        [string]$Message = ''
+                    )
+                }
+            }
+
+            Mock winget { return "" } -ParameterFilter { ($args -join ' ') -match 'list --id' }
+            Mock Add-InstallResult { }
+        }
+
+        It "Records skipped when package already installed" {
+            Mock winget {
+                return "Test.Package  1.0.0  winget"
+            } -ParameterFilter { ($args -join ' ') -match 'list --id Test\.Package' }
+
+            Install-WingetPackage -PackageId "Test.Package" -Name "Test Package" | Out-Null
+
+            Should -Invoke Add-InstallResult -Times 1 -Exactly -ParameterFilter {
+                $Status -eq 'skipped' -and $PackageId -eq 'Test.Package'
+            }
+        }
+
+        It "Records succeeded with Source winget on winget install success" {
+            Mock Start-Job { [PSCustomObject]@{ Id = 1; State = 'Running' } }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = 0; Output = "Successfully installed" } }
+            Mock Remove-Job { }
+
+            Install-WingetPackage -PackageId "Test.Package" -Name "Test Package" | Out-Null
+
+            Should -Invoke Add-InstallResult -Times 1 -Exactly -ParameterFilter {
+                $Status -eq 'succeeded' -and $Source -eq 'winget'
+            }
+        }
+
+        It "Records succeeded with Source msstore on msstore fallback success" {
+            $script:jobCounter = 0
+            Mock Start-Job {
+                $script:jobCounter++
+                [PSCustomObject]@{ Id = $script:jobCounter; State = 'Running' }
+            }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = 1; Output = "Winget failed" } } -ParameterFilter { $Id -eq 1 }
+            Mock Receive-Job { @{ ExitCode = 0; Output = "msstore success" } } -ParameterFilter { $Id -eq 2 }
+            Mock Remove-Job { }
+
+            Install-WingetPackage -PackageId "Test.Package" -Name "Test Package" | Out-Null
+
+            Should -Invoke Add-InstallResult -Times 1 -Exactly -ParameterFilter {
+                $Status -eq 'succeeded' -and $Source -eq 'msstore'
+            }
+        }
+
+        It "Records succeeded with Source winget exactly once on post-recovery retry success" {
+            $script:jobCounter = 0
+            Mock Start-Job {
+                $script:jobCounter++
+                [PSCustomObject]@{ Id = $script:jobCounter; State = 'Running' }
+            }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = -2145844748; Output = "Failed when opening source(s); try the 'source reset' command if the problem persists." } } -ParameterFilter { $Id -eq 1 }
+            Mock Receive-Job { @{ ExitCode = 0; Output = "Successfully installed" } } -ParameterFilter { $Id -eq 2 }
+            Mock Remove-Job { }
+            Mock winget { return "" } -ParameterFilter { ($args -join ' ') -match 'source (reset|update)' }
+
+            Install-WingetPackage -PackageId "Test.Package" -Name "Test Package" | Out-Null
+
+            Should -Invoke Add-InstallResult -Times 1 -Exactly -ParameterFilter {
+                $Status -eq 'succeeded' -and $Source -eq 'winget'
+            }
+            Should -Invoke Add-InstallResult -Times 1 -Exactly
+        }
+
+        It "Records failed with non-empty Message when all sources fail" {
+            Mock Start-Job { [PSCustomObject]@{ Id = 1; State = 'Running' } }
+            Mock Wait-Job { $true }
+            Mock Receive-Job { @{ ExitCode = 1; Output = "All failed" } }
+            Mock Remove-Job { }
+
+            Install-WingetPackage -PackageId "Test.Package" -Name "Test Package" | Out-Null
+
+            Should -Invoke Add-InstallResult -Times 1 -Exactly -ParameterFilter {
+                $Status -eq 'failed' -and $Message -ne ''
+            }
+        }
+
+        It "Does not call Add-InstallResult during dry run validate-found path" {
+            $Script:DryRun = $true
+
+            Mock winget {
+                $global:LASTEXITCODE = 0
+                return "Found Test.Package"
+            } -ParameterFilter { ($args -join ' ') -match 'show --id.*--source winget' }
+
+            Install-WingetPackage -PackageId "Test.Package" -Name "Test Package" | Out-Null
+
+            Should -Invoke Add-InstallResult -Times 0 -Exactly
+        }
+    }
 }
