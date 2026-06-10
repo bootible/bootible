@@ -1,13 +1,15 @@
 ---
 title: Home
-description: Bootible - One-liner setup for gaming handhelds
+description: Bootible - the missing first hour for Windows handhelds. One-liner setup for gaming handhelds.
 ---
 
 # Bootible
 
-**One-liner setup for gaming handhelds.**
+**The missing first hour for Windows handhelds — one-liner setup for gaming handhelds.**
 
-Bootible automates the configuration of Steam Deck, ROG Ally, Android handhelds, and other gaming devices with a single command. Preview everything before applying, customize via your own private config, and re-run anytime to sync your setup.
+A new Windows handheld greets you with the same three problems: it drains battery while it "sleeps", the recommended setup is a long checklist you work through by hand, and the next Windows update quietly reverts what you fixed. Bootible turns that first hour into one command — and the fix for every update after it into the same command.
+
+Bootible automates the configuration of Steam Deck, ROG Ally, Android handhelds, and other gaming devices. Preview everything before applying (dry-run is the default), keep your config as YAML in your own private repo, and re-run anytime — drift from your known-good state is detected and repaired, with repairs claimed only after post-run verification.
 
 <div class="grid cards" markdown>
 
@@ -63,7 +65,7 @@ Bootible automates the configuration of Steam Deck, ROG Ally, Android handhelds,
     irm https://bootible.dev/rog | iex
     ```
 
-    **Windows 11** — PowerShell-based setup with winget packages, gaming optimizations, debloat options, and streaming tools.
+    **Windows 11** — PowerShell-based setup with winget packages, sleep-to-hibernate power fixes, optional G-Helper install, gaming optimizations, debloat options, and streaming tools. Prefer the latest changes from `main`? Use the beta channel: `irm https://bootible.dev/rog-beta | iex`. Both channels are served with checksum verification.
 
 === "Android (ALPHA)"
 
@@ -105,8 +107,11 @@ graph LR
 :material-lock:{ .feature-icon } **Private Configuration**
 :   Your settings live in your own GitHub repo. No data is collected or stored.
 
-:material-sync:{ .feature-icon } **Idempotent**
-:   Run as many times as you want. Only changes what's needed.
+:material-sync:{ .feature-icon } **Re-runs Repair Drift**
+:   Run as many times as you want. On Windows, drift from your known-good state is detected and re-applied — repairs are reported only after post-run verification confirms them.
+
+:material-file-document:{ .feature-icon } **Receipt on the Desktop**
+:   Every Windows run writes "Bootible - Read Me.md" to the Desktop: apps installed, changes applied, and an FAQ.
 
 :material-devices:{ .feature-icon } **Multi-Device**
 :   Manage multiple devices from a single private config repo.

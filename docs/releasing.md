@@ -46,6 +46,11 @@ are not pinned — the previous release keeps serving until the deploy lands.
    or `sha256Stable`. Do this promptly: between steps 2 and 5, beta bootstraps fetch
    an ally.ps1 whose `$Script:BootibleRef` points at the tag, so a device
    bootstrapped from `-beta` in that window checks out the release instead of main.
-6. Verify both channels: `irm https://bootible.dev/rog | iex` on a test machine
-   reports the released version (the `X-Bootible-Ref` response header is the tag);
-   `bootible.dev/rog-beta` still serves main (`X-Bootible-Ref: main`).
+6. Verify both channels. `irm | iex` cannot see response headers, so check the
+   served ref directly:
+   ```powershell
+   (Invoke-WebRequest https://bootible.dev/rog).Headers['X-Bootible-Ref']      # the tag
+   (Invoke-WebRequest https://bootible.dev/rog-beta).Headers['X-Bootible-Ref'] # main
+   ```
+   Then `irm https://bootible.dev/rog | iex` on a test machine reports the
+   released version.
