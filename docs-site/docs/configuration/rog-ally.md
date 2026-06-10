@@ -54,6 +54,10 @@ package_managers:
   scoop: false       # User-level package manager
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `optimize_winget` | bool | `true` | Optimize winget sources (not in `config.yml` defaults; read directly by the base module) |
+
 ---
 
 ## Desktop Applications
@@ -137,7 +141,8 @@ password_managers:
 | `install_epic_launcher` | bool | `false` | Epic Games Launcher |
 | `install_ea_app` | bool | `false` | EA App |
 | `install_ubisoft_connect` | bool | `false` | Ubisoft Connect |
-| `install_battle_net` | bool | `false` | Battle.net |
+| `install_battle_net` | bool | `false` | Battle.net (non-standard installer; launched for manual completion) |
+| `battle_net_location` | string | `%ProgramFiles(x86)%\Battle.net` | Where to look for an existing Battle.net install (not in `config.yml` defaults) |
 | `install_amazon_games` | bool | `false` | Amazon Games |
 
 ### Launchers & Managers
@@ -152,9 +157,7 @@ password_managers:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `install_ds4windows` | bool | `false` | DualShock/DualSense support |
-| `install_hidmanager` | bool | `false` | HID device management |
 | `install_nexus_mods` | bool | `false` | Vortex mod manager |
-| `install_reshade` | bool | `false` | ReShade |
 
 ---
 
@@ -211,7 +214,7 @@ password_managers:
 |-----|------|---------|-------------|
 | `install_anydesk` | bool | `false` | AnyDesk |
 | `install_rustdesk` | bool | `false` | RustDesk |
-| `install_parsec_remote` | bool | `false` | Parsec (remote desktop) |
+| `enable_rdp` | bool | `false` | Enable Windows Remote Desktop (registry + firewall rule; not in `config.yml` defaults) |
 
 ---
 
@@ -227,19 +230,11 @@ password_managers:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `ssh_server_enable` | bool | `false` | Enable OpenSSH Server |
-| `ssh_import_authorized_keys` | bool | `false` | Import keys from private repo |
-| `ssh_authorized_keys` | list | `[]` | Key files to authorize |
+| `ssh_server_enable` | bool | `false` | Install & enable OpenSSH Server |
+| `ssh_authorized_keys` | list | `[]` | Key files from `private/ssh-keys/` to authorize, e.g. `["PC.pub"]` |
 
-### Key Generation
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `ssh_generate_key` | bool | `true` | Generate SSH keypair |
-| `ssh_key_name` | string | `""` | Key filename (default: hostname) |
-| `ssh_add_to_github` | bool | `true` | Add key to GitHub |
-| `ssh_save_to_private` | bool | `true` | Save key to private repo |
-| `ssh_configure_git` | bool | `true` | Configure git for SSH |
+!!! note "Key management removed"
+    SSH key *generation* options (`ssh_generate_key`, `ssh_add_to_github`, etc.) were never functional on Windows and have been removed. Key management may return as a future feature. On Steam Deck these options still exist.
 
 ---
 
@@ -249,33 +244,9 @@ password_managers:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `install_emulation` | bool | `false` | Enable emulation |
+| `install_emulation` | bool | `false` | Install EmuDeck (the all-in-one emulation setup) |
 
-### EmuDeck
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `install_emudeck` | bool | `false` | EmuDeck installer |
-
-### Frontends
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `install_retroarch` | bool | `false` | RetroArch |
-| `install_emulationstation` | bool | `false` | EmulationStation DE |
-
-### Standalone Emulators
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `install_dolphin` | bool | `false` | Dolphin (GameCube/Wii) |
-| `install_pcsx2` | bool | `false` | PCSX2 (PS2) |
-| `install_rpcs3` | bool | `false` | RPCS3 (PS3) |
-| `install_yuzu` | bool | `false` | Yuzu (Switch) |
-| `install_ryujinx` | bool | `false` | Ryujinx (Switch) |
-| `install_cemu` | bool | `false` | Cemu (Wii U) |
-| `install_duckstation` | bool | `false` | DuckStation (PS1) |
-| `install_ppsspp` | bool | `false` | PPSSPP (PSP) |
+This single key gates the EmuDeck install. EmuDeck then selects and configures individual emulators **interactively** — there are no per-emulator keys. See [Emulation](../features/emulation.md).
 
 ---
 
@@ -300,6 +271,7 @@ password_managers:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `install_handheld_companion` | bool | `false` | Handheld Companion |
+| `install_hidhide` | bool | `false` | HidHide kernel-mode HID filter — hides the physical gamepad from games when using a remapper. Requires a reboot after first install. |
 
 ### Monitoring Tools
 
@@ -320,6 +292,22 @@ password_managers:
 | `hibernate_after_minutes` | int | `0` | Minutes asleep before hibernating (0 = don't change) |
 | `power_button_action` | string | `""` | Power button override: `sleep`, `hibernate`, or `shutdown` (empty = keep current) |
 | `disable_cpu_boost_on_battery` | bool | `false` | Disable CPU boost on battery only (DC `PERFBOOSTMODE 0`); plugged-in behavior untouched |
+
+### Display
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `configure_hdr` | string | `""` | `""` (leave alone), `on`, or `off`. Uses HDRCmd (auto-downloaded on first use). |
+| `set_refresh_rate` | int | `0` | Target Hz for the internal panel, e.g. `60` or `120` (`0` = leave alone). Must be a mode the panel supports. |
+
+### Paths
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `games_path` | string | `""` | Games directory to create, e.g. `"D:\\Games"` (`""` = nothing created) |
+| `roms_path` | string | `""` | ROMs directory to create, e.g. `"D:\\Emulation\\ROMs"` (`""` = nothing created) |
+
+Directory scaffolding only — created if set, with drive-letter paths (`D:\Games`) required. Steam library registration stays manual (Steam > Settings > Storage), and network/UNC paths are not scaffolded.
 
 ---
 
@@ -370,19 +358,11 @@ password_managers:
 | `steam_disable_guide_focus` | bool | `true` | Prevent guide button overlay |
 | `steam_start_big_picture` | bool | `true` | Start in Big Picture mode |
 
-### Display
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `configure_hdr` | bool | `false` | HDR settings |
-| `set_refresh_rate` | int | `0` | Refresh rate (0 = don't change) |
-
 ### Storage & Maintenance
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `enable_storage_sense` | bool | `true` | Auto-cleanup temp files |
-| `compact_os` | bool | `false` | Compact OS (saves space) |
 | `run_disk_cleanup` | bool | `false` | Run Disk Cleanup |
 | `force_time_sync` | bool | `true` | Force NTP sync |
 | `generate_battery_report` | bool | `false` | Generate battery report |
@@ -392,7 +372,6 @@ password_managers:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `disable_tips` | bool | `true` | Windows tips |
-| `disable_cortana` | bool | `false` | Cortana |
 
 ---
 
@@ -518,17 +497,6 @@ password_managers:
 
 ---
 
-## Paths
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `user_home` | string | `"%USERPROFILE%"` | User home directory |
-| `games_path` | string | `"C:\\Games"` | Games directory |
-| `roms_path` | string | `"C:\\Emulation\\ROMs"` | ROMs directory |
-| `bios_path` | string | `"C:\\Emulation\\BIOS"` | BIOS directory |
-
----
-
 ## Example Configurations
 
 ### Gaming-Focused Setup
@@ -582,8 +550,7 @@ install_parsec: true
 
 # Remote access
 install_ssh: true
-ssh_generate_key: true
-ssh_add_to_github: true
+ssh_server_enable: true
 install_tailscale: true
 
 # ROG Ally specific
@@ -593,7 +560,6 @@ install_rtss: true
 
 # Emulation
 install_emulation: true
-install_emudeck: true
 
 # Optimization
 enable_game_mode: true

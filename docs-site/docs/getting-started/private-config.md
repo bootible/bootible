@@ -168,7 +168,7 @@ Each device has a `config.yml` that overrides defaults:
 
     # Remote Access
     install_ssh: true
-    ssh_generate_key: true
+    ssh_server_enable: true
     install_tailscale: true
     ```
 

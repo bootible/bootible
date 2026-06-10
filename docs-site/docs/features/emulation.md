@@ -26,8 +26,9 @@ Play classic games from retro consoles on your gaming handheld.
 
     ```yaml
     install_emulation: true
-    install_emudeck: true
     ```
+
+    The single `install_emulation` key gates the EmuDeck install on Windows.
 
 ### Patreon/Early Access Version
 
@@ -66,13 +67,16 @@ EmuDeck requires interactive setup:
 
 ### ROG Ally
 
-Configure paths in your config:
+EmuDeck chooses and configures its own storage locations during its interactive setup — Bootible doesn't configure EmuDeck.
+
+Separately, Bootible can pre-create game/ROM directories for you (directory scaffolding only — both default to `""`, meaning nothing is created):
 
 ```yaml
-games_path: "D:\\Games"          # Secondary drive
+games_path: "D:\\Games"          # e.g. secondary drive
 roms_path: "D:\\Emulation\\ROMs"
-bios_path: "D:\\Emulation\\BIOS"
 ```
+
+See the [ROG Ally Configuration Reference](../configuration/rog-ally.md) for details.
 
 ---
 

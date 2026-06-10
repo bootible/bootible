@@ -11,7 +11,7 @@ Command-line usage for Bootible bootstrap scripts and runners.
 
 ## Bootstrap Commands
 
-The one-liner commands that download and run Bootible.
+The one-liner commands that download and run Bootible. Both default to a **dry run** — nothing is changed until you run `bootible`.
 
 ### Steam Deck
 
@@ -21,23 +21,10 @@ curl -fsSL https://bootible.dev/deck | bash
 
 **What it does:**
 
-1. Downloads `deck.sh` from bootible.dev
-2. Verifies SHA256 checksum
-3. Runs the bootstrap script
-
-**Alternative (manual):**
-
-```bash
-# Download
-curl -fsSL https://bootible.dev/deck -o deck.sh
-
-# Verify (optional)
-sha256sum deck.sh
-
-# Run
-chmod +x deck.sh
-./deck.sh
-```
+1. Downloads `deck.sh` from bootible.dev (with SHA256 integrity verification)
+2. Clones the bootible repo to `~/bootible`
+3. Runs the configuration in check mode (dry run)
+4. Installs the `bootible` command for the real run
 
 ### ROG Ally
 
@@ -47,95 +34,115 @@ irm https://bootible.dev/rog | iex
 
 **What it does:**
 
-1. Downloads `ally.ps1` from bootible.dev
-2. Executes in PowerShell
-
-**Alternative (manual):**
-
-```powershell
-# Download
-Invoke-WebRequest -Uri https://bootible.dev/rog -OutFile ally.ps1
-
-# Run
-.\ally.ps1
-```
+1. Downloads `ally.ps1` from bootible.dev (with SHA256 integrity verification; falls back to GitHub if bootible.dev is unavailable)
+2. Clones the bootible repo to `%USERPROFILE%\bootible`
+3. Runs `Run.ps1` in dry-run mode
+4. Installs the `bootible` command for the real run
 
 ---
 
 ## The `bootible` Command
 
-After bootstrap, `bootible` is installed for easy re-runs.
+After bootstrap, `bootible` is installed for easy re-runs. It is a thin wrapper around the platform runner — a **real run** by default (you already did the dry run via the one-liner).
 
 ### Steam Deck
 
 ```bash
-# Basic usage - applies your config
 bootible
-
-# With options (passed to ansible-playbook)
-bootible --check  # Dry run
-bootible -v       # Verbose
-bootible -vvv     # Very verbose
 ```
 
-**Location:** `~/.local/bin/bootible`
+**Location:** `/usr/local/bin/bootible`
 
 **What it runs:**
 
 ```bash
-cd ~/bootible/config/steamdeck && \
-ansible-playbook playbook.yml \
-  --ask-become-pass \
-  -e @../private/device/steamdeck/$INSTANCE/config.yml \
-  -e device_instance=$INSTANCE
+cd ~/bootible && git pull && BOOTIBLE_RUN=1 ./targets/deck.sh
 ```
+
+`deck.sh` takes no flags — it prompts for instance selection and runs the full Ansible playbook. For dry runs, re-run the curl one-liner; for tag-scoped runs, [run ansible-playbook manually](#steam-deck-running-ansible-manually).
 
 ### ROG Ally
 
 ```powershell
-# Basic usage - applies your config
 bootible
-
-# Available in PowerShell after bootstrap
 ```
 
-**Location:** Added to PATH
+**Location:** `%LOCALAPPDATA%\Microsoft\WindowsApps\bootible.cmd` (falls back to `%USERPROFILE%\bootible\bootible.cmd`, added to PATH)
 
 **What it runs:**
 
+```
+powershell -ExecutionPolicy Bypass -File "%USERPROFILE%\bootible\config\rog-ally\Run.ps1" %*
+```
+
+It forwards all arguments to `Run.ps1`, so `bootible` accepts the same parameters:
+
 ```powershell
-Set-Location $env:USERPROFILE\bootible\config\rog-ally
-.\Run.ps1
+bootible -DryRun
+bootible -Tags base,apps
 ```
 
 ---
 
-## Steam Deck: Ansible Options
+## ROG Ally: Run.ps1 Parameters
 
-The Steam Deck uses Ansible. You can pass standard Ansible options.
+`Run.ps1` accepts exactly three parameters:
 
-### Common Options
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `-ConfigFile <path>` | string | Merge a specific config file on top of the defaults. When set (the bootstrap does this), the `~/.config` local layer and private-repo instance selection are bypassed. |
+| `-Tags <list>` | string[] | Run only the listed modules. There is no skip flag — list what you want, or disable modules in config. |
+| `-DryRun` | switch | Preview changes without applying them. |
 
-```bash
-# Dry run (check mode)
-bootible --check
+```powershell
+cd $env:USERPROFILE\bootible\config\rog-ally
 
-# Verbose output
-bootible -v
-bootible -vv
-bootible -vvv
+# Dry run
+.\Run.ps1 -DryRun
 
-# Run specific tags/roles
-bootible --tags ssh,tailscale
+# Specific modules
+.\Run.ps1 -Tags base,apps
 
-# Skip specific tags/roles
-bootible --skip-tags decky
-
-# Limit to specific config values
-bootible -e "install_discord=true"
+# Specific config file
+.\Run.ps1 -ConfigFile C:\path\to\config.yml
 ```
 
-### Running Manually
+### Available Tags
+
+Tags are module names, executed in this fixed order:
+
+| Tag | Description |
+|-----|-------------|
+| `validate` | Package validation (dry-run only) |
+| `base` | Hostname, network, winget, directory scaffolding |
+| `apps` | Desktop applications |
+| `gaming` | Game platforms |
+| `streaming` | Streaming clients |
+| `remote_access` | VPN, remote desktop, RDP |
+| `ssh` | OpenSSH configuration |
+| `emulation` | EmuDeck |
+| `rog_ally` | Device-specific tools |
+| `optimization` | Gaming tweaks |
+| `power` | Sleep/hibernate, power button, CPU boost |
+| `display` | HDR toggle, refresh rate |
+| `debloat` | Privacy settings |
+| `health` | Post-install health checks |
+
+**Examples:**
+
+```powershell
+# Only base and gaming
+.\Run.ps1 -Tags base,gaming
+
+# Dry run the display module
+.\Run.ps1 -Tags display -DryRun
+```
+
+---
+
+## Steam Deck: Running Ansible Manually
+
+The Steam Deck uses Ansible under the hood. The `bootible` wrapper doesn't accept flags, but you can run the playbook directly for tag-scoped or verbose runs:
 
 ```bash
 cd ~/bootible/config/steamdeck
@@ -145,138 +152,85 @@ ansible-playbook playbook.yml --ask-become-pass
 
 # With private config
 ansible-playbook playbook.yml --ask-become-pass \
-  -e @../private/device/steamdeck/MySteamDeck/config.yml \
+  -e @../../private/device/steamdeck/MySteamDeck/config.yml \
   -e device_instance=MySteamDeck
 
 # Check mode (dry run)
 ansible-playbook playbook.yml --check --ask-become-pass
+
+# Only specific tags
+ansible-playbook playbook.yml --tags ssh,tailscale --ask-become-pass
+
+# Skip specific tags
+ansible-playbook playbook.yml --skip-tags decky --ask-become-pass
 ```
 
 ### Available Tags
 
-Tags let you run specific parts:
-
-| Tag | Description |
-|-----|-------------|
+| Tag(s) | Description |
+|--------|-------------|
 | `always` | Always runs (pre-tasks, post-tasks) |
 | `base` | Base setup (Flathub, hostname) |
 | `apps`, `flatpak` | Flatpak applications |
 | `ssh`, `remote` | SSH configuration |
-| `tailscale`, `vpn` | Tailscale VPN |
-| `remote_desktop`, `streaming` | Sunshine/remote desktop |
+| `tailscale`, `remote`, `vpn` | Tailscale VPN |
+| `remote_desktop`, `remote`, `streaming` | Sunshine/remote desktop |
 | `decky`, `plugins`, `gaming` | Decky Loader |
-| `proton`, `wine` | Proton tools |
-| `emulation`, `roms` | EmuDeck |
-| `stickdeck`, `controller` | StickDeck |
+| `proton`, `gaming`, `wine` | Proton tools |
+| `emulation`, `roms`, `gaming` | EmuDeck |
+| `stickdeck`, `controller`, `gaming` | StickDeck |
 | `waydroid`, `android` | Waydroid |
-| `distrobox`, `containers` | Distrobox apps |
-
-**Examples:**
-
-```bash
-# Only SSH and Tailscale
-bootible --tags ssh,tailscale
-
-# Everything except Decky
-bootible --skip-tags decky
-
-# Only gaming-related
-bootible --tags gaming
-```
-
----
-
-## ROG Ally: PowerShell Options
-
-### Run.ps1 Parameters
-
-```powershell
-# Dry run
-.\Run.ps1 -DryRun
-
-# Specific modules
-.\Run.ps1 -Tags base,apps
-
-# Skip modules
-.\Run.ps1 -SkipTags debloat
-
-# Verbose
-.\Run.ps1 -Verbose
-```
-
-### Available Tags
-
-| Tag | Description |
-|-----|-------------|
-| `validate` | Package validation (dry-run only) |
-| `base` | Hostname, network, winget |
-| `apps` | Desktop applications |
-| `gaming` | Game platforms |
-| `streaming` | Streaming clients |
-| `remote_access` | VPN, remote desktop |
-| `ssh` | OpenSSH configuration |
-| `emulation` | EmuDeck |
-| `rog_ally` | Device-specific tools |
-| `optimization` | Gaming tweaks |
-| `debloat` | Privacy settings |
-
-**Examples:**
-
-```powershell
-# Only base and gaming
-.\Run.ps1 -Tags base,gaming
-
-# Skip privacy tweaks
-.\Run.ps1 -SkipTags debloat
-
-# Dry run specific modules
-.\Run.ps1 -Tags optimization -DryRun
-```
+| `distrobox`, `containers`, `password_manager` | Distrobox apps |
 
 ---
 
 ## Reference
 
-#### Environment Variables
+### Environment Variables
 
-=== "Steam Deck"
-
-    | Variable | Description |
-    |----------|-------------|
-    | `BOOTIBLE_PRIVATE_REPO` | Override private repo path |
-    | `BOOTIBLE_INSTANCE` | Override device instance |
-    | `GITHUB_TOKEN` | GitHub API token |
-
-=== "ROG Ally"
+=== "Steam Deck (`deck.sh`)"
 
     | Variable | Description |
     |----------|-------------|
-    | `BOOTIBLE_PRIVATE_REPO` | Override private repo path |
-    | `BOOTIBLE_INSTANCE` | Override device instance |
+    | `BOOTIBLE_RUN` | `1` = real run. Unset/`0` = dry run (the curl one-liner default). The `bootible` wrapper sets this for you. |
 
-#### Exit Codes
+    `deck.sh` also accepts a single positional argument: the private repo URL.
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | General error |
-| `2` | Configuration error |
-| `3` | Network error |
-| `4` | User cancelled |
+=== "ROG Ally (`ally.ps1`)"
 
-#### Logging
+    | Variable | Description |
+    |----------|-------------|
+    | `BOOTIBLE_PRIVATE` | Private repo URL to clone (skips the interactive prompt) |
+    | `BOOTIBLE_RUN` | `1` = real run. Unset = dry run (the irm one-liner default). |
+    | `BOOTIBLE_DIRECT` | Internal — marks the re-launched elevated process; don't set manually |
+    | `BOOTIBLE_TRANSCRIPT` | Internal — transcript path handoff between `ally.ps1` and `Run.ps1` |
+
+### Exit Behavior
+
+A non-zero exit code means the run failed. `Run.ps1` exits `1` on setup failures (not Windows, not Administrator, winget unavailable, no package sources, YAML parser missing, or config validation errors). There is no extended exit-code table.
+
+### Logging
 
 === "Steam Deck"
+
+    Transcript logs are committed to your private repo per instance:
 
     ```
     private/device/steamdeck/<instance>/Logs/
-    └── YYYY-MM-DD_HHMMSS_<hostname>_<mode>.log
     ```
 
 === "ROG Ally"
+
+    Transcript logs are committed to your private repo per instance:
 
     ```
     private\device\rog-ally\<instance>\Logs\
     ```
 
-Logs are automatically pushed to your private repo after each run.
+    A machine-readable JSON run log is also appended locally (one file per day):
+
+    ```
+    %USERPROFILE%\.bootible\logs\run-YYYYMMDD.json
+    ```
+
+Transcript logs are automatically pushed to your private repo after each run.

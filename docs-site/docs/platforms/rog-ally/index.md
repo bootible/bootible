@@ -78,7 +78,13 @@ install_rog_ally: true
 install_handheld_companion: true
 install_rtss: true
 install_hwinfo: true
+install_ghelper: true   # Lightweight Armoury Crate alternative
+install_hidhide: true   # Hide physical gamepad from games (needs reboot)
 ```
+
+!!! info "Canonical key reference"
+    This page shows highlights only. The complete list of every key, type, and
+    default lives in the [ROG Ally Configuration Reference](../../configuration/rog-ally.md).
 
 ---
 
@@ -95,11 +101,11 @@ enable_hardware_gpu_scheduling: true
 
 # Disable Xbox Game Bar (less overhead)
 disable_game_dvr: true
-disable_xbox_gamebar: true
+disable_xbox_game_bar: true
 
-# Steam Big Picture on startup
-configure_steam_autostart: true
-steam_big_picture_mode: true
+# Steam controller-friendly startup
+steam_start_big_picture: true       # Start Steam in Big Picture mode
+steam_disable_guide_focus: true     # Stop the Xbox button opening the Steam overlay
 ```
 
 ### Privacy & Debloating
@@ -116,7 +122,7 @@ disable_copilot: true
 # UI improvements
 classic_right_click_menu: true
 show_file_extensions: true
-disable_lock_screen_ads: true
+disable_lockscreen_junk: true
 disable_bing_search: true
 ```
 
@@ -125,15 +131,15 @@ disable_bing_search: true
 ```yaml
 # Optional - security trade-off
 disable_core_isolation: false  # Can improve game performance
-disable_vbs: false             # Virtualization-Based Security
+disable_vm_platform: false     # Disable Virtual Machine Platform
 
 # Network
 prefer_ipv4: true
 disable_teredo: true
 
 # Maintenance
-enable_disk_cleanup: true
-sync_time: true
+run_disk_cleanup: true
+force_time_sync: true
 ```
 
 ---
@@ -159,10 +165,14 @@ install_steam_link: true
 
 ### As a Host (Stream to other devices)
 
+Bootible does not install Sunshine on the Ally — Sunshine belongs on the gaming
+PC you stream **from**. To stream from the Ally itself:
+
 ```yaml
-install_sunshine: true  # Open-source Moonlight host
-install_parsec: true    # Also works as host
+install_parsec: true    # Parsec also works as a host
 ```
+
+Or install [Sunshine](https://github.com/LizardByte/Sunshine/releases) manually. See [Game Streaming](../../features/streaming.md).
 
 ---
 
@@ -175,7 +185,6 @@ Windows OpenSSH server for remote management:
 ```yaml
 install_ssh: true
 ssh_server_enable: true
-ssh_import_authorized_keys: true
 ssh_authorized_keys:
   - "desktop.pub"  # From private/ssh-keys/
 ```
@@ -209,8 +218,8 @@ install_emulation: true
 **Post-Install:**
 
 1. Run EmuDeck from Desktop
-2. Choose installation options
-3. Copy ROMs to configured folder
+2. Choose installation options (EmuDeck configures emulators interactively)
+3. Copy ROMs to the folder EmuDeck chooses
 4. Use Steam ROM Manager to add to Steam
 
 **Patreon/EA Version:**
@@ -230,7 +239,7 @@ private/scripts/EmuDeck EA Windows.bat
 ```yaml
 static_ip:
   enabled: true
-  interface: "Ethernet"  # Or "Wi-Fi"
+  adapter: "Ethernet"  # Find names with Get-NetAdapter
   address: "192.168.1.100"
   prefix_length: 24
   gateway: "192.168.1.1"
@@ -282,6 +291,7 @@ create_restore_point: false
 Run dry-run to validate packages:
 
 ```powershell
+cd $env:USERPROFILE\bootible\config\rog-ally
 .\Run.ps1 -DryRun
 ```
 
@@ -313,6 +323,12 @@ Bootible doesn't modify Armoury Crate. For issues:
 
 ## Command Line Usage
 
+All `Run.ps1` commands are run from the bootible checkout:
+
+```powershell
+cd $env:USERPROFILE\bootible\config\rog-ally
+```
+
 ### Dry Run
 
 ```powershell
@@ -330,16 +346,12 @@ Bootible doesn't modify Armoury Crate. For issues:
 ```powershell
 # Only base and apps
 .\Run.ps1 -Tags base,apps
-
-# Skip debloat
-.\Run.ps1 -SkipTags debloat
 ```
 
-### Verbose Output
+There is no skip flag — to skip a module, either pass `-Tags` with every module
+you *do* want, or disable it in config (e.g. `install_debloat: false`).
 
-```powershell
-.\Run.ps1 -Verbose
-```
+See the [CLI Reference](../../reference/cli.md) for all parameters and the full tag list.
 
 ---
 

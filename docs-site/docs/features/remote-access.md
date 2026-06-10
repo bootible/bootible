@@ -39,13 +39,13 @@ Secure shell access for command-line management.
     ```yaml
     install_ssh: true
     ssh_server_enable: true
-    ssh_generate_key: true
-    ssh_add_to_github: true
-    ssh_import_authorized_keys: true
     ssh_authorized_keys:
       - "desktop.pub"
       - "laptop.pub"
     ```
+
+    !!! note "No key management on Windows"
+        Key generation/GitHub upload options (`ssh_generate_key`, `ssh_add_to_github`) are Steam Deck-only. They were removed from the Ally config — key management may return there as a future feature.
 
 ### Managing SSH Keys
 
@@ -76,7 +76,7 @@ ssh username@192.168.1.101
 ### Security Best Practices
 
 1. **Use key authentication** - Disable password auth
-2. **Change default port** - `ssh_port: 2222`
+2. **Change default port** - `ssh_port: 2222` (Steam Deck only)
 3. **Use Tailscale** - Instead of exposing ports
 4. **Limit authorized keys** - Only add trusted devices
 
@@ -233,13 +233,13 @@ On ROG Ally, share a folder:
 
 ### Syncthing
 
-Automatic file sync between devices:
+Automatic file sync between devices (Steam Deck only):
 
 ```yaml
 install_syncthing: true
 ```
 
-Great for syncing save files, screenshots, or configs.
+Great for syncing save files, screenshots, or configs. On the ROG Ally, install Syncthing manually if needed.
 
 ---
 

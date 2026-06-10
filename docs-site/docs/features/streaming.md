@@ -33,9 +33,9 @@ The best option for streaming between your PC and handhelds. Works with **any GP
 
 | Device | Install |
 |--------|---------|
-| **Desktop/Laptop** | Sunshine + Moonlight |
-| **Steam Deck** | Sunshine + Moonlight |
-| **ROG Ally** | Sunshine + Moonlight |
+| **Desktop/Laptop** | Sunshine + Moonlight (both manual) |
+| **Steam Deck** | Sunshine + Moonlight (both via Bootible) |
+| **ROG Ally** | Moonlight via Bootible (Sunshine manual, if hosting) |
 
 ### Setup: Sunshine (Host/Server)
 
@@ -67,11 +67,8 @@ Install Sunshine on any device you want to stream FROM:
 
 === "ROG Ally"
 
-    ```yaml
-    install_sunshine: true
-    ```
-
-    After install, access web UI at `https://localhost:47990` to configure.
+    !!! info "Manual Install"
+        Bootible doesn't install Sunshine on the Ally — in the usual setup the Ally is the **client** and Sunshine runs on your gaming PC. To stream *from* the Ally, install Sunshine manually from [Sunshine Releases](https://github.com/LizardByte/Sunshine/releases), then access the web UI at `https://localhost:47990`.
 
 ### Setup: Moonlight (Client)
 
