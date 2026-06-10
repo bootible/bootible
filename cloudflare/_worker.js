@@ -4,32 +4,42 @@
  * Routes:
  *   /rog        -> targets/ally.ps1 (ROG Ally / Windows)
  *   /deck       -> targets/deck.sh  (Steam Deck / SteamOS)
+ *   /rog-beta, /deck-beta, /android-beta -> same scripts, beta channel
  *   /docs       -> Redirect to docs.bootible.dev
  *   /           -> Landing page (browser) or help text (CLI)
  *   /*.png      -> Static assets (served by Pages)
+ *
+ * Channels:
+ *   Stable routes serve the latest GitHub release tag (fallback: main).
+ *   '-beta' routes always serve main.
  */
 
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/bootible/bootible/main';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/bootible/bootible';
 
 /**
  * Script routes with SHA256 checksums for integrity verification.
- * Update these hashes whenever scripts change (run: sha256sum targets/*.ps1 targets/*.sh)
+ *   sha256       - beta channel (main); auto-updated by the Update Checksums workflow
+ *   sha256Stable - stable channel (latest release tag); pinned by the release process
+ * Field order matters: CI extracts the beta hash as the first sha256 after the route key.
  */
 const ROUTES = {
   '/rog': {
     path: '/targets/ally.ps1',
     description: 'ROG Ally (Windows)',
-    sha256: 'f581193ad41ace75f2558d2f56e3eefa0dab0532cf573181e23c2f5a809ed5a7',
+    sha256: '2bd68382dd71ab1154bdfd3a7e1e9cd1640de0a910d00b4676bc5a78a2af6d3b',
+    sha256Stable: '2bd68382dd71ab1154bdfd3a7e1e9cd1640de0a910d00b4676bc5a78a2af6d3b',
   },
   '/deck': {
     path: '/targets/deck.sh',
     description: 'Steam Deck (SteamOS)',
     sha256: 'c23f103215486331469565e3448281c1c0edb6e0735554a60b975951de4f1183',
+    sha256Stable: 'c23f103215486331469565e3448281c1c0edb6e0735554a60b975951de4f1183',
   },
   '/android': {
     path: '/targets/android.sh',
     description: 'Android (Wireless ADB)',
     sha256: '27f3a64f3d023b18641978ef894b11666d53ca9495d5306fc63ed077aa97b301',
+    sha256Stable: '27f3a64f3d023b18641978ef894b11666d53ca9495d5306fc63ed077aa97b301',
   },
 };
 
@@ -37,6 +47,29 @@ const ROUTES = {
 const SCRIPT_CACHE_TTL = 300; // 5 minutes - how long to serve cached scripts
 const STALE_CACHE_TTL = 86400; // 24 hours - how long to keep stale cache as fallback
 const FETCH_TIMEOUT_MS = 10000; // 10 second timeout for upstream fetches
+
+// Release channel settings
+const RELEASE_API = 'https://api.github.com/repos/bootible/bootible/releases/latest';
+const RELEASE_CACHE_TTL = 300; // seconds - how long to cache the latest-release lookup
+
+/**
+ * Resolve which git ref a request should be served from.
+ * '-beta' routes serve main; stable routes serve the latest release tag (fallback main).
+ */
+async function resolveRef(pathname) {
+  if (pathname.endsWith('-beta')) return 'main';
+  try {
+    const resp = await fetch(RELEASE_API, {
+      headers: { 'User-Agent': 'bootible-worker' },
+      cf: { cacheTtl: RELEASE_CACHE_TTL, cacheEverything: true },
+    });
+    if (!resp.ok) return 'main';
+    const release = await resp.json();
+    return release.tag_name || 'main';
+  } catch {
+    return 'main';
+  }
+}
 
 /**
  * Fetch with timeout using AbortController
@@ -496,11 +529,18 @@ export default {
     }
 
     // Handle script routes (proxy from GitHub with caching and integrity verification)
-    const route = ROUTES[path];
+    // '-beta' aliases (e.g. /rog-beta) serve the same script from main
+    const routeKey = path.endsWith('-beta') ? path.slice(0, -'-beta'.length) : path;
+    const route = ROUTES[routeKey];
     if (route) {
+      // Resolve the channel's git ref; ALL assets for this request come from this ref,
+      // and the integrity checksum is selected by the ref actually being served
+      const ref = await resolveRef(path);
+      const expectedSha256 = ref === 'main' ? route.sha256 : route.sha256Stable;
+
       const cache = caches.default;
-      // Include query string in cache key so ?v=X can bust cache
-      const cacheKey = new Request(`https://bootible.dev/cache${route.path}${url.search}`, request);
+      // Include ref and query string in cache key so channels stay distinct and ?v=X can bust cache
+      const cacheKey = new Request(`https://bootible.dev/cache/${ref}${route.path}${url.search}`, request);
 
       // Try to get from cache first
       let cachedResponse = await cache.match(cacheKey);
@@ -525,7 +565,7 @@ export default {
 
       try {
         const cacheBuster = Date.now();
-        const scriptUrl = `${GITHUB_RAW_BASE}${route.path}?cb=${cacheBuster}`;
+        const scriptUrl = `${GITHUB_RAW_BASE}/${ref}${route.path}?cb=${cacheBuster}`;
 
         const response = await fetchWithTimeout(scriptUrl, {
           headers: { 'Cache-Control': 'no-cache' },
@@ -534,12 +574,12 @@ export default {
         if (response.ok) {
           script = await response.text();
 
-          // Verify script integrity
+          // Verify script integrity against the checksum for the ref being served
           const computedHash = await sha256(script);
-          if (computedHash !== route.sha256) {
-            console.error(`Integrity check failed for ${route.path}: expected ${route.sha256}, got ${computedHash}`);
+          if (computedHash !== expectedSha256) {
+            console.error(`Integrity check failed for ${route.path}@${ref}: expected ${expectedSha256}, got ${computedHash}`);
             script = null; // Don't use tampered script
-            fetchError = `Integrity verification failed (expected ${route.sha256.slice(0, 8)}..., got ${computedHash.slice(0, 8)}...)`;
+            fetchError = `Integrity verification failed (expected ${expectedSha256.slice(0, 8)}..., got ${computedHash.slice(0, 8)}...)`;
           }
         } else {
           fetchError = `GitHub returned ${response.status}`;
@@ -554,7 +594,8 @@ export default {
           'Content-Type': 'text/plain; charset=utf-8',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'X-Bootible-Device': route.description,
-          'X-Bootible-Integrity': `sha256-${route.sha256}`,
+          'X-Bootible-Ref': ref,
+          'X-Bootible-Integrity': `sha256-${expectedSha256}`,
           'X-Bootible-Cache': cachedResponse ? 'REFRESH' : 'MISS',
           'X-Bootible-Cached-At': String(Date.now()),
         };
