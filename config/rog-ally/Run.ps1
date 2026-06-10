@@ -49,6 +49,10 @@ $validationPath = Join-Path $PSScriptRoot "lib/config-validation.ps1"
 if (Test-Path $validationPath) {
     . $validationPath
 }
+$powerHelpersPath = Join-Path $PSScriptRoot "lib/power-helpers.ps1"
+if (Test-Path $powerHelpersPath) {
+    . $powerHelpersPath
+}
 
 # Select the private config to merge later. When -ConfigFile is passed (ally.ps1
 # bootstrap), the instance was already chosen. Otherwise (bootible re-run),
@@ -692,6 +696,11 @@ function Validate-ConfigSchema {
         'powershell7_default_terminal' = 'bool'
         'disable_powershell7_telemetry' = 'bool'
 
+        # Power & sleep
+        'sleep_mode' = 'enum:default,hibernate'
+        'hibernate_after_minutes' = 'int'
+        'power_button_action' = 'enum:,sleep,hibernate,shutdown'
+
         # Development
         'install_git' = 'bool'
         'install_python' = 'bool'
@@ -1278,6 +1287,7 @@ $moduleOrder = @(
     "emulation",
     "rog_ally",
     "optimization",   # Optimization after all installs
+    "power",          # Power/sleep settings after optimization
     "debloat",        # Debloat last (configures installed apps like PS7)
     "health"          # Post-install checks
 )

@@ -220,6 +220,12 @@ install_gpuz: true            # GPU information
 # Use Windows power plans or Armoury Crate profiles
 configure_power_plans: true
 
+# Power & sleep
+# Modern Standby drains battery; "hibernate" maps idle/power-button to hibernate instead.
+sleep_mode: "default"             # default | hibernate
+hibernate_after_minutes: 0        # 0 = system default timing
+power_button_action: ""           # "" (unchanged) | sleep | hibernate | shutdown
+
 # =============================================================================
 # SYSTEM OPTIMIZATION
 # =============================================================================
