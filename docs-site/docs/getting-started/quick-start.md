@@ -83,6 +83,14 @@ bootible
 
 This applies your configuration. A System Restore Point is created first, so you can always roll back.
 
+When the run finishes, Bootible leaves **`Bootible - Read Me.md`** on your Desktop — a receipt listing every app installed, every setting changed, and first-aid steps if something looks off.
+
+!!! tip "Re-running is always safe"
+    Run `bootible` again any time. It re-applies your configuration and reports anything that changed since your last run (hibernate setting, Game Bar reinstalls, GPU driver version, wallpaper, SSH state) — useful after a Windows Update undoes your setup.
+
+??? note "Beta channel"
+    `irm https://bootible.dev/rog | iex` serves the latest tagged release. To run the newest unreleased code instead, use `irm https://bootible.dev/rog-beta | iex` (Steam Deck: `bootible.dev/deck-beta`).
+
 ---
 
 ## What's Next?

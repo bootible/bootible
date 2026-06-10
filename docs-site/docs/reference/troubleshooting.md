@@ -153,6 +153,9 @@ Flatpak apps and your config survive updates.
 
 ### Winget Not Working
 
+!!! info "Bootible retries this automatically"
+    When winget reports a source failure mid-run, Bootible resets and updates the sources once per run and retries before falling back to msstore. The steps below are for when that automatic recovery isn't enough.
+
 **Solutions:**
 
 1. **Update App Installer:**

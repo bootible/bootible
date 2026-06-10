@@ -90,7 +90,9 @@ Modules execute in this fixed order:
 9. emulation      # EmuDeck setup
 10. rog_ally      # Device-specific tools
 11. optimization  # Windows gaming tweaks
-12. debloat       # Privacy & performance tweaks
+12. power         # Sleep-to-hibernate, power button, CPU boost
+13. debloat       # Privacy & performance tweaks
+14. health        # Post-install health checks
 ```
 
 **Why this order matters:**
@@ -98,7 +100,8 @@ Modules execute in this fixed order:
 - `base` initializes winget before any package installs
 - `apps` installs PowerShell 7 which `ssh` and `debloat` can use
 - `optimization` configures Steam settings (requires Steam from `gaming`)
-- `debloat` runs last to configure all installed applications
+- `debloat` runs after all installs to configure the installed applications
+- `health` runs last - read-only checks that verify what the run claims to have done
 
 ---
 
@@ -350,6 +353,24 @@ Bootible verifies Armoury Crate is present (usually pre-installed) but doesn't m
 
 !!! warning "Core Isolation & VBS"
     Disabling Core Isolation or VBS can improve gaming performance but reduces security. Only disable if you understand the implications.
+
+---
+
+## power
+
+**Purpose:** Sleep-to-hibernate conversion and power-button behavior via `powercfg`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `sleep_mode` | string | `"default"` | `hibernate` maps idle sleep to hibernate (Modern Standby drains 10-23% battery in 12h on Ally-class devices) |
+| `hibernate_after_minutes` | int | `0` | Hibernate timeout when `sleep_mode: hibernate` (`0` = system default) |
+| `power_button_action` | string | `""` | `sleep`, `hibernate`, or `shutdown` (`""` = unchanged) |
+| `disable_cpu_boost_on_battery` | bool | `false` | Disables CPU boost on the battery (DC) power setting only |
+
+All keys default to off - the module changes nothing unless you opt in.
+
+!!! info "What it can't control"
+    Firmware-level Modern Standby behavior (S0 wake sources) is not controllable from Windows. This module changes what Windows does on idle, lid, and power-button events.
 
 ---
 

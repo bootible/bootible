@@ -205,6 +205,11 @@ Next Steps:
   • Run 'bootible' again anytime to update
 ```
 
+On Windows handhelds, Bootible also writes **`Bootible - Read Me.md`** to your Desktop: a receipt of every app installed and setting changed, plus first-aid steps for common issues (Smart App Control, winget failures, hibernate behavior).
+
+!!! info "On later runs: drift detection"
+    From your second run onward, Bootible compares the device against a snapshot of its last known-good state and reports what changed (hibernate setting, Game Bar reinstalls, GPU driver version, wallpaper, SSH state). Repairs only appear on the receipt after they are verified to have actually taken.
+
 ---
 
 ## What's Next?
