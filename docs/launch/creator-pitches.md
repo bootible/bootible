@@ -6,13 +6,29 @@ Two outreach drafts plus a shared demo script. For Gavin to personalize and send
 
 Contact route: via the contact form at rogallylife.com.
 
-> Hi — I'm the maintainer of Bootible (https://github.com/bootible/bootible), a free, MIT-licensed tool that automates the "new Ally checklist" your guides walk people through: one PowerShell command debloats Windows, switches sleep to hibernate, optionally installs G-Helper, installs the owner's launchers and streaming apps, and leaves a plain-English receipt on the Desktop. The part your readers will care about most: re-running it after a Windows update detects what the update reverted and repairs it — the "an update broke my setup again" pain the community keeps hitting. It's dry-run by default, and each owner's config lives in their own private GitHub repo so a fresh wipe or a second device is the same one command. I'd love to give you early access and a guided demo before I post about it more widely — happy to answer anything. Docs: https://docs.bootible.dev
+> Subject: A free tool that automates the new-Ally checklist your guides cover
+>
+> Hi — I'm the maintainer of Bootible (https://github.com/bootible/bootible), a free, MIT-licensed tool that runs the "new Ally checklist" as one PowerShell command: debloat, sleep-to-hibernate, optional G-Helper, the owner's launchers and streaming apps, and a plain-English receipt on the Desktop.
+>
+> The part I think your readers will care about most: re-running it after a Windows update detects what the update reverted and repairs it — the "an update broke my setup again" pain the community keeps hitting. It's dry-run by default, and each owner's config lives in their own private GitHub repo, so a fresh wipe or a second device is the same one command.
+>
+> I'd love to give you early access and a guided demo before I post about it more widely — happy to answer anything. Docs: https://docs.bootible.dev
 
 ## ETA PRIME
 
 Contact route: business email listed on the YouTube about page.
 
-> Hi — I built Bootible (https://github.com/bootible/bootible), a free, open-source tool that takes a fresh ROG Ally from out-of-the-box to fully set up in one cut: a single PowerShell command debloats Windows, fixes the sleep-drains-battery problem by switching to hibernate, optionally installs G-Helper, installs the user's chosen launchers and streaming clients, and drops a receipt on the Desktop listing everything it did. It demos really well on camera — dry-run preview first, then one word (`bootible`) and the machine sets itself up while you talk, and re-running it after a Windows update visibly repairs what the update broke. If you'd find it useful for an Ally setup video I'd love to give you early access and a walkthrough. Docs: https://docs.bootible.dev
+> Subject: One command sets up a fresh ROG Ally on camera (free, open source)
+>
+> Hi — I built Bootible (https://github.com/bootible/bootible), a free, open-source tool that takes a fresh ROG Ally from out-of-the-box to fully set up in one cut.
+>
+> It demos really well on camera:
+>
+> - Dry-run preview first — the one-liner prints every change before touching anything
+> - One word (`bootible`) and the machine builds itself while you talk — debloat, hibernate fix, optional G-Helper, the user's launchers and streaming clients, receipt on the Desktop
+> - Re-run it after a Windows update and it visibly repairs what the update broke
+>
+> If you'd find it useful for an Ally setup video, I'd love to give you early access and a walkthrough. Docs: https://docs.bootible.dev
 
 ## Shared demo script — the 60-second flow
 

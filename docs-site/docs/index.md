@@ -5,11 +5,11 @@ description: Bootible - the missing first hour for Windows handhelds. One-liner 
 
 # Bootible
 
-**The missing first hour for Windows handhelds — one-liner setup for gaming handhelds.**
+**The missing first hour for Windows handhelds — one command sets the device up, the same command repairs it after updates.**
 
 A new Windows handheld greets you with the same three problems: it drains battery while it "sleeps", the recommended setup is a long checklist you work through by hand, and the next Windows update quietly reverts what you fixed. Bootible turns that first hour into one command — and the fix for every update after it into the same command.
 
-Bootible automates the configuration of Steam Deck, ROG Ally, Android handhelds, and other gaming devices. Preview everything before applying (dry-run is the default), keep your config as YAML in your own private repo, and re-run anytime — drift from your known-good state is detected and repaired, with repairs claimed only after post-run verification.
+Bootible automates the configuration of Steam Deck, ROG Ally, Android handhelds, and other gaming devices. Preview everything before applying (dry-run is the default), keep your config as YAML in your own private repo, and re-run anytime — drift from your known-good state is detected and repaired — and a repair is only reported after it's verified to have actually taken.
 
 <div class="grid cards" markdown>
 

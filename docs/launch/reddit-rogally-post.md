@@ -6,7 +6,7 @@ Draft for Gavin to copy, edit, and post himself. Nothing here auto-publishes.
 
 1. I built a one-command setup for the Ally that survives Windows Updates - free and open source
 2. Tired of redoing the new-Ally checklist every time Windows Update breaks something? I automated it - one command, open source, dry-run first
-3. One PowerShell command: debloat, hibernate fix, G-Helper, your apps - and re-running it repairs whatever an update reverted (MIT, free)
+3. Windows Update keeps undoing my Ally tweaks, so I built a tool where re-running one command puts everything back - open source
 
 ## Post body
 
@@ -17,6 +17,8 @@ I got tired of doing that by hand, so I built **Bootible**. One command in Power
 ```
 irm https://bootible.dev/rog | iex
 ```
+
+*(That command changes nothing — it's a dry run. It prints every change it would make, and you type `bootible` afterwards to actually apply. Source, if you want to read it first: https://github.com/bootible/bootible — downloads are checksum-verified.)*
 
 **What it does:**
 
@@ -33,9 +35,8 @@ irm https://bootible.dev/rog | iex
 - **Your config lives in YOUR private repo.** Setup is YAML in your own GitHub repo. New device (or a fresh wipe)? Same command, same setup. Multiple devices, one config repo.
 - **Dry-run by default.** The one-liner changes NOTHING on first run — it shows you everything it would do. You type `bootible` to actually apply. You can read every line of what's coming before it touches your machine.
 
-**Honesty section (what it does NOT do):**
+**What it does NOT do (so nobody's surprised):**
 
-- It's MIT-licensed open source — read the code before you run it: https://github.com/bootible/bootible
 - No TDP/performance profile management — that belongs to G-Helper or Armoury Crate at runtime; Bootible installs the tool, it doesn't drive it
 - No driver updates or rollback, and it can't stop Windows Update from breaking things — it repairs after the fact, it doesn't prevent
 - No Armoury Crate removal
@@ -43,11 +44,12 @@ irm https://bootible.dev/rog | iex
 
 Docs: https://docs.bootible.dev
 
-Feedback very welcome — this scratches my own itch and I want it to scratch yours too. On the roadmap: SteamOS-on-Ally support is being explored, so the same tool and config could follow you if you jump ship from Windows. If something breaks, the run logs land in your private repo, so it's easy to share details in an issue.
+Feedback very welcome — it's MIT-licensed, it scratches my own itch, and I want it to scratch yours too. On the roadmap: SteamOS-on-Ally support is being explored, so the same tool and config could follow you if you jump ship from Windows. If something breaks, the run logs land in your private repo, so it's easy to share details in an issue.
 
 <!--
 NOTE TO GAVIN (do not include in the post):
 - Check r/ROGAlly's self-promo rules and any required flair BEFORE posting. Some device subs require mod approval or a specific "Tool/Software" flair for this kind of post.
 - Plan to be around for the first few hours after posting — answering early comments quickly is what keeps these posts alive.
 - The research notes say device-subreddit launch posts are a primary ignition channel; the comments ARE the launch.
+- Attach a screenshot (dry-run preview or the Desktop receipt) or a 20-30s clip of the drift-repair re-run. Text-only tool posts get scrolled past; the RC receipt capture (see README TODO) doubles as this asset.
 -->

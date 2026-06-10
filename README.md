@@ -1,6 +1,6 @@
 # Bootible
 
-> The missing first hour for Windows handhelds — one-liner setup for gaming handhelds.
+> The missing first hour for Windows handhelds — one command sets the device up, the same command repairs it after updates.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/Docs-docs.bootible.dev-blue)](https://docs.bootible.dev)
@@ -22,7 +22,7 @@ Run in **PowerShell as Administrator**:
 irm https://bootible.dev/rog | iex
 ```
 
-That's it! Bootible runs in **dry-run mode** by default — you see every change before anything is touched. When ready, just type `bootible` to apply.
+That command changes nothing — it's a **dry run**. You read the preview, then type `bootible` to apply.
 
 Want the latest changes from `main` instead of the tagged release? Use the beta channel:
 
@@ -57,6 +57,7 @@ Bootible also detects Smart App Control — known to break Armoury Crate on the 
 |--------|----------|--------|
 | **Steam Deck** | SteamOS | Ready |
 | **ROG Ally** (all variants) | Windows 11 | Ready |
+| Android handhelds | Android 11+ | Alpha |
 | Bazzite | Fedora | Planned |
 | Windows Desktop | Windows 10/11 | Planned |
 | More handhelds | Various | Planned |
