@@ -182,8 +182,16 @@ function Install-WingetPackage {
             if ($sourceOpenFailure -and -not $Script:WingetSourceRecovered) {
                 $Script:WingetSourceRecovered = $true
                 Write-Host "    Resetting winget sources and retrying..." -ForegroundColor Yellow
-                winget source reset --force 2>&1 | Out-Null
-                winget source update 2>&1 | Out-Null
+                # winget outputs to stderr which triggers ErrorActionPreference=Stop
+                # Temporarily allow stderr without throwing
+                $prevEAP = $ErrorActionPreference
+                $ErrorActionPreference = "Continue"
+                try {
+                    winget source reset --force 2>&1 | Out-Null
+                    winget source update 2>&1 | Out-Null
+                } finally {
+                    $ErrorActionPreference = $prevEAP
+                }
 
                 $result = & $runWingetWithTimeout $PackageId "winget" $TimeoutSeconds
                 if (-not $result.TimedOut -and $result.ExitCode -eq 0) {

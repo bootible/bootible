@@ -12,8 +12,13 @@ BeforeAll {
 }
 
 Describe "Run.ps1 runtime wiring" {
-    It "Dot-sources lib/winget-helpers.ps1" {
-        $hits = Select-String -Path $script:RunPs1Path -Pattern 'lib/winget-helpers\.ps1'
+    It "Resolves lib/winget-helpers.ps1 relative to the script root" {
+        $hits = Select-String -Path $script:RunPs1Path -Pattern 'Join-Path \$PSScriptRoot "lib/winget-helpers\.ps1"'
+        $hits | Should -Not -BeNullOrEmpty
+    }
+
+    It "Dot-sources the winget helpers path" {
+        $hits = Select-String -Path $script:RunPs1Path -Pattern '^\s*\.\s+\$wingetHelpersPath'
         $hits | Should -Not -BeNullOrEmpty
     }
 
