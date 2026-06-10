@@ -10,7 +10,7 @@ Every new Windows handheld owner hits the same three walls:
 
 - **Your handheld drains battery while "sleeping."** Windows modern standby keeps the device half-awake; you pick it up the next day and the battery is gone. Bootible switches sleep to hibernate so closing the lid actually means off.
 - **Setup is a 10-step checklist you do by hand.** Debloat, privacy tweaks, G-Helper, launchers, streaming clients — every guide walks you through the same steps, one at a time, on an on-screen keyboard. Bootible runs the checklist for you.
-- **Windows Update quietly breaks what you fixed.** An update lands and your carefully applied settings revert. Re-run Bootible and it detects the drift and re-applies your config — and only reports a repair after verifying the fix actually took.
+- **Windows Update quietly breaks what you fixed.** An update lands and your carefully applied settings revert. Re-run Bootible and it re-applies your whole config, reports drift on the settings it monitors — and only reports a repair after verifying the fix actually took.
 
 ## Quick Start
 
@@ -40,7 +40,7 @@ curl -fsSL https://bootible.dev/deck | bash
 
 ## Why Bootible?
 
-- **Re-running repairs drift.** Bootible snapshots known-good state, detects what an update reverted, and re-applies your config on the next run. Repairs are verified post-run before they're claimed.
+- **Re-running repairs drift.** Re-running detects external changes since your last run (hibernate setting, Game Bar reinstalls, GPU driver version, wallpaper, SSH state) and re-applies your configuration — repairs are only reported after they're verified.
 - **Config lives in YOUR repo.** Your setup is YAML in your own private GitHub repo — version it, review it, reuse it across as many devices as you like with per-device instances. No data is collected or stored anywhere else.
 - **Dry-run by default.** The one-liner never changes anything on first contact. You read the preview, then opt in.
 - **A receipt on your Desktop.** After every run, `Bootible - Read Me.md` lands on the Desktop: apps installed, changes applied, and an FAQ — so you (or whoever you set the device up for) can see exactly what happened.

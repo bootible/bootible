@@ -70,7 +70,8 @@ if (Get-Service sshd -ErrorAction SilentlyContinue) {
     Set-Service -Name ssh-agent -StartupType 'Automatic'
 
     $sshd = Get-Service sshd
-    if ($sshd.Status -ne 'Running') {
+    $sshdWasRunning = ($sshd.Status -eq 'Running')
+    if (-not $sshdWasRunning) {
         Start-Service sshd
     }
 
@@ -80,7 +81,8 @@ if (Get-Service sshd -ErrorAction SilentlyContinue) {
     }
 
     Write-Host "[OK] SSH services configured and running" -ForegroundColor Green
-    if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+    # Only claim the change on the receipt when this run actually started sshd
+    if (-not $sshdWasRunning -and (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue)) {
         Add-AppliedChange "SSH server enabled on port 22"
     }
 } else {

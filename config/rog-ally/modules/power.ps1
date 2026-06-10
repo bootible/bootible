@@ -31,13 +31,20 @@ if ($Script:DryRun) {
 }
 
 Write-Status "Applying power configuration (sleep_mode: $sleepMode)..." "Info"
+$anyFailed = $false
 foreach ($cmd in $commands) {
     $output = & powercfg @cmd
     if ($LASTEXITCODE -ne 0) {
+        $anyFailed = $true
         Write-Status "powercfg $($cmd -join ' ') failed (exit $LASTEXITCODE): $output" "Warning"
     }
 }
-Write-Status "Power configuration applied" "Success"
-if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
-    Add-AppliedChange "Power: sleep_mode=$sleepMode, button=$buttonAction, boost_off_dc=$disableBoostDc"
+if ($anyFailed) {
+    # Warnings above already tell the story - don't claim the change on the receipt
+    Write-Status "Power configuration applied with errors (see warnings above)" "Warning"
+} else {
+    Write-Status "Power configuration applied" "Success"
+    if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+        Add-AppliedChange "Power: sleep_mode=$sleepMode, button=$buttonAction, boost_off_dc=$disableBoostDc"
+    }
 }

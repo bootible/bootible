@@ -31,7 +31,7 @@ irm https://bootible.dev/rog | iex
 
 **What makes it different from winutil/debloat scripts:**
 
-- **Re-running repairs drift.** It snapshots known-good state, so after an update breaks things you run `bootible` again and it detects what reverted and re-applies it. It only claims a repair after verifying post-run that the fix actually took — no false "fixed it" messages.
+- **Re-running repairs drift.** After an update breaks things you run `bootible` again: it re-applies ALL of your config idempotently, and it explicitly reports drift on the stuff it watches between runs — the hibernate setting, Game Bar reinstalls, GPU driver version, wallpaper, SSH server state. It only claims a repair after verifying post-run that the fix actually took — no false "fixed it" messages.
 - **Your config lives in YOUR private repo.** Setup is YAML in your own GitHub repo. New device (or a fresh wipe)? Same command, same setup. Multiple devices, one config repo.
 - **Dry-run by default.** The one-liner changes NOTHING on first run — it shows you everything it would do. You type `bootible` to actually apply. You can read every line of what's coming before it touches your machine.
 

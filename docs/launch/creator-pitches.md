@@ -41,6 +41,6 @@ Fresh Ally desktop to fully set up, then "an update broke it" to repaired, in on
 5. **Type `bootible`** — the real run starts.
 6. **Cut between apps installing** — winget pulling Steam, Moonlight, G-Helper, etc.
 7. **Show the Desktop receipt** — open "Bootible - Read Me.md": apps installed, changes applied, FAQ.
-8. **Simulate "Windows Update broke it"** — manually revert a setting Bootible manages (e.g. flip a debloat registry value or re-enable sleep) off-camera or in a quick cut.
+8. **Simulate "Windows Update broke it"** — run `powercfg /hibernate off` in an admin PowerShell off-camera or in a quick cut. The hibernate setting is in the drift probe set, so it will show up in the drift report AND get verifiably repaired on the re-run.
 9. **Re-run `bootible`** — pause on the "DRIFT DETECTED SINCE LAST RUN" report (what differs from the known-good snapshot taken on the first run), then point at the "Repaired drift" lines in the receipt: it found what reverted and fixed it, and it only says "repaired" because it verified the fix after applying.
 10. **Close on the one-two punch:** one command on day one, the same command after every update.

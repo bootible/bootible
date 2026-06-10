@@ -278,7 +278,13 @@ if (Get-ConfigValue "force_time_sync" $true) {
 # SYSTEM STATE CHECKS
 # =============================================================================
 
-Write-SmartAppControlAdvice -State (Get-SmartAppControlState)
+if (Get-Command Get-SmartAppControlState -ErrorAction SilentlyContinue) {
+    $sacState = Get-SmartAppControlState
+    Write-SmartAppControlAdvice -State $sacState
+    if ($sacState -eq "on") {
+        $script:HealthFailures += "Smart App Control (blocks Armoury Crate)"
+    }
+}
 
 # =============================================================================
 # SERVICE CHECKS

@@ -1,6 +1,6 @@
 ---
 title: Home
-description: Bootible - the missing first hour for Windows handhelds. One-liner setup for gaming handhelds.
+description: Bootible - the missing first hour for Windows handhelds. One command sets the device up, the same command repairs it after updates.
 ---
 
 # Bootible

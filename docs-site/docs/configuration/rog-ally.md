@@ -293,6 +293,7 @@ password_managers:
 |-----|------|---------|-------------|
 | `install_armoury_crate` | bool | `true` | Armoury Crate (usually pre-installed) |
 | `install_myasus` | bool | `true` | MyASUS support app |
+| `install_ghelper` | bool | `false` | G-Helper — lightweight open-source Armoury Crate alternative (TDP, fans, RGB) |
 
 ### Alternative Controllers
 
@@ -315,6 +316,10 @@ password_managers:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `configure_power_plans` | bool | `true` | Configure Windows power plans |
+| `sleep_mode` | string | `"default"` | `default` keeps Windows sleep; `hibernate` converts idle/lid sleep to hibernate |
+| `hibernate_after_minutes` | int | `0` | Minutes asleep before hibernating (0 = don't change) |
+| `power_button_action` | string | `""` | Power button override: `sleep`, `hibernate`, or `shutdown` (empty = keep current) |
+| `disable_cpu_boost_on_battery` | bool | `false` | Disable CPU boost on battery only (DC `PERFBOOSTMODE 0`); plugged-in behavior untouched |
 
 ---
 

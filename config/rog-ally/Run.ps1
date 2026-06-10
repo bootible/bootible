@@ -1131,7 +1131,11 @@ if ($Tags.Count -eq 0 -and $Script:SelectedInstance -and (Get-Command Read-State
             # gpu_driver is report-only; only the rest are candidates for repair
             $Script:PreRunDrift = @($drift | Where-Object { $_.Key -ne 'gpu_driver' })
             if ($Script:PreRunDrift.Count -gt 0) {
-                Write-Status "Modules below will re-apply your configuration" "Info"
+                if ($Script:DryRun) {
+                    Write-Status "[DRY RUN] A real run would re-apply your configuration" "Info"
+                } else {
+                    Write-Status "Modules below will re-apply your configuration" "Info"
+                }
             }
         } else {
             Write-Status "No drift since last run" "Success"
@@ -1185,13 +1189,23 @@ if (-not $Script:DryRun -and $Script:StateSnapshotPath -and (Get-Command Save-St
         $postState = Get-LiveState -Config $Script:Config
 
         if ($Script:PreRunDrift.Count -gt 0 -and $Script:LastSnapshot) {
+            # Receipt lines use user-friendly labels; console warnings keep raw keys
+            $driftFriendlyNames = @{
+                hibernate_enabled = "Hibernate setting"
+                gamebar_present   = "Xbox Game Bar presence"
+                gpu_driver        = "GPU driver version"
+                wallpaper_value   = "Desktop wallpaper"
+                sshd_running      = "SSH server state"
+            }
             $repairResult = Get-VerifiedRepairs -PreDrift $Script:PreRunDrift -Expected $Script:LastSnapshot -PostState $postState
             foreach ($item in @($repairResult.Repaired)) {
-                Add-AppliedChange "Repaired drift: $($item.Key)"
+                $label = if ($driftFriendlyNames.ContainsKey($item.Key)) { $driftFriendlyNames[$item.Key] } else { $item.Key }
+                Add-AppliedChange "Repaired drift: $label"
             }
             foreach ($item in @($repairResult.Unrepaired)) {
                 Write-Status "Drift not repaired: $($item.Key)" "Warning"
-                Add-AppliedChange "Drift detected (not repaired): $($item.Key)"
+                $label = if ($driftFriendlyNames.ContainsKey($item.Key)) { $driftFriendlyNames[$item.Key] } else { $item.Key }
+                Add-AppliedChange "Drift detected (not repaired): $label"
             }
         }
 
