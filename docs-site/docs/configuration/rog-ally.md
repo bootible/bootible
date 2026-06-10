@@ -336,7 +336,7 @@ password_managers:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `enable_game_mode` | bool | `true` | Windows Game Mode |
-| `enable_hardware_gpu_scheduling` | bool | `true` | Hardware GPU Scheduling |
+| `enable_hardware_gpu_scheduling` | bool | `true` | Hardware GPU Scheduling. AMD frame generation (AFMF) requires this ON; drift-monitored. |
 | `disable_fullscreen_optimizations` | bool | `false` | Disable FSO |
 
 ### Xbox/Game Bar

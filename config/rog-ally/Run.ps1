@@ -1178,6 +1178,7 @@ if (-not $Script:DryRun -and $Script:StateSnapshotPath -and (Get-Command Save-St
                 gpu_driver        = "GPU driver version"
                 wallpaper_value   = "Desktop wallpaper"
                 sshd_running      = "SSH server state"
+                hags_enabled      = "Hardware-accelerated GPU scheduling"
             }
             $repairResult = Get-VerifiedRepairs -PreDrift $Script:PreRunDrift -Expected $Script:LastSnapshot -PostState $postState
             foreach ($item in @($repairResult.Repaired)) {

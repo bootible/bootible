@@ -137,5 +137,10 @@ function Get-LiveState {
         $state['sshd_running'] = ($null -ne $sshd -and $sshd.Status -eq 'Running')
     } catch { }
 
+    try {
+        $hags = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'HwSchMode' -ErrorAction Stop).HwSchMode
+        $state['hags_enabled'] = ($hags -eq 2)
+    } catch { }
+
     return $state
 }

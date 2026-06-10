@@ -52,6 +52,12 @@ if (Test-Path $privateScriptPath) {
     Write-Status "Found EmuDeck EA script in local files" "Success"
 }
 
+# Pre-install EmuDeck's prerequisites so the user's interactive EmuDeck
+# session is shorter (its installer otherwise installs Git and Python
+# itself, with prompts). Idempotent: skip-if-present via winget.
+Install-WingetPackage -PackageId "Git.Git" -Name "Git"
+Install-WingetPackage -PackageId "Python.Python.3.12" -Name "Python 3.12"
+
 if ($Script:DryRun) {
     if ($emudeckScript) {
         Write-Status "[DRY RUN] Would run EmuDeck EA installer: $emudeckScript" "Info"
