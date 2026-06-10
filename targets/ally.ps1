@@ -599,7 +599,11 @@ function Clone-Bootible {
     try {
         if (Test-Path $BootibleDir) {
             if ($Script:BootibleRef -eq "main") {
-                Run-GitWithProgress -Description "Updating bootible repo" -Arguments @("pull") -WorkingDir $BootibleDir
+                # Fetch + checkout main first so a device previously pinned to a
+                # release tag (detached HEAD) can return to the beta channel
+                Run-GitWithProgress -Description "Fetching bootible updates" -Arguments @("fetch", "--tags", "--quiet", "origin") -WorkingDir $BootibleDir
+                Run-GitWithProgress -Description "Checking out bootible main" -Arguments @("checkout", "--quiet", "main") -WorkingDir $BootibleDir
+                Run-GitWithProgress -Description "Updating bootible repo" -Arguments @("pull", "--quiet", "origin", "main") -WorkingDir $BootibleDir
             } else {
                 Run-GitWithProgress -Description "Fetching bootible releases" -Arguments @("fetch", "--tags", "--quiet", "origin") -WorkingDir $BootibleDir
                 Run-GitWithProgress -Description "Checking out bootible $($Script:BootibleRef)" -Arguments @("checkout", "--quiet", $Script:BootibleRef) -WorkingDir $BootibleDir

@@ -10,7 +10,7 @@
  *   /*.png      -> Static assets (served by Pages)
  *
  * Channels:
- *   Stable routes serve the latest GitHub release tag (fallback: main).
+ *   Stable routes serve STABLE_REF (a release tag, pinned at deploy time).
  *   '-beta' routes always serve main.
  */
 
@@ -19,15 +19,15 @@ const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/bootible/bootible';
 /**
  * Script routes with SHA256 checksums for integrity verification.
  *   sha256       - beta channel (main); auto-updated by the Update Checksums workflow
- *   sha256Stable - stable channel (latest release tag); pinned by the release process
+ *   sha256Stable - stable channel (STABLE_REF); pinned by the release process
  * Field order matters: CI extracts the beta hash as the first sha256 after the route key.
  */
 const ROUTES = {
   '/rog': {
     path: '/targets/ally.ps1',
     description: 'ROG Ally (Windows)',
-    sha256: '2bd68382dd71ab1154bdfd3a7e1e9cd1640de0a910d00b4676bc5a78a2af6d3b',
-    sha256Stable: '2bd68382dd71ab1154bdfd3a7e1e9cd1640de0a910d00b4676bc5a78a2af6d3b',
+    sha256: '587eb38c48bb8a93ee1bbc5855736964f099668ccfc806892ff033b6400e6df3',
+    sha256Stable: '587eb38c48bb8a93ee1bbc5855736964f099668ccfc806892ff033b6400e6df3',
   },
   '/deck': {
     path: '/targets/deck.sh',
@@ -49,27 +49,9 @@ const STALE_CACHE_TTL = 86400; // 24 hours - how long to keep stale cache as fal
 const FETCH_TIMEOUT_MS = 10000; // 10 second timeout for upstream fetches
 
 // Release channel settings
-const RELEASE_API = 'https://api.github.com/repos/bootible/bootible/releases/latest';
-const RELEASE_CACHE_TTL = 300; // seconds - how long to cache the latest-release lookup
-
-/**
- * Resolve which git ref a request should be served from.
- * '-beta' routes serve main; stable routes serve the latest release tag (fallback main).
- */
-async function resolveRef(pathname) {
-  if (pathname.endsWith('-beta')) return 'main';
-  try {
-    const resp = await fetch(RELEASE_API, {
-      headers: { 'User-Agent': 'bootible-worker' },
-      cf: { cacheTtl: RELEASE_CACHE_TTL, cacheEverything: true },
-    });
-    if (!resp.ok) return 'main';
-    const release = await resp.json();
-    return release.tag_name || 'main';
-  } catch {
-    return 'main';
-  }
-}
+// Updated by the release process: set to the tag (e.g. 'v1.0.0') in the same
+// commit that pins each route's sha256Stable. 'main' means no release yet.
+const STABLE_REF = 'main';
 
 /**
  * Fetch with timeout using AbortController
@@ -529,13 +511,15 @@ export default {
     }
 
     // Handle script routes (proxy from GitHub with caching and integrity verification)
-    // '-beta' aliases (e.g. /rog-beta) serve the same script from main
-    const routeKey = path.endsWith('-beta') ? path.slice(0, -'-beta'.length) : path;
+    // '-beta' aliases (e.g. /rog-beta) serve the same script from main;
+    // stable routes serve the deploy-time pinned STABLE_REF
+    const isBeta = path.endsWith('-beta');
+    const routeKey = isBeta ? path.slice(0, -'-beta'.length) : path;
     const route = ROUTES[routeKey];
     if (route) {
-      // Resolve the channel's git ref; ALL assets for this request come from this ref,
-      // and the integrity checksum is selected by the ref actually being served
-      const ref = await resolveRef(path);
+      // ALL assets for this request come from this ref, and the integrity
+      // checksum is selected by the ref actually being served
+      const ref = isBeta ? 'main' : STABLE_REF;
       const expectedSha256 = ref === 'main' ? route.sha256 : route.sha256Stable;
 
       const cache = caches.default;

@@ -3,9 +3,12 @@
 # Regression guard: the release channel spans three files that must stay wired
 # together — targets/ally.ps1 ($Script:BootibleRef, ref-aware clone/checkout),
 # config/rog-ally/Run.ps1 ($Script:BootibleVersion), and cloudflare/_worker.js
-# (resolveRef, '-beta' routes, per-channel sha256/sha256Stable checksums).
-# These are text-level assertions in the RuntimeWiring style: they pin the
-# wiring the release process (docs/releasing.md) depends on, not behavior.
+# (STABLE_REF deploy-time pin, '-beta' routes, per-channel sha256/sha256Stable
+# checksums). Ref resolution is deliberately network-free: a runtime GitHub API
+# lookup would rate-limit on shared Cloudflare egress IPs and silently collapse
+# the stable channel to main. These are text-level assertions in the
+# RuntimeWiring style: they pin the wiring the release process
+# (docs/releasing.md) depends on, not behavior.
 
 BeforeAll {
     $script:AllyPs1Path = Join-Path $PSScriptRoot "../targets/ally.ps1"
@@ -29,14 +32,26 @@ Describe "Release channel wiring" {
         $hits | Should -Not -BeNullOrEmpty
     }
 
-    It "Worker defines the resolveRef release resolver" {
-        $hits = Select-String -Path $script:WorkerJsPath -Pattern 'async function resolveRef'
+    It "Worker pins the stable channel ref at deploy time" {
+        $hits = Select-String -Path $script:WorkerJsPath -Pattern "^const STABLE_REF = '"
         $hits | Should -Not -BeNullOrEmpty
     }
 
     It "Worker routes '-beta' to main" {
         $hits = Select-String -Path $script:WorkerJsPath -Pattern "endsWith\('-beta'\)"
         $hits | Should -Not -BeNullOrEmpty
+    }
+
+    It "Worker resolves the ref from the beta flag and STABLE_REF" {
+        $hits = Select-String -Path $script:WorkerJsPath -Pattern "isBeta \? 'main' : STABLE_REF"
+        $hits | Should -Not -BeNullOrEmpty
+    }
+
+    It "Worker ref resolution makes no network calls" {
+        # The stable ref is a deploy-time constant; a runtime release lookup
+        # (api.github.com) must never come back
+        $hits = Select-String -Path $script:WorkerJsPath -Pattern 'api\.github\.com'
+        $hits | Should -BeNullOrEmpty
     }
 
     It "Worker route <Route> carries both channel checksums" -ForEach @(
