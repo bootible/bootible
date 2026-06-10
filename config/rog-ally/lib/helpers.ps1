@@ -122,3 +122,33 @@ function Convert-OrderedDictToHashtable {
     }
     return $hashtable
 }
+
+function Get-SmartAppControlState {
+    <#
+    .SYNOPSIS
+        Reads the Windows Smart App Control state.
+    .DESCRIPTION
+        SAC silently blocks Armoury Crate components on Ally-class devices.
+        Returns: off | on | evaluation | unknown. SAC cannot be disabled
+        programmatically - turning it off is a one-way user action, and
+        re-enabling requires a Windows reset. Detection + guidance only.
+    #>
+    param(
+        [scriptblock]$RegistryReader = {
+            (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name 'VerifiedAndReputablePolicyState' -ErrorAction Stop).VerifiedAndReputablePolicyState
+        }
+    )
+
+    try {
+        $value = & $RegistryReader
+    } catch {
+        return "unknown"
+    }
+
+    switch ($value) {
+        0 { return "off" }
+        1 { return "on" }
+        2 { return "evaluation" }
+        default { return "unknown" }
+    }
+}

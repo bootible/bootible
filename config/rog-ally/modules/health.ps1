@@ -275,6 +275,27 @@ if (Get-ConfigValue "force_time_sync" $true) {
 }
 
 # =============================================================================
+# SYSTEM STATE CHECKS
+# =============================================================================
+
+$sacState = Get-SmartAppControlState
+switch ($sacState) {
+    "on" {
+        Write-Status "Smart App Control: ON - blocks Armoury Crate components (ROG Live Service, ACSetup)" "Warning"
+        Write-Status "Turning SAC off is one-way (re-enabling requires a Windows reset). If you rely on Armoury Crate: Settings > Privacy & security > Windows Security > App & browser control" "Info"
+    }
+    "evaluation" {
+        Write-Status "Smart App Control: evaluation mode - may switch ON and break Armoury Crate" "Warning"
+    }
+    "off" {
+        Write-Status "Smart App Control: off" "Success"
+    }
+    default {
+        Write-Status "Smart App Control state could not be determined" "Info"
+    }
+}
+
+# =============================================================================
 # SERVICE CHECKS
 # =============================================================================
 
