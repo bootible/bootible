@@ -116,6 +116,9 @@ if (Get-ConfigValue "install_ghelper" $false) {
 
         if (Test-Path $gHelperExe) {
             Write-Status "G-Helper already installed - skipping" "Success"
+            if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+                Add-InstallResult -PackageId 'seerge/g-helper' -Name 'G-Helper' -Status 'skipped' -Source 'direct'
+            }
         } elseif ($Script:DryRun) {
             Write-Status "[DRY RUN] Would install G-Helper (Armoury Crate alternative) from GitHub releases" "Info"
         } else {
@@ -152,6 +155,9 @@ if (Get-ConfigValue "install_ghelper" $false) {
                     if (Test-Path $gHelperExe) {
                         Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'GHelper' -Value "`"$gHelperExe`""
                         Write-Status "G-Helper $($release.Tag) installed (autostarts at login)" "Success"
+                        if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+                            Add-InstallResult -PackageId 'seerge/g-helper' -Name 'G-Helper' -Status 'succeeded' -Source 'direct'
+                        }
                         if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
                             Add-AppliedChange "G-Helper $($release.Tag) installed (autostart at login)"
                         }
@@ -167,6 +173,9 @@ if (Get-ConfigValue "install_ghelper" $false) {
                 } catch {
                     Write-Status "Failed to install G-Helper: $_" "Warning"
                     Write-Status "Install manually: https://github.com/seerge/g-helper/releases" "Info"
+                    if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+                        Add-InstallResult -PackageId 'seerge/g-helper' -Name 'G-Helper' -Status 'failed' -Source 'direct' -Message $_.Exception.Message
+                    }
                 } finally {
                     $ProgressPreference = $prevProgressPreference
                     Remove-Item $zipFile -Force -ErrorAction SilentlyContinue

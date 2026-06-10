@@ -81,6 +81,9 @@ function Install-WingetPackage {
         if ($installed -match $PackageId) {
             Write-Status "$Name already installed - skipping" "Success"
             & $completeLog "skipped"
+            if (-not $Script:DryRun -and (Get-Command Add-InstallResult -ErrorAction SilentlyContinue)) {
+                Add-InstallResult -PackageId $PackageId -Name $Name -Status 'skipped' -Source ''
+            }
             return $true
         }
     } catch {
@@ -172,6 +175,9 @@ function Install-WingetPackage {
         } elseif ($result.ExitCode -eq 0) {
             Write-Status "$Name installed (winget)" "Success"
             & $completeLog "success"
+            if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+                Add-InstallResult -PackageId $PackageId -Name $Name -Status 'succeeded' -Source 'winget'
+            }
             return $true
         } else {
             Write-Host "    Winget source failed (exit code $($result.ExitCode))" -ForegroundColor Yellow
@@ -197,6 +203,9 @@ function Install-WingetPackage {
                 if (-not $result.TimedOut -and $result.ExitCode -eq 0) {
                     Write-Status "$Name installed (winget after source reset)" "Success"
                     & $completeLog "success"
+                    if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+                        Add-InstallResult -PackageId $PackageId -Name $Name -Status 'succeeded' -Source 'winget'
+                    }
                     return $true
                 }
                 Write-Host "    Retry after source reset failed (exit code $($result.ExitCode))" -ForegroundColor Yellow
@@ -214,6 +223,9 @@ function Install-WingetPackage {
         } elseif ($result.ExitCode -eq 0) {
             Write-Status "$Name installed (msstore fallback)" "Success"
             & $completeLog "success"
+            if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+                Add-InstallResult -PackageId $PackageId -Name $Name -Status 'succeeded' -Source 'msstore'
+            }
             return $true
         } else {
             Write-Host "    msstore also failed (exit code $($result.ExitCode))" -ForegroundColor Red
@@ -227,6 +239,9 @@ function Install-WingetPackage {
         foreach ($line in $errorLines) {
             Write-Host "    $line" -ForegroundColor Yellow
         }
+    }
+    if (Get-Command Add-InstallResult -ErrorAction SilentlyContinue) {
+        Add-InstallResult -PackageId $PackageId -Name $Name -Status 'failed' -Source '' -Message 'all sources failed or timed out'
     }
     & $completeLog "failed"
     return $false
