@@ -271,10 +271,17 @@ try {
 # Steam overwrites it); add the folder in Steam > Settings > Storage.
 
 if (Get-Command Get-ScaffoldDirectories -ErrorAction SilentlyContinue) {
-    $scaffoldDirs = @(Get-ScaffoldDirectories -Paths @(
-        (Get-ConfigValue "games_path" ""),
-        (Get-ConfigValue "roms_path" "")
-    ))
+    $requestedPaths = @((Get-ConfigValue "games_path" ""), (Get-ConfigValue "roms_path" "")) |
+        Where-Object { $_ -and $_.Trim() }
+    $scaffoldDirs = @(Get-ScaffoldDirectories -Paths $requestedPaths)
+    # Make every filtered path visible: warn for entries the rooting contract
+    # rejects (same regex as Get-ScaffoldDirectories). Case-duplicate drops
+    # are intentional dedupe, not rejections - they do not warn.
+    foreach ($requested in $requestedPaths) {
+        if ($requested.Trim() -notmatch '^[A-Za-z]:[\\\/]') {
+            Write-Status "Skipping '$requested' - only absolute drive-letter paths (e.g. D:\Games) are scaffolded" "Warning"
+        }
+    }
     foreach ($dir in $scaffoldDirs) {
         if (Test-Path $dir) {
             Write-Status "Directory exists: $dir" "Info"

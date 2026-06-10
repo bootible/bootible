@@ -190,12 +190,16 @@ function Get-ScaffoldDirectories {
     .DESCRIPTION
         Pure function: the caller extracts the raw path strings from config
         and passes them in. Trims whitespace, skips empty or whitespace-only
-        values, and skips paths that are not explicitly absolute. Relative
-        paths are rejected because resolution is ambiguous under an elevated
-        shell: the working directory may differ from the user's home
-        directory, and silently creating directories in the wrong location
-        is worse than skipping them. Deduplicates case-insensitively,
-        preserving first occurrence. Emits each accepted path onto the pipeline.
+        values, and accepts only explicit drive-letter paths (D:\Games).
+        Relative and drive-relative (\Games, /Games) paths are rejected
+        because resolution is ambiguous under an elevated shell: the working
+        directory and current drive may differ from what the user expects,
+        and silently creating directories in the wrong location is worse
+        than skipping them. UNC paths (\\nas\games) are also rejected -
+        network shares are out of scaffolding scope. Deduplicates
+        case-insensitively, preserving first occurrence; dedupe is textual,
+        separator variants (D:\Games vs D:/Games) are not normalized. Emits
+        each accepted path onto the pipeline.
     #>
     param(
         [string[]]$Paths
@@ -207,11 +211,11 @@ function Get-ScaffoldDirectories {
     foreach ($path in $Paths) {
         $val = ([string]$path).Trim()
         if ([string]::IsNullOrWhiteSpace($val)) { continue }
-        # Require an explicit drive letter (D:\, D:/) or Unix absolute path (/).
-        # IsPathRooted is intentionally excluded: on Windows it also accepts \Games
-        # (drive-relative paths), which are ambiguous under an elevated shell.
-        $isRooted = ($val -match '^[A-Za-z]:[\\\/]') -or ($val -match '^[\/]')
-        if (-not $isRooted) { continue }
+        # Drive-letter paths only (D:\, D:/); drive-relative (\Games, /Games)
+        # and UNC paths are skipped - see base.ps1 for the user-visible warning.
+        # IsPathRooted is intentionally excluded: on Windows it also accepts
+        # drive-relative paths, which are ambiguous under an elevated shell.
+        if ($val -notmatch '^[A-Za-z]:[\\\/]') { continue }
         if ($seen.Add($val)) {
             $val
         }

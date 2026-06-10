@@ -42,4 +42,19 @@ Describe "Get-ScaffoldDirectories" {
         $dirs.Count | Should -Be 1
         $dirs[0] | Should -Be "D:\ROMs"
     }
+
+    It "Skips forward-slash drive-relative paths like /Games" {
+        # Production runtime is Windows-only: /Games is drive-relative there,
+        # carrying the same ambiguity as \Games. No Unix-absolute allowance.
+        $dirs = @(Get-ScaffoldDirectories -Paths @("/Games", "D:\ROMs"))
+        $dirs.Count | Should -Be 1
+        $dirs[0] | Should -Be "D:\ROMs"
+    }
+
+    It "Skips UNC paths like \\nas\games" {
+        # Network shares are out of scaffolding scope - create them manually.
+        $dirs = @(Get-ScaffoldDirectories -Paths @("\\nas\games", "D:\ROMs"))
+        $dirs.Count | Should -Be 1
+        $dirs[0] | Should -Be "D:\ROMs"
+    }
 }
