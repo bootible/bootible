@@ -38,6 +38,25 @@ Describe "Get-PowerConfigCommands" {
         ($shutdown | ForEach-Object { $_ -join ' ' }) | Should -Contain "/setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 3"
     }
 
+    It "Disables CPU boost on battery only and activates the scheme" {
+        $result = @(Get-PowerConfigCommands -SleepMode "default" -HibernateAfterMinutes 0 -PowerButtonAction "" -DisableCpuBoostOnBattery $true)
+        ($result | ForEach-Object { $_ -join ' ' }) | Should -Contain "/setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE 0"
+        ($result | ForEach-Object { $_ -join ' ' }) -match "setacvalueindex.*PERFBOOSTMODE" | Should -BeNullOrEmpty
+        ($result | ForEach-Object { $_ -join ' ' })[-1] | Should -Be "/setactive SCHEME_CURRENT"
+    }
+
+    It "Emits no boost commands when DisableCpuBoostOnBattery is false" {
+        $result = @(Get-PowerConfigCommands -SleepMode "default" -HibernateAfterMinutes 0 -PowerButtonAction "" -DisableCpuBoostOnBattery $false)
+        $result.Count | Should -Be 0
+    }
+
+    It "Activates the scheme once when both button action and boost-off are set" {
+        $result = @(Get-PowerConfigCommands -SleepMode "default" -HibernateAfterMinutes 0 -PowerButtonAction "hibernate" -DisableCpuBoostOnBattery $true)
+        $joined = $result | ForEach-Object { $_ -join ' ' }
+        ($joined | Where-Object { $_ -eq "/setactive SCHEME_CURRENT" }).Count | Should -Be 1
+        $joined[-1] | Should -Be "/setactive SCHEME_CURRENT"
+    }
+
     It "Silently ignores an unknown sleep mode" {
         $result = @(Get-PowerConfigCommands -SleepMode "banana" -HibernateAfterMinutes 0 -PowerButtonAction "")
         $result.Count | Should -Be 0

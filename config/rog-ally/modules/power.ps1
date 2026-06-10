@@ -14,8 +14,9 @@ if (-not (Get-Command Get-PowerConfigCommands -ErrorAction SilentlyContinue)) {
 $sleepMode = Get-ConfigValue "sleep_mode" "default"
 $hibernateAfter = Get-ConfigValue "hibernate_after_minutes" 0
 $buttonAction = Get-ConfigValue "power_button_action" ""
+$disableBoostDc = [bool](Get-ConfigValue "disable_cpu_boost_on_battery" $false)
 
-$commands = @(Get-PowerConfigCommands -SleepMode $sleepMode -HibernateAfterMinutes $hibernateAfter -PowerButtonAction $buttonAction)
+$commands = @(Get-PowerConfigCommands -SleepMode $sleepMode -HibernateAfterMinutes $hibernateAfter -PowerButtonAction $buttonAction -DisableCpuBoostOnBattery $disableBoostDc)
 
 if ($commands.Count -eq 0) {
     Write-Status "Power settings unchanged (sleep_mode: default)" "Info"
@@ -38,5 +39,5 @@ foreach ($cmd in $commands) {
 }
 Write-Status "Power configuration applied" "Success"
 if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
-    Add-AppliedChange "Power: sleep_mode=$sleepMode, button=$buttonAction"
+    Add-AppliedChange "Power: sleep_mode=$sleepMode, button=$buttonAction, boost_off_dc=$disableBoostDc"
 }

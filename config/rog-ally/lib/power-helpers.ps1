@@ -13,10 +13,12 @@ function Get-PowerConfigCommands {
     param(
         [string]$SleepMode = "default",
         [int]$HibernateAfterMinutes = 0,
-        [string]$PowerButtonAction = ""
+        [string]$PowerButtonAction = "",
+        [bool]$DisableCpuBoostOnBattery = $false
     )
 
     $commands = @()
+    $needsActivate = $false
 
     if ($SleepMode -eq "hibernate") {
         $commands += ,@("/hibernate", "on")
@@ -37,6 +39,18 @@ function Get-PowerConfigCommands {
     if ($buttonIndex) {
         $commands += ,@("/setacvalueindex", "SCHEME_CURRENT", "SUB_BUTTONS", "PBUTTONACTION", $buttonIndex)
         $commands += ,@("/setdcvalueindex", "SCHEME_CURRENT", "SUB_BUTTONS", "PBUTTONACTION", $buttonIndex)
+        $needsActivate = $true
+    }
+
+    if ($DisableCpuBoostOnBattery) {
+        # PERFBOOSTMODE 0 = boost disabled. DC-only so plugged-in performance
+        # is untouched; community guidance is boost-off on battery for thermals
+        # and battery life on Ally-class APUs.
+        $commands += ,@("/setdcvalueindex", "SCHEME_CURRENT", "SUB_PROCESSOR", "PERFBOOSTMODE", "0")
+        $needsActivate = $true
+    }
+
+    if ($needsActivate) {
         $commands += ,@("/setactive", "SCHEME_CURRENT")
     }
 

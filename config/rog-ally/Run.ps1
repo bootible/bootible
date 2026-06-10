@@ -678,6 +678,7 @@ function Validate-ConfigSchema {
         'sleep_mode' = 'enum:default,hibernate'
         'hibernate_after_minutes' = 'int'
         'power_button_action' = 'enum:,sleep,hibernate,shutdown'
+        'disable_cpu_boost_on_battery' = 'bool'
 
         # Development
         'install_git' = 'bool'
