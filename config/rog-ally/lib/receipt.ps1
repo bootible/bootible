@@ -12,7 +12,8 @@ function New-BootibleReceipt {
         [Parameter(Mandatory)][string]$Version,
         [Parameter(Mandatory)][hashtable]$InstallResults,
         [string[]]$AppliedChanges = @(),
-        [string]$FaqText = ""
+        [string]$FaqText = "",
+        [datetime]$Timestamp = (Get-Date)
     )
 
     $lines = @()
@@ -20,7 +21,7 @@ function New-BootibleReceipt {
     $lines += ""
     $lines += "- **Configuration:** $InstanceName"
     $lines += "- **bootible version:** $Version"
-    $lines += "- **Run completed:** $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    $lines += "- **Run completed:** $($Timestamp.ToString('yyyy-MM-dd HH:mm'))"
     $lines += ""
     $lines += "Re-running is always safe: open PowerShell and type ``bootible``. It re-applies your configuration and repairs anything Windows Update broke."
     $lines += ""
@@ -30,7 +31,7 @@ function New-BootibleReceipt {
     $lines += "Attempted: $($InstallResults.Attempted) | Installed: $($InstallResults.Succeeded) | Skipped (already present): $($InstallResults.Skipped) | Failed: $($InstallResults.Failed)"
     $lines += ""
     foreach ($pkg in $InstallResults.Packages) {
-        $suffix = if ($pkg.Message) { " — $($pkg.Message)" } else { "" }
+        $suffix = if ($pkg.Message) { " - $($pkg.Message)" } else { "" }
         $lines += "- **$($pkg.Name)**: $($pkg.Status)$suffix"
     }
     $lines += ""

@@ -50,4 +50,9 @@ Describe "New-BootibleReceipt" {
         $md = New-BootibleReceipt -InstanceName "V" -Version "dev" -InstallResults $empty -AppliedChanges @() -FaqText ""
         $md | Should -Match "bootible"
     }
+
+    It "Renders an injected timestamp" {
+        $md = New-BootibleReceipt -InstanceName "V" -Version "1.0.0" -InstallResults $results -AppliedChanges @() -FaqText "" -Timestamp ([datetime]"2026-07-01 12:34")
+        $md | Should -Match "2026-07-01 12:34"
+    }
 }

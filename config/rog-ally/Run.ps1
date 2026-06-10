@@ -1144,7 +1144,7 @@ Write-Summary
 if (-not $Script:DryRun -and (Get-Command New-BootibleReceipt -ErrorAction SilentlyContinue)) {
     try {
         $faqPath = Join-Path $Script:DeviceRoot "files\receipt-faq.md"
-        $faqText = if (Test-Path $faqPath) { Get-Content $faqPath -Raw } else { "" }
+        $faqText = if (Test-Path $faqPath) { Get-Content $faqPath -Raw -Encoding UTF8 } else { "" }
         $instanceLabel = if ($Script:SelectedInstance) { $Script:SelectedInstance } else { "default" }
         $receipt = New-BootibleReceipt -InstanceName $instanceLabel -Version $Script:BootibleVersion `
             -InstallResults $Script:InstallResults -AppliedChanges @($Script:AppliedChanges) -FaqText $faqText
