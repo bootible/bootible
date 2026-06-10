@@ -62,7 +62,7 @@ function Install-WingetPackage {
         [string]$PackageId,
         [string]$Name,
         [switch]$Force,
-        [int]$TimeoutSeconds = 300  # 5 minute timeout per source
+        [int]$TimeoutSeconds = 300  # 5 minute timeout per source (larger packages like VLC need more time)
     )
 
     $operationStart = Get-Date
@@ -76,6 +76,7 @@ function Install-WingetPackage {
 
     # Check if already installed first (even in DryRun)
     try {
+        # Check both sources for existing installation
         $installed = winget list --id $PackageId --accept-source-agreements 2>$null
         if ($installed -match $PackageId) {
             Write-Status "$Name already installed - skipping" "Success"
@@ -93,6 +94,8 @@ function Install-WingetPackage {
         $foundInWinget = $false
         $foundInMsStore = $false
 
+        # winget outputs to stderr which triggers ErrorActionPreference=Stop
+        # Temporarily allow stderr without throwing
         $prevEAP = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
@@ -150,8 +153,10 @@ function Install-WingetPackage {
             Remove-Job -Id $job.Id -Force
             return $jobResult
         } else {
+            # Timeout - kill the job and any winget processes it spawned
             Stop-Job -Id $job.Id -ErrorAction SilentlyContinue
             Remove-Job -Id $job.Id -Force -ErrorAction SilentlyContinue
+            # Kill any hanging winget processes
             Get-Process -Name "winget" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             return @{ ExitCode = -1; Output = "Timeout after $TimeoutSeconds seconds"; TimedOut = $true }
         }
@@ -177,8 +182,16 @@ function Install-WingetPackage {
             if ($sourceOpenFailure -and -not $Script:WingetSourceRecovered) {
                 $Script:WingetSourceRecovered = $true
                 Write-Host "    Resetting winget sources and retrying..." -ForegroundColor Yellow
-                winget source reset --force 2>&1 | Out-Null
-                winget source update 2>&1 | Out-Null
+                # winget outputs to stderr which triggers ErrorActionPreference=Stop
+                # Temporarily allow stderr without throwing
+                $prevEAP = $ErrorActionPreference
+                $ErrorActionPreference = "Continue"
+                try {
+                    winget source reset --force 2>&1 | Out-Null
+                    winget source update 2>&1 | Out-Null
+                } finally {
+                    $ErrorActionPreference = $prevEAP
+                }
 
                 $result = & $runWingetWithTimeout $PackageId "winget" $TimeoutSeconds
                 if (-not $result.TimedOut -and $result.ExitCode -eq 0) {
@@ -207,7 +220,7 @@ function Install-WingetPackage {
         }
     }
 
-    # Both sources failed
+    # Both sources failed - show error details
     Write-Status "Failed to install $Name from all sources" "Warning"
     if ($result.Output -and -not $result.TimedOut) {
         $errorLines = $result.Output | Where-Object { $_ -match "error|fail|not found|applicable" } | Select-Object -First 3
@@ -217,4 +230,37 @@ function Install-WingetPackage {
     }
     & $completeLog "failed"
     return $false
+}
+
+function Get-GitHubLatestRelease {
+    <#
+    .SYNOPSIS
+        Fetches the latest release tag and one matching asset for a GitHub repo.
+    .DESCRIPTION
+        Returns $null on API failure or when no asset matches - callers fall
+        back to a manual-install message rather than failing the run.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Repo,
+        [string]$AssetPattern = "*"
+    )
+
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ 'User-Agent' = 'bootible' } -ErrorAction Stop
+    } catch {
+        return $null
+    }
+
+    $asset = $release.assets | Where-Object { $_.name -like $AssetPattern } | Select-Object -First 1
+    if (-not $asset) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        Tag         = $release.tag_name
+        AssetName   = $asset.name
+        DownloadUrl = $asset.browser_download_url
+        Size        = $asset.size
+        Digest      = $asset.digest  # "sha256:<hex>" when GitHub provides it; $null otherwise
+    }
 }

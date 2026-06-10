@@ -157,3 +157,8 @@ if ($notFound.Count -eq 0) {
 }
 
 Write-Host ""
+
+# Smart App Control breaks Armoury Crate components silently
+if (Get-Command Write-SmartAppControlAdvice -ErrorAction SilentlyContinue) {
+    Write-SmartAppControlAdvice -State (Get-SmartAppControlState)
+}

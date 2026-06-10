@@ -386,6 +386,9 @@ if ($wallpaperPath) {
                 )
 
                 Write-Status "Wallpaper set: $(Split-Path $wallpaperPath -Leaf)" "Success"
+                if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+                    Add-AppliedChange "Wallpaper applied"
+                }
             } catch {
                 Write-Status "Failed to set wallpaper: $_" "Warning"
             }
@@ -463,6 +466,9 @@ if ($lockscreenPath) {
                 RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters 1, True 2>$null
 
                 Write-Status "Lock screen set: $(Split-Path $lockscreenPath -Leaf)" "Success"
+                if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+                    Add-AppliedChange "Lock screen image applied"
+                }
             } catch {
                 Write-Status "Failed to set lock screen: $_" "Warning"
             }

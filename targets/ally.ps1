@@ -54,6 +54,8 @@ $ErrorActionPreference = "Stop"
 
 $BootibleDir = "$env:USERPROFILE\bootible"
 $RepoUrl = "https://github.com/bootible/bootible.git"
+# Updated by the release process; "main" on the beta channel
+$Script:BootibleRef = "main"
 $PrivateRepo = $env:BOOTIBLE_PRIVATE
 $DryRun = $env:BOOTIBLE_RUN -ne "1"  # Dry run by default, set BOOTIBLE_RUN=1 to apply
 $Device = ""
@@ -596,9 +598,22 @@ function Run-GitWithProgress {
 function Clone-Bootible {
     try {
         if (Test-Path $BootibleDir) {
-            Run-GitWithProgress -Description "Updating bootible repo" -Arguments @("pull") -WorkingDir $BootibleDir
+            if ($Script:BootibleRef -eq "main") {
+                # Fetch + checkout main first so a device previously pinned to a
+                # release tag (detached HEAD) can return to the beta channel
+                Run-GitWithProgress -Description "Fetching bootible updates" -Arguments @("fetch", "--tags", "--quiet", "origin") -WorkingDir $BootibleDir
+                Run-GitWithProgress -Description "Checking out bootible main" -Arguments @("checkout", "--quiet", "main") -WorkingDir $BootibleDir
+                Run-GitWithProgress -Description "Updating bootible repo" -Arguments @("pull", "--quiet", "origin", "main") -WorkingDir $BootibleDir
+            } else {
+                Run-GitWithProgress -Description "Fetching bootible releases" -Arguments @("fetch", "--tags", "--quiet", "origin") -WorkingDir $BootibleDir
+                Run-GitWithProgress -Description "Checking out bootible $($Script:BootibleRef)" -Arguments @("checkout", "--quiet", $Script:BootibleRef) -WorkingDir $BootibleDir
+            }
         } else {
             Run-GitWithProgress -Description "Cloning bootible repo" -Arguments @("clone", $RepoUrl, $BootibleDir)
+            if ($Script:BootibleRef -ne "main") {
+                Run-GitWithProgress -Description "Fetching bootible releases" -Arguments @("fetch", "--tags", "--quiet", "origin") -WorkingDir $BootibleDir
+                Run-GitWithProgress -Description "Checking out bootible $($Script:BootibleRef)" -Arguments @("checkout", "--quiet", $Script:BootibleRef) -WorkingDir $BootibleDir
+            }
         }
         Write-Status "Bootible ready at $BootibleDir" "Success"
         return $true

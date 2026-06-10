@@ -40,6 +40,8 @@ $ErrorActionPreference = "Stop"
 $Script:BootibleRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Script:DeviceRoot = $PSScriptRoot
 $Script:PrivateRoot = Join-Path $Script:BootibleRoot "private"
+# Updated by the release process; "main" between releases
+$Script:BootibleVersion = "main"
 
 $helpersPath = Join-Path $PSScriptRoot "lib/helpers.ps1"
 if (Test-Path $helpersPath) {
@@ -48,6 +50,22 @@ if (Test-Path $helpersPath) {
 $validationPath = Join-Path $PSScriptRoot "lib/config-validation.ps1"
 if (Test-Path $validationPath) {
     . $validationPath
+}
+$powerHelpersPath = Join-Path $PSScriptRoot "lib/power-helpers.ps1"
+if (Test-Path $powerHelpersPath) {
+    . $powerHelpersPath
+}
+$wingetHelpersPath = Join-Path $PSScriptRoot "lib/winget-helpers.ps1"
+if (Test-Path $wingetHelpersPath) {
+    . $wingetHelpersPath
+}
+$receiptPath = Join-Path $PSScriptRoot "lib/receipt.ps1"
+if (Test-Path $receiptPath) {
+    . $receiptPath
+}
+$stateSnapshotLibPath = Join-Path $PSScriptRoot "lib/state-snapshot.ps1"
+if (Test-Path $stateSnapshotLibPath) {
+    . $stateSnapshotLibPath
 }
 
 # Select the private config to merge later. When -ConfigFile is passed (ally.ps1
@@ -143,6 +161,7 @@ $Script:InstallResults = @{
     Skipped   = 0
     Packages  = @()
 }
+$Script:AppliedChanges = [System.Collections.Generic.List[string]]::new()
 
 function Add-InstallResult {
     <#
@@ -186,6 +205,17 @@ function Add-InstallResult {
         Source    = $Source
         Message   = $Message
         Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    }
+}
+
+function Add-AppliedChange {
+    <#
+    .SYNOPSIS
+        Records a configuration change for the on-device receipt (real runs only).
+    #>
+    param([string]$Description)
+    if (-not $Script:DryRun) {
+        $Script:AppliedChanges.Add($Description)
     }
 }
 
@@ -276,23 +306,8 @@ function Write-Summary {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Write-Status {
-    param([string]$Message, [string]$Type = "Info")
-    $colors = @{
-        "Info" = "Cyan"
-        "Success" = "Green"
-        "Warning" = "Yellow"
-        "Error" = "Red"
-    }
-    $symbols = @{
-        "Info" = "->"
-        "Success" = "[OK]"
-        "Warning" = "[!]"
-        "Error" = "[X]"
-    }
-    Write-Host "$($symbols[$Type]) " -ForegroundColor $colors[$Type] -NoNewline
-    Write-Host $Message
-}
+# Note: Write-Status, Get-CurrentModuleName, Add-JsonLogEntry, and
+# Install-WingetPackage are imported from lib/winget-helpers.ps1
 
 function Write-Header {
     param([string]$Title)
@@ -307,13 +322,6 @@ $Script:JsonLogEnabled = $false
 $Script:JsonLogEntries = @()
 $Script:JsonLogPath = $null
 $Script:CurrentModule = $null
-
-function Get-CurrentModuleName {
-    if ($Script:CurrentModule) {
-        return $Script:CurrentModule
-    }
-    return "main"
-}
 
 function Initialize-JsonLogging {
     $Script:JsonLogEnabled = $false
@@ -344,29 +352,6 @@ function Initialize-JsonLogging {
     } catch {
         $Script:JsonLogEnabled = $false
     }
-}
-
-function Add-JsonLogEntry {
-    param(
-        [string]$Module,
-        [string]$Action,
-        [string]$Result,
-        [double]$DurationMs
-    )
-
-    if (-not $Script:JsonLogEnabled) {
-        return
-    }
-
-    $entry = [ordered]@{
-        timestamp = (Get-Date).ToString("o")
-        module = if ($Module) { $Module } else { "main" }
-        action = $Action
-        result = $Result
-        duration_ms = [math]::Round($DurationMs, 2)
-    }
-
-    $Script:JsonLogEntries += $entry
 }
 
 function Write-JsonLog {
@@ -638,6 +623,7 @@ function Validate-ConfigSchema {
         'install_rtss' = 'bool'
         'install_hwinfo' = 'bool'
         'install_msi_afterburner' = 'bool'
+        'install_ghelper' = 'bool'
         'install_cpuz' = 'bool'
         'install_gpuz' = 'bool'
         'configure_power_plans' = 'bool'
@@ -691,6 +677,12 @@ function Validate-ConfigSchema {
         'set_services_manual' = 'bool'
         'powershell7_default_terminal' = 'bool'
         'disable_powershell7_telemetry' = 'bool'
+
+        # Power & sleep
+        'sleep_mode' = 'enum:default,hibernate'
+        'hibernate_after_minutes' = 'int'
+        'power_button_action' = 'enum:,sleep,hibernate,shutdown'
+        'disable_cpu_boost_on_battery' = 'bool'
 
         # Development
         'install_git' = 'bool'
@@ -852,155 +844,6 @@ function Import-YamlConfig {
 }
 
 # Note: Convert-OrderedDictToHashtable and Merge-Configs are imported from lib/helpers.ps1
-
-function Install-WingetPackage {
-    param(
-        [string]$PackageId,
-        [string]$Name,
-        [switch]$Force,
-        [int]$TimeoutSeconds = 300  # 5 minute timeout per source (larger packages like VLC need more time)
-    )
-
-    $operationStart = Get-Date
-    $logAction = "install:$Name"
-    $logModule = Get-CurrentModuleName
-    $completeLog = {
-        param([string]$Result)
-        $durationMs = ((Get-Date) - $operationStart).TotalMilliseconds
-        Add-JsonLogEntry -Module $logModule -Action $logAction -Result $Result -DurationMs $durationMs
-    }
-
-    # Check if already installed first (even in DryRun)
-    try {
-        # Check both sources for existing installation
-        $installed = winget list --id $PackageId --accept-source-agreements 2>$null
-        if ($installed -match $PackageId) {
-            Write-Status "$Name already installed - skipping" "Success"
-            & $completeLog "skipped"
-            return $true
-        }
-    } catch {
-        # winget list failed, continue with install attempt
-    }
-
-    if ($Script:DryRun) {
-        # Validate package exists (check winget first, then msstore)
-        Write-Host "    Validating $PackageId..." -ForegroundColor Gray -NoNewline
-
-        $foundInWinget = $false
-        $foundInMsStore = $false
-
-        # winget outputs to stderr which triggers ErrorActionPreference=Stop
-        # Temporarily allow stderr without throwing
-        $prevEAP = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        try {
-            if ($Script:HasWingetSource) {
-                $showResult = winget show --id $PackageId --source winget --accept-source-agreements 2>&1 | Out-String
-                if ($LASTEXITCODE -eq 0 -and $showResult -match "Found") {
-                    $foundInWinget = $true
-                }
-            }
-
-            if (-not $foundInWinget -and $Script:HasMsStoreSource) {
-                $showResult = winget show --id $PackageId --source msstore --accept-source-agreements 2>&1 | Out-String
-                if ($LASTEXITCODE -eq 0 -and $showResult -match "Found") {
-                    $foundInMsStore = $true
-                }
-            }
-        } finally {
-            $ErrorActionPreference = $prevEAP
-        }
-
-        if ($foundInWinget) {
-            Write-Host " OK (winget)" -ForegroundColor Green
-            Write-Status "[DRY RUN] Would install: $Name ($PackageId) from winget" "Info"
-            & $completeLog "dry_run"
-            return $true
-        } elseif ($foundInMsStore) {
-            Write-Host " OK (msstore)" -ForegroundColor Yellow
-            Write-Status "[DRY RUN] Would install: $Name ($PackageId) from msstore (fallback)" "Info"
-            & $completeLog "dry_run"
-            return $true
-        } else {
-            Write-Host " NOT FOUND" -ForegroundColor Red
-            Write-Status "[DRY RUN] Package not found in any source: $PackageId" "Warning"
-            & $completeLog "not_found"
-            return $false
-        }
-    }
-
-    Write-Status "Installing $Name..." "Info"
-
-    # Helper function to run winget with timeout
-    $runWingetWithTimeout = {
-        param($PackageId, $Source, $TimeoutSeconds)
-
-        $job = Start-Job -ScriptBlock {
-            param($id, $src)
-            $result = winget install --id $id --source $src --accept-source-agreements --accept-package-agreements --silent 2>&1
-            @{ ExitCode = $LASTEXITCODE; Output = $result }
-        } -ArgumentList $PackageId, $Source
-
-        $completed = Wait-Job $job -Timeout $TimeoutSeconds
-
-        if ($completed) {
-            $jobResult = Receive-Job $job
-            Remove-Job $job -Force
-            return $jobResult
-        } else {
-            # Timeout - kill the job and any winget processes it spawned
-            Stop-Job $job -ErrorAction SilentlyContinue
-            Remove-Job $job -Force -ErrorAction SilentlyContinue
-            # Kill any hanging winget processes
-            Get-Process -Name "winget" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-            return @{ ExitCode = -1; Output = "Timeout after $TimeoutSeconds seconds"; TimedOut = $true }
-        }
-    }
-
-    # Try winget source first
-    if ($Script:HasWingetSource) {
-        Write-Host "    Trying winget source (${TimeoutSeconds}s timeout)..." -ForegroundColor Gray
-        $result = & $runWingetWithTimeout $PackageId "winget" $TimeoutSeconds
-
-        if ($result.TimedOut) {
-            Write-Host "    Winget timed out after ${TimeoutSeconds}s" -ForegroundColor Yellow
-        } elseif ($result.ExitCode -eq 0) {
-            Write-Status "$Name installed (winget)" "Success"
-            & $completeLog "success"
-            return $true
-        } else {
-            Write-Host "    Winget source failed (exit code $($result.ExitCode))" -ForegroundColor Yellow
-        }
-    }
-
-    # Fallback to msstore
-    if ($Script:HasMsStoreSource) {
-        Write-Host "    Falling back to msstore (${TimeoutSeconds}s timeout)..." -ForegroundColor Yellow
-        $result = & $runWingetWithTimeout $PackageId "msstore" $TimeoutSeconds
-
-        if ($result.TimedOut) {
-            Write-Host "    msstore timed out after ${TimeoutSeconds}s" -ForegroundColor Red
-        } elseif ($result.ExitCode -eq 0) {
-            Write-Status "$Name installed (msstore fallback)" "Success"
-            & $completeLog "success"
-            return $true
-        } else {
-            Write-Host "    msstore also failed (exit code $($result.ExitCode))" -ForegroundColor Red
-        }
-    }
-
-    # Both sources failed - show error details
-    Write-Status "Failed to install $Name from all sources" "Warning"
-    if ($result.Output -and -not $result.TimedOut) {
-        $errorLines = $result.Output | Where-Object { $_ -match "error|fail|not found|applicable" } | Select-Object -First 3
-        foreach ($line in $errorLines) {
-            Write-Host "    $line" -ForegroundColor Yellow
-        }
-    }
-    & $completeLog "failed"
-    return $false
-}
 
 function Install-DirectDownload {
     <#
@@ -1264,6 +1107,42 @@ if (Get-ConfigValue "create_restore_point" $true) {
     }
 }
 
+# Drift report: compare live state against the last known-good snapshot.
+# Repair claims are deferred to post-run verification (Get-VerifiedRepairs).
+# Skipped entirely on tag-filtered runs - a partial run cannot claim repair.
+$Script:StateSnapshotPath = $null
+$Script:PreRunDrift = @()
+$Script:LastSnapshot = $null
+if ($Tags.Count -eq 0 -and $Script:SelectedInstance -and (Get-Command Read-StateSnapshot -ErrorAction SilentlyContinue)) {
+    $Script:StateSnapshotPath = Join-Path $Script:PrivateRoot "device\rog-ally\$($Script:SelectedInstance)\state.json"
+    $lastSnapshot = Read-StateSnapshot -Path $Script:StateSnapshotPath
+    if ($lastSnapshot) {
+        $Script:LastSnapshot = $lastSnapshot
+        $live = Get-LiveState -Config $Script:Config
+        $drift = @(Compare-StateSnapshot -Expected $lastSnapshot -Actual $live)
+        if ($drift.Count -gt 0) {
+            Write-Header "DRIFT DETECTED SINCE LAST RUN"
+            foreach ($item in $drift) {
+                Write-Status "$($item.Key): expected '$($item.Expected)', found '$($item.Actual)'" "Warning"
+                if ($item.Key -eq 'gpu_driver') {
+                    Write-Status "GPU driver changed - bootible reports this but will NOT roll drivers back" "Info"
+                }
+            }
+            # gpu_driver is report-only; only the rest are candidates for repair
+            $Script:PreRunDrift = @($drift | Where-Object { $_.Key -ne 'gpu_driver' })
+            if ($Script:PreRunDrift.Count -gt 0) {
+                if ($Script:DryRun) {
+                    Write-Status "[DRY RUN] A real run would re-apply your configuration" "Info"
+                } else {
+                    Write-Status "Modules below will re-apply your configuration" "Info"
+                }
+            }
+        } else {
+            Write-Status "No drift since last run" "Success"
+        }
+    }
+}
+
 # Load and run modules
 $modulesPath = Join-Path $Script:DeviceRoot "modules"
 
@@ -1278,6 +1157,7 @@ $moduleOrder = @(
     "emulation",
     "rog_ally",
     "optimization",   # Optimization after all installs
+    "power",          # Power/sleep settings after optimization
     "debloat",        # Debloat last (configures installed apps like PS7)
     "health"          # Post-install checks
 )
@@ -1300,6 +1180,57 @@ foreach ($moduleName in $moduleOrder) {
 
 # Display installation summary
 Write-Summary
+
+# Verify drift repairs against post-run state, then refresh the known-good
+# snapshot. The receipt only claims "Repaired drift" for keys whose post-run
+# value verifiably matches the snapshot's expected value.
+if (-not $Script:DryRun -and $Script:StateSnapshotPath -and (Get-Command Save-StateSnapshot -ErrorAction SilentlyContinue)) {
+    try {
+        $postState = Get-LiveState -Config $Script:Config
+
+        if ($Script:PreRunDrift.Count -gt 0 -and $Script:LastSnapshot) {
+            # Receipt lines use user-friendly labels; console warnings keep raw keys
+            $driftFriendlyNames = @{
+                hibernate_enabled = "Hibernate setting"
+                gamebar_present   = "Xbox Game Bar presence"
+                gpu_driver        = "GPU driver version"
+                wallpaper_value   = "Desktop wallpaper"
+                sshd_running      = "SSH server state"
+            }
+            $repairResult = Get-VerifiedRepairs -PreDrift $Script:PreRunDrift -Expected $Script:LastSnapshot -PostState $postState
+            foreach ($item in @($repairResult.Repaired)) {
+                $label = if ($driftFriendlyNames.ContainsKey($item.Key)) { $driftFriendlyNames[$item.Key] } else { $item.Key }
+                Add-AppliedChange "Repaired drift: $label"
+            }
+            foreach ($item in @($repairResult.Unrepaired)) {
+                Write-Status "Drift not repaired: $($item.Key)" "Warning"
+                $label = if ($driftFriendlyNames.ContainsKey($item.Key)) { $driftFriendlyNames[$item.Key] } else { $item.Key }
+                Add-AppliedChange "Drift detected (not repaired): $label"
+            }
+        }
+
+        Save-StateSnapshot -Snapshot $postState -Path $Script:StateSnapshotPath
+        Write-Status "State snapshot saved" "Success"
+    } catch {
+        Write-Status "Could not save state snapshot: $_" "Warning"
+    }
+}
+
+# Write the on-device receipt (real runs only)
+if (-not $Script:DryRun -and (Get-Command New-BootibleReceipt -ErrorAction SilentlyContinue)) {
+    try {
+        $faqPath = Join-Path $Script:DeviceRoot "files\receipt-faq.md"
+        $faqText = if (Test-Path $faqPath) { Get-Content $faqPath -Raw -Encoding UTF8 } else { "" }
+        $instanceLabel = if ($Script:SelectedInstance) { $Script:SelectedInstance } else { "default" }
+        $receipt = New-BootibleReceipt -InstanceName $instanceLabel -Version $Script:BootibleVersion `
+            -InstallResults $Script:InstallResults -AppliedChanges @($Script:AppliedChanges) -FaqText $faqText
+        $desktopPath = [Environment]::GetFolderPath('Desktop')
+        Set-Content -Path (Join-Path $desktopPath "Bootible - Read Me.md") -Value $receipt -Encoding UTF8
+        Write-Status "Receipt written to Desktop: Bootible - Read Me.md" "Success"
+    } catch {
+        Write-Status "Could not write Desktop receipt: $_" "Warning"
+    }
+}
 
 # Gather system information for summary
 function Get-NetworkSummary {

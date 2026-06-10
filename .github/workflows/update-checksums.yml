@@ -6,6 +6,7 @@ on:
     paths:
       - 'targets/ally.ps1'
       - 'targets/deck.sh'
+      - 'targets/android.sh'
 
 jobs:
   update-checksums:
@@ -23,15 +24,19 @@ jobs:
         run: |
           ALLY_HASH=$(sha256sum targets/ally.ps1 | cut -d' ' -f1)
           DECK_HASH=$(sha256sum targets/deck.sh | cut -d' ' -f1)
+          ANDROID_HASH=$(sha256sum targets/android.sh | cut -d' ' -f1)
 
           echo "ally_hash=$ALLY_HASH" >> $GITHUB_OUTPUT
           echo "deck_hash=$DECK_HASH" >> $GITHUB_OUTPUT
+          echo "android_hash=$ANDROID_HASH" >> $GITHUB_OUTPUT
 
-          # Get current checksums from worker
-          ALLY_CURRENT=$(grep -oP "sha256: '\K[a-f0-9]{64}" cloudflare/_worker.js | head -1)
-          DECK_CURRENT=$(grep -oP "sha256: '\K[a-f0-9]{64}" cloudflare/_worker.js | tail -1)
+          # Get current beta checksums from worker, scoped per route block.
+          # The pattern "sha256: '" never matches the 'sha256Stable' field.
+          ALLY_CURRENT=$(grep -A3 "'/rog':" cloudflare/_worker.js | grep -oP "sha256: '\K[a-f0-9]{64}")
+          DECK_CURRENT=$(grep -A3 "'/deck':" cloudflare/_worker.js | grep -oP "sha256: '\K[a-f0-9]{64}")
+          ANDROID_CURRENT=$(grep -A3 "'/android':" cloudflare/_worker.js | grep -oP "sha256: '\K[a-f0-9]{64}")
 
-          if [ "$ALLY_HASH" != "$ALLY_CURRENT" ] || [ "$DECK_HASH" != "$DECK_CURRENT" ]; then
+          if [ "$ALLY_HASH" != "$ALLY_CURRENT" ] || [ "$DECK_HASH" != "$DECK_CURRENT" ] || [ "$ANDROID_HASH" != "$ANDROID_CURRENT" ]; then
             echo "needs_update=true" >> $GITHUB_OUTPUT
           else
             echo "needs_update=false" >> $GITHUB_OUTPUT
@@ -40,11 +45,12 @@ jobs:
       - name: Update worker checksums
         if: steps.checksums.outputs.needs_update == 'true'
         run: |
-          # Update ally.ps1 checksum (first sha256 in file)
-          sed -i "0,/sha256: '[a-f0-9]\{64\}'/s//sha256: '${{ steps.checksums.outputs.ally_hash }}'/" cloudflare/_worker.js
-
-          # Update deck.sh checksum (second sha256 in file)
-          sed -i "0,/sha256: '${{ steps.checksums.outputs.ally_hash }}'/! {0,/sha256: '[a-f0-9]\{64\}'/s//sha256: '${{ steps.checksums.outputs.deck_hash }}'/}" cloudflare/_worker.js
+          # Update only the beta 'sha256' field inside each route's block.
+          # 'sha256Stable' is pinned by the release process (docs/releasing.md)
+          # and must never be touched by this workflow.
+          sed -i "/'\/rog':/,/}/ s/sha256: '[a-f0-9]\{64\}'/sha256: '${{ steps.checksums.outputs.ally_hash }}'/" cloudflare/_worker.js
+          sed -i "/'\/deck':/,/}/ s/sha256: '[a-f0-9]\{64\}'/sha256: '${{ steps.checksums.outputs.deck_hash }}'/" cloudflare/_worker.js
+          sed -i "/'\/android':/,/}/ s/sha256: '[a-f0-9]\{64\}'/sha256: '${{ steps.checksums.outputs.android_hash }}'/" cloudflare/_worker.js
 
       - name: Commit and push
         if: steps.checksums.outputs.needs_update == 'true'
@@ -56,6 +62,7 @@ jobs:
 
           ally.ps1: ${{ steps.checksums.outputs.ally_hash }}
           deck.sh: ${{ steps.checksums.outputs.deck_hash }}
+          android.sh: ${{ steps.checksums.outputs.android_hash }}
 
           [skip ci]"
           git push

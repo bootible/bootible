@@ -16,7 +16,9 @@
 | emulation | base | Yes | Yes |
 | rog_ally | base | Yes | Yes |
 | optimization | base, (gaming for Steam) | Yes | Yes |
+| power | - | Yes | Yes |
 | debloat | all prior modules | Yes | Yes |
+| health | all prior modules | Yes | Yes (read-only checks) |
 
 **All modules are idempotent and safe to re-run.** Running Bootible multiple times will not cause issues.
 
@@ -87,14 +89,17 @@ Modules execute in this fixed order (defined in `Run.ps1`):
 9. emulation      [EmuDeck setup]
 10. rog_ally      [Device-specific tools]
 11. optimization  [Windows gaming tweaks]
-12. debloat       [Privacy & performance tweaks]
+12. power         [Sleep-to-hibernate, power button, CPU boost via powercfg]
+13. debloat       [Privacy & performance tweaks]
+14. health        [Post-install health checks]
 ```
 
 **Why this order matters:**
 - `base` initializes winget sources before any package installs
 - `apps` installs PS7 which `ssh` and `debloat` can configure
 - `optimization` configures Steam settings (requires Steam from `gaming`)
-- `debloat` runs last to configure all installed applications
+- `debloat` runs after all installs to configure the installed applications (e.g. PS7)
+- `health` runs last - read-only checks that verify what the run claims to have done
 
 ---
 

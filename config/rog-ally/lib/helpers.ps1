@@ -122,3 +122,63 @@ function Convert-OrderedDictToHashtable {
     }
     return $hashtable
 }
+
+function Get-SmartAppControlState {
+    <#
+    .SYNOPSIS
+        Reads the Windows Smart App Control state.
+    .DESCRIPTION
+        SAC silently blocks Armoury Crate components on Ally-class devices.
+        Returns: off | on | evaluation | unknown. SAC cannot be disabled
+        programmatically - turning it off is a one-way user action, and
+        re-enabling requires a Windows reset. Detection + guidance only.
+    #>
+    param(
+        [scriptblock]$RegistryReader = {
+            (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name 'VerifiedAndReputablePolicyState' -ErrorAction Stop).VerifiedAndReputablePolicyState
+        }
+    )
+
+    try {
+        $value = & $RegistryReader
+    } catch {
+        return "unknown"
+    }
+
+    switch ($value) {
+        0 { return "off" }
+        1 { return "on" }
+        2 { return "evaluation" }
+        default { return "unknown" }
+    }
+}
+
+function Write-SmartAppControlAdvice {
+    <#
+    .SYNOPSIS
+        Emits user guidance for a Smart App Control state via Write-Status.
+    .DESCRIPTION
+        Single source of truth for SAC messaging shared by the validate and
+        health modules. Expects a state string from Get-SmartAppControlState
+        (off | on | evaluation | unknown). Requires Write-Status in scope.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$State
+    )
+
+    switch ($State) {
+        "on" {
+            Write-Status "Smart App Control is ON - it blocks Armoury Crate components (ROG Live Service, ACSetup)" "Warning"
+            Write-Status "Turning SAC off is one-way (re-enabling requires a Windows reset). If you rely on Armoury Crate: Settings > Privacy & security > Windows Security > App & browser control" "Info"
+        }
+        "evaluation" {
+            Write-Status "Smart App Control is in evaluation mode - it may switch ON by itself and break Armoury Crate" "Warning"
+        }
+        "off" {
+            Write-Status "Smart App Control: off" "Success"
+        }
+        default {
+            Write-Status "Smart App Control state could not be determined (key absent - SAC may not exist on this Windows build)" "Info"
+        }
+    }
+}
