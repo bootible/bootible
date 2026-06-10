@@ -45,8 +45,9 @@ curl -fsSL https://bootible.dev/deck | bash
 - **Dry-run by default.** The one-liner never changes anything on first contact. You read the preview, then opt in.
 - **A receipt on your Desktop.** After every run, `Bootible - Read Me.md` lands on the Desktop: apps installed, changes applied, and an FAQ — so you (or whoever you set the device up for) can see exactly what happened.
 
-![Bootible receipt on the Desktop](docs-site/docs/assets/receipt-demo.png)
-<!-- captured during the v1.0 RC run -->
+<!-- Screenshot captured during the v1.0 RC run - uncomment when receipt-demo.png lands:
+![The receipt bootible leaves on your Desktop](docs-site/docs/assets/receipt-demo.png)
+-->
 
 Bootible also detects Smart App Control — known to break Armoury Crate on the Ally — and gives you guidance before it becomes a problem. App installs run per-app through winget with automatic source recovery, so one flaky source doesn't sink the run. For what Bootible deliberately does NOT do (TDP profiles, driver rollback), see the [checklist parity table](docs/checklist-parity.md).
 
