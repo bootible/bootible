@@ -25,4 +25,12 @@ Describe "Get-SmartAppControlState" {
     It "Returns unknown for unrecognized values" {
         Get-SmartAppControlState -RegistryReader { 99 } | Should -Be "unknown"
     }
+
+    It "Maps string-typed registry value '1' to on" {
+        Get-SmartAppControlState -RegistryReader { "1" } | Should -Be "on"
+    }
+
+    It "Returns unknown for null" {
+        Get-SmartAppControlState -RegistryReader { $null } | Should -Be "unknown"
+    }
 }
