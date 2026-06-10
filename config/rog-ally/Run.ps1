@@ -642,6 +642,7 @@ function Validate-ConfigSchema {
         'install_rtss' = 'bool'
         'install_hwinfo' = 'bool'
         'install_msi_afterburner' = 'bool'
+        'install_ghelper' = 'bool'
         'install_cpuz' = 'bool'
         'install_gpuz' = 'bool'
         'configure_power_plans' = 'bool'

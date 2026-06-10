@@ -218,3 +218,35 @@ function Install-WingetPackage {
     & $completeLog "failed"
     return $false
 }
+
+function Get-GitHubLatestRelease {
+    <#
+    .SYNOPSIS
+        Fetches the latest release tag and one matching asset for a GitHub repo.
+    .DESCRIPTION
+        Returns $null on API failure or when no asset matches - callers fall
+        back to a manual-install message rather than failing the run.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Repo,
+        [string]$AssetPattern = "*"
+    )
+
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ 'User-Agent' = 'bootible' } -ErrorAction Stop
+    } catch {
+        return $null
+    }
+
+    $asset = $release.assets | Where-Object { $_.name -like $AssetPattern } | Select-Object -First 1
+    if (-not $asset) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        Tag         = $release.tag_name
+        AssetName   = $asset.name
+        DownloadUrl = $asset.browser_download_url
+        Size        = $asset.size
+    }
+}

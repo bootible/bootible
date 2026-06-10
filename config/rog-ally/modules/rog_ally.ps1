@@ -107,6 +107,50 @@ if (Get-ConfigValue "install_msi_afterburner" $false) {
     Write-Status "MSI Afterburner: GPU monitoring and overclocking" "Info"
 }
 
+if (Get-ConfigValue "install_ghelper" $false) {
+    $gHelperDir = Join-Path $env:LOCALAPPDATA "GHelper"
+    $gHelperExe = Join-Path $gHelperDir "GHelper.exe"
+
+    if (Test-Path $gHelperExe) {
+        Write-Status "G-Helper already installed - skipping" "Success"
+    } elseif ($Script:DryRun) {
+        Write-Status "[DRY RUN] Would install G-Helper (Armoury Crate alternative) from GitHub releases" "Info"
+    } else {
+        Write-Status "Installing G-Helper (lightweight Armoury Crate alternative)..." "Info"
+        $release = Get-GitHubLatestRelease -Repo "seerge/g-helper" -AssetPattern "GHelper.zip"
+        if (-not $release) {
+            Write-Status "Could not resolve G-Helper release - install manually: https://github.com/seerge/g-helper/releases" "Warning"
+        } else {
+            $zipFile = Join-Path $env:TEMP $release.AssetName
+            try {
+                $ProgressPreference = 'SilentlyContinue'
+                Invoke-WebRequest -Uri $release.DownloadUrl -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
+                $ProgressPreference = 'Continue'
+
+                $downloaded = (Get-Item $zipFile).Length
+                if ($downloaded -ne $release.Size) {
+                    throw "Size mismatch: expected $($release.Size) bytes, got $downloaded"
+                }
+
+                New-Item -ItemType Directory -Path $gHelperDir -Force | Out-Null
+                Expand-Archive -Path $zipFile -DestinationPath $gHelperDir -Force
+                Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
+
+                if (Test-Path $gHelperExe) {
+                    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'GHelper' -Value "`"$gHelperExe`""
+                    Write-Status "G-Helper $($release.Tag) installed (autostarts at login)" "Success"
+                } else {
+                    Write-Status "G-Helper archive extracted but GHelper.exe not found - check $gHelperDir" "Warning"
+                }
+            } catch {
+                Write-Status "Failed to install G-Helper: $_" "Warning"
+                Write-Status "Install manually: https://github.com/seerge/g-helper/releases" "Info"
+            }
+        }
+    }
+    Write-Status "G-Helper: TDP, fan curves, GPU modes without Armoury Crate" "Info"
+}
+
 if (Get-ConfigValue "install_cpuz" $false) {
     Install-WingetPackage -PackageId "CPUID.CPU-Z" -Name "CPU-Z"
     Write-Status "CPU-Z: CPU information and benchmarking" "Info"

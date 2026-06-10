@@ -213,6 +213,8 @@ install_handheld_companion: false
 install_rtss: false           # RivaTuner Statistics Server (FPS limiter/OSD)
 install_hwinfo: true          # Hardware monitoring
 install_msi_afterburner: true # GPU tweaking (limited on Ally)
+# G-Helper - lightweight Armoury Crate alternative (TDP, fans, GPU modes)
+install_ghelper: false
 install_cpuz: true            # CPU information
 install_gpuz: true            # GPU information
 
