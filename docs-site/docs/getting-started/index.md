@@ -1,101 +1,51 @@
 ---
 title: Getting Started
-description: Get up and running with Bootible in minutes
+description: Your journey from a fresh handheld to a fully configured one, in four steps
 ---
 
 # Getting Started
 
-Welcome to Bootible! This guide will walk you through setting up your gaming handheld from scratch.
+Welcome to Bootible! Setting up a gaming handheld follows the same four steps every time — and the docs are organized in that order.
 
-## Choose Your Path
+## Your journey
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch:{ .lg .middle } **Quick Start**
+-   :material-numeric-1-circle:{ .lg .middle } **Get started**
 
     ---
 
-    Jump straight in with the one-liner command. Perfect if you just want to see what Bootible does.
+    Preview Bootible with zero setup, then put your own settings in a config repo you can edit from any browser.
 
-    [:octicons-arrow-right-24: Quick Start](quick-start.md)
+    [:octicons-arrow-right-24: Try It in 5 Minutes](quick-try.md)
 
--   :material-walk:{ .lg .middle } **First Run Walkthrough**
-
-    ---
-
-    Step-by-step guide through your first Bootible run with explanations of each stage.
-
-    [:octicons-arrow-right-24: First Run](first-run.md)
-
--   :material-lock:{ .lg .middle } **Your Config Repo**
+-   :material-numeric-2-circle:{ .lg .middle } **Configure your device**
 
     ---
 
-    Set up your own private GitHub repo to store and sync your personal configuration.
+    Pick what your device should have — apps, streaming, emulation, power fixes — using your platform's options.
 
-    [:octicons-arrow-right-24: Your Config Repo](config-repo.md)
+    [:octicons-arrow-right-24: Configure Your Device](../configure/index.md)
 
--   :material-devices:{ .lg .middle } **Multi-Device Setup**
+-   :material-numeric-3-circle:{ .lg .middle } **Install & run**
 
     ---
 
-    Configure multiple devices (handhelds, PCs) from a single config repository.
+    Run the one-liner, review the preview, type `bootible` to apply.
 
-    [:octicons-arrow-right-24: Multi-Device](multi-device.md)
+    [:octicons-arrow-right-24: Install & Run](../install/index.md)
+
+-   :material-numeric-4-circle:{ .lg .middle } **Post install**
+
+    ---
+
+    Read your receipt, know what stays manual, and re-run after Windows updates to repair drift.
+
+    [:octicons-arrow-right-24: Post Install](../post-install/index.md)
 
 </div>
 
----
-
-## Prerequisites
-
-Before running Bootible, make sure you have:
-
-=== "Steam Deck"
-
-    - [x] Steam Deck with internet connection
-    - [x] Desktop Mode access (hold power button → Switch to Desktop, or press Steam button → Power → Switch to Desktop)
-    - [x] Sudo password set — from Desktop Mode, open Konsole and run `passwd` to set your password
-
-        !!! tip "Save your password"
-            Store this password in your password manager of choice. You'll need it when running Bootible.
-
-    - [ ] *Optional:* GitHub account for private config
-
-=== "ROG Ally"
-
-    - [x] ROG Ally with Windows 11 and internet
-    - [x] PowerShell running as Administrator
-    - [x] Windows Terminal installed (comes with Windows 11)
-    - [ ] *Optional:* GitHub account for private config
-
----
-
-## What Happens When You Run Bootible
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Bootstrap
-    participant Config
-    participant Installer
-
-    User->>Bootstrap: Run one-liner command
-    Bootstrap->>Bootstrap: Detect device type
-    Bootstrap->>User: Prompt for private repo (optional)
-    Bootstrap->>Config: Load defaults + private config
-    Bootstrap->>User: Show dry-run preview
-    User->>Bootstrap: Run 'bootible' to apply
-    Bootstrap->>Installer: Install packages & configure
-    Installer->>Bootstrap: Push logs to private repo
-    Bootstrap->>User: Show summary
-```
-
-1. **Detection** — Bootible identifies your device type
-2. **Configuration** — Loads defaults and merges your customizations
-3. **Preview** — Shows exactly what will change (dry-run)
-4. **Apply** — Installs packages and applies settings
-5. **Log** — Pushes run logs to your private repo
+In this section: [Try It in 5 Minutes](quick-try.md) (the zero-config preview), [Your Config Repo](config-repo.md) (make it yours), [Config Basics](config-basics.md) (how config works), and [Multi-Device](multi-device.md) (one repo, many handhelds).
 
 ---
 

@@ -1,233 +1,172 @@
 ---
-title: Private Configuration
-description: Set up your own private repository for custom configuration
+title: Your Config Repo
+description: Store your Bootible configuration in a private GitHub repo you can edit from any browser — no git skills required
 ---
 
-# Private Configuration
+# Your Config Repo
 
-Store your personal Bootible configuration in a private GitHub repository. This keeps your settings secure, synced across devices, and version-controlled.
+Your personal Bootible configuration lives in a small **private GitHub repository**. You can create it and edit it entirely from a web browser — no git commands, no terminal. Bootible handles the rest on the device.
+
+No GitHub account? Skip to [No GitHub? Use a local config](#no-github-use-a-local-config).
 
 ---
 
-## Why Use a Private Repo?
+## Why a config repo?
 
-| Without Private Repo | With Private Repo |
+| Without a config repo | With a config repo |
 |---------------------|-------------------|
 | Default settings only | Fully customized setup |
-| Logs saved locally | Logs synced to GitHub |
-| Manual config each device | Same config across all devices |
+| Logs saved locally | Run logs synced to GitHub |
+| Manual config on each device | Same config across all devices |
 | No version history | Full git history of changes |
 
 ---
 
-## Quick Setup
+## Set it up from your browser
 
-### 1. Create a Private Repository
+### 1. Create a private repository
 
-Go to [github.com/new](https://github.com/new) and create a new repository:
+Go to [github.com/new](https://github.com/new):
 
-- **Repository name**: Something like `gaming`, `bootible-config`, or `dotfiles`
-- **Visibility**: :material-lock: **Private** (recommended)
-- **Initialize**: Leave empty (Bootible will set it up)
+- **Repository name**: something like `gaming`, `bootible-config`, or `dotfiles`
+- **Visibility**: :material-lock: **Private**
+- Check **"Add a README file"** so the repo has a first commit
 
-### 2. Run the Init Script
+That's the whole job in the browser for now. An empty repo is fine — Bootible copes happily with a config repo that has no config in it yet.
 
-On any machine with Bootible cloned:
+### 2. Tell Bootible about it
 
-```bash
-cd ~/bootible
-./init-private-repo.sh
+Run the one-liner on your device ([Try It in 5 Minutes](quick-try.md) if this is your first time). When it asks, answer `y` and enter your details:
+
+```
+Do you have a private config repo? (y/N): y
+Your GitHub username: yourname
+Private repo (e.g., owner/repo): yourname/gaming
 ```
 
-This interactive script will:
+### 3. Sign in with your phone
 
-1. Ask which device type you're configuring
-2. Ask for a name for this device
-3. Create the proper folder structure
-4. Pull the latest config template
-5. Initialize a git repository
+Bootible uses GitHub's **device flow** for authentication: a window pops up with a QR code and a short code. Scan the QR with your phone (or visit [github.com/login/device](https://github.com/login/device) anywhere), enter the code, and approve. No password is ever typed into Bootible, and nothing needs the on-screen keyboard.
 
-### 3. Push to GitHub
+### 4. Bootible clones it
 
-```bash
-cd private
-git remote add origin git@github.com:YOUR_USER/YOUR_REPO.git
-git push -u origin main
-```
-
-### 4. Customize Your Config
-
-Edit your device configuration:
-
-```bash
-# For Steam Deck
-nano private/device/steamdeck/MyDeck/config.yml
-
-# For ROG Ally
-nano private/device/rog-ally/MyAlly/config.yml
-```
+Your repo is cloned to the `private/` folder inside Bootible's install directory (see [where that is](#where-your-config-lives-on-the-device)). If the repo doesn't contain a device config yet, Bootible reports `Using default configuration` and carries on with the defaults — nothing breaks.
 
 ---
 
-## Repository Structure
+## Add your device's config (in the browser)
 
-After setup, your private repo will look like this:
+Bootible looks for one folder per device, in this layout:
 
 ```
-private/
+device/<platform>/<DeviceName>/config.yml
+```
+
+- `<platform>` is `rog-ally` or `steamdeck`
+- `<DeviceName>` is any name you like — your hostname or a memorable name (letters, numbers, dashes, underscores)
+
+To create it with the GitHub web editor:
+
+1. In your repo, click **Add file → Create new file**.
+2. In the filename box, type the full path — typing `/` creates folders as you go:
+   ```
+   device/rog-ally/MyAlly/config.yml
+   ```
+3. Paste your overrides. You only need the settings you want **different from the defaults**:
+
+    === "ROG Ally"
+
+        ```yaml
+        # device/rog-ally/MyAlly/config.yml
+        install_discord: true
+        install_moonlight: true
+        install_firefox: true
+        sleep_mode: "hibernate"
+        ```
+
+    === "Steam Deck"
+
+        ```yaml
+        # device/steamdeck/MyDeck/config.yml
+        install_discord: true
+        install_moonlight: true
+        install_decky: true
+        ```
+
+4. Click **Commit changes**.
+
+Every available key is documented in [Config Basics](config-basics.md) and the per-device pages under [Configure Your Device](../configure/index.md).
+
+### Pick up the changes on your device
+
+The `bootible` command runs from the copy of your repo already on the device. To pull in what you just edited on GitHub, re-run the one-liner — it updates your private repo (answer `y` and enter the same `owner/repo` when asked), then shows a fresh preview. When the preview looks right:
+
+```
+bootible
+```
+
+!!! tip "Editing on the device instead"
+    You can also edit the cloned file directly on the device (any text editor) and run `bootible` straight away — no re-download needed. See [where your config lives](#where-your-config-lives-on-the-device).
+
+---
+
+## Where your config lives on the device
+
+=== "ROG Ally / Windows"
+
+    ```
+    %USERPROFILE%\bootible\private\device\rog-ally\<DeviceName>\config.yml
+    ```
+
+    (Usually `C:\Users\you\bootible\private\...`)
+
+=== "Steam Deck"
+
+    ```
+    ~/bootible/private/device/steamdeck/<DeviceName>/config.yml
+    ```
+
+---
+
+## Full repository structure
+
+As you grow into it, your repo can hold more than config:
+
+```
+your-repo/
 ├── device/
 │   ├── rog-ally/
-│   │   └── MyRogAlly/              # Your device name
+│   │   └── MyAlly/                 # One folder per device
 │   │       ├── config.yml          # Device configuration
-│   │       ├── Images/             # Wallpapers, avatars
-│   │       └── Logs/               # Run logs (auto-pushed)
+│   │       ├── Images/             # Wallpapers, lockscreen images
+│   │       └── Logs/               # Run logs (pushed automatically)
 │   └── steamdeck/
-│       └── MySteamDeck/
-│           ├── config.yml
-│           ├── Images/
-│           └── Logs/
+│       └── MyDeck/
+│           └── config.yml
 ├── scripts/                        # Shared scripts (EmuDeck EA, etc.)
-├── ssh-keys/                       # SSH public keys
-└── README.md
+└── ssh-keys/                       # SSH public keys (.pub only!)
 ```
-
-### Key Directories
 
 | Directory | Purpose |
 |-----------|---------|
 | `device/<platform>/<name>/` | Per-device configuration and files |
 | `scripts/` | Shared scripts across all devices |
-| `ssh-keys/` | SSH public keys for all devices |
+| `ssh-keys/` | SSH public keys to authorize |
 
----
+Multiple device folders? Bootible lists them at run time and asks which one to use — see [Multi-Device](multi-device.md).
 
-## Configuration File
+### Wallpapers & images
 
-Each device has a `config.yml` that overrides defaults:
-
-=== "Steam Deck Example"
-
-    ```yaml
-    # private/device/steamdeck/MySteamDeck/config.yml
-
-    # Apps
-    install_discord: true
-    install_spotify: true
-    password_managers:
-      - "1password"
-    password_manager_install_method: "distrobox"
-
-    # Streaming
-    install_moonlight: true
-    install_chiaki: true
-
-    # Decky Plugins
-    install_decky: true
-    decky_plugins:
-      powertools:
-        enabled: true
-      protondb_badges:
-        enabled: true
-      steamgriddb:
-        enabled: true
-      css_loader:
-        enabled: true
-
-    # Remote Access
-    install_ssh: true
-    ssh_generate_key: true
-    ssh_add_to_github: true
-    install_tailscale: true
-    ```
-
-=== "ROG Ally Example"
-
-    ```yaml
-    # private/device/rog-ally/MyRogAlly/config.yml
-
-    # Apps
-    install_discord: true
-    install_spotify: true
-    password_managers:
-      - "1password"
-
-    # Gaming
-    install_steam: true
-    install_playnite: true
-
-    # Streaming
-    install_moonlight: true
-    install_chiaki: true
-    install_parsec: true
-
-    # Optimization
-    disable_telemetry: true
-    disable_copilot: true
-    disable_game_dvr: true
-    classic_right_click_menu: true
-
-    # Remote Access
-    install_ssh: true
-    ssh_server_enable: true
-    install_tailscale: true
-    ```
-
----
-
-## Adding Files
-
-### Wallpapers & Images
-
-Place images in your device's `Images/` folder:
-
-```
-device/rog-ally/MyRogAlly/Images/
-├── wallpaper.jpg
-├── lockscreen.jpg
-└── avatar.png
-```
-
-Then reference them in your config:
+Place images in your device's `Images/` folder and reference them in your config:
 
 ```yaml
 wallpaper_path: "Images/wallpaper.jpg"
 lockscreen_path: "Images/lockscreen.jpg"
 ```
 
-### EmuDeck Early Access
+### SSH keys
 
-If you have EmuDeck Patreon access, place the scripts in `scripts/`:
-
-| Platform | File |
-|----------|------|
-| Steam Deck | `EmuDeck EA SteamOS.desktop.download` |
-| ROG Ally | `EmuDeck EA Windows.bat` |
-
-Bootible automatically uses EA versions if found.
-
-### SSH Keys
-
-Place SSH public keys in `ssh-keys/`:
-
-```
-ssh-keys/
-├── desktop.pub
-├── laptop.pub
-└── vengeance.pub
-```
-
-Then configure which keys to authorize:
-
-=== "Steam Deck"
-
-    ```yaml
-    ssh_import_authorized_keys: true
-    ssh_authorized_keys:
-      - "desktop.pub"
-      - "laptop.pub"
-    ```
-
-    `ssh_import_authorized_keys` and `ssh_generate_key` are Steam Deck-only keys. They have no effect on ROG Ally.
+Put public keys in `ssh-keys/`, then choose which to authorize:
 
 === "ROG Ally"
 
@@ -239,75 +178,87 @@ Then configure which keys to authorize:
       - "laptop.pub"
     ```
 
-    ROG Ally uses `ssh_authorized_keys` directly. `install_ssh` installs OpenSSH Server; `ssh_server_enable` starts and enables the service.
+=== "Steam Deck"
+
+    ```yaml
+    install_ssh: true
+    ssh_import_authorized_keys: true
+    ssh_authorized_keys:
+      - "desktop.pub"
+      - "laptop.pub"
+    ```
+
+### EmuDeck Early Access
+
+If you have EmuDeck Patreon access, place the scripts in `scripts/` and Bootible uses the EA versions automatically:
+
+| Platform | File |
+|----------|------|
+| Steam Deck | `EmuDeck EA SteamOS.desktop.download` |
+| ROG Ally | `EmuDeck EA Windows.bat` |
+
+### Run logs
+
+Bootible pushes a transcript of each run to your device's `Logs/` folder automatically — useful for debugging and for seeing what changed over time.
 
 ---
 
-## Using Your Private Repo
+## Prefer the terminal?
 
-When you run Bootible, it will prompt for your private repo:
+??? note "Set it up with `init-private-repo.sh` instead"
 
-```
-Do you have a private configuration repository? [y/N] y
-Enter your private repo (e.g., username/repo): myuser/gaming
-```
+    If you have a computer with bash and git, Bootible ships a script that builds the same structure locally:
 
-!!! tip "GitHub Authentication"
-    Bootible uses GitHub Device Flow for authentication. A QR code appears that you can scan with your phone—no typing on the on-screen keyboard needed.
+    ```bash
+    git clone https://github.com/bootible/bootible.git
+    cd bootible
+    ./init-private-repo.sh
+    ```
 
----
+    It asks for your device type and a device name, creates `private/` with the full layout, downloads the current default config as your starting template, and makes the first commit.
 
-## Syncing Changes
+    Then create an **empty** private repo on [github.com/new](https://github.com/new) (no README this time — the script already made the first commit) and push:
 
-### Editing Config
+    ```bash
+    cd private
+    git remote add origin git@github.com:YOUR_USER/YOUR_REPO.git
+    git push -u origin main
+    ```
 
-1. Edit your config file:
-   ```bash
-   nano ~/bootible/private/device/steamdeck/MySteamDeck/config.yml
-   ```
-
-2. Commit and push:
-   ```bash
-   cd ~/bootible/private
-   git add -A
-   git commit -m "Enable Discord and Moonlight"
-   git push
-   ```
-
-3. Run Bootible to apply:
-   ```bash
-   bootible
-   ```
-
-### Run Logs
-
-Bootible automatically pushes run logs to your private repo:
-
-```
-device/steamdeck/MySteamDeck/Logs/
-├── 2025-01-08_143022_mysteamdeck_run.log
-├── 2025-01-07_091544_mysteamdeck_dryrun.log
-└── ...
-```
-
-These logs are invaluable for debugging and seeing what changed over time.
+    !!! warning "SSH key required for the `git@` URL"
+        The `git@github.com:...` remote shown above requires an [SSH key registered with GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh). If you don't have one, use the HTTPS URL instead: `https://github.com/YOUR_USER/YOUR_REPO.git`.
 
 ---
 
-## Security Notes
+## No GitHub? Use a local config
+
+You can customize Bootible without any GitHub account. Create a config file at:
+
+=== "ROG Ally / Windows"
+
+    ```
+    %USERPROFILE%\.config\bootible\rog-ally\config.yml
+    ```
+
+=== "Steam Deck"
+
+    ```
+    ~/.config/bootible/steamdeck/config.yml
+    ```
+
+Put your overrides in it — same keys, same format as a repo config. It's merged on top of the defaults each time you run `bootible`.
+
+!!! warning "Windows: the local config is skipped during the very first one-liner run"
+    On Windows, the initial bootstrap passes an explicit config to the setup script, which bypasses the local layer. The local config applies on every `bootible` run after that. Practical order: run the one-liner once (press ++enter++ at the repo question), then create your local config, then run `bootible`. On Steam Deck the local config applies from the first run.
+
+What you give up without a repo: synced config across devices, automatic log push, and version history.
+
+---
+
+## Security notes
 
 !!! warning "Keep it private"
-    Your config repo should be **private** on GitHub. It may contain:
-
-    - SSH key references
-    - Device names and hostnames
-    - Your personal preferences
+    Your config repo should be **private** on GitHub. It may contain SSH key references, device names and hostnames, and your personal preferences.
 
 !!! danger "Never commit secrets"
-    Never put these in your config:
-
-    - Passwords
-    - API tokens
-    - Private SSH keys (only `.pub` files!)
-
-    If you need a GitHub token, use the QR code authentication instead.
+    Never put passwords, API tokens, or private SSH keys in your config (only `.pub` files in `ssh-keys/`). If you need GitHub access on the device, the QR sign-in handles it — no tokens to paste.

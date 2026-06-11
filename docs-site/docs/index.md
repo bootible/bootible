@@ -128,8 +128,8 @@ graph LR
 
 ## What Gets Installed
 
-!!! tip "Everything is opt-in"
-    Nothing is installed unless you enable it in your configuration.
+!!! tip "Curated defaults, full preview"
+    The defaults are a curated gaming baseline — and the dry run shows you every change before anything is touched. Every item is a config key you can turn off, so your config only needs the overrides.
 
 ### Applications
 
