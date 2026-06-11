@@ -125,6 +125,9 @@ plugins:
         'platforms/steam-deck/index.md': 'reference/steam-deck-platform.md'
         'platforms/steam-deck/roles.md': 'reference/steam-deck-roles.md'
         'platforms/android/index.md': 'reference/android-platform.md'
+        # getting-started/quick-start + first-run → install/ (content merged)
+        'getting-started/quick-start.md': 'install/index.md'
+        'getting-started/first-run.md': 'install/index.md'
         # reference/* → post-install/* (receipt FAQ load-bearing redirect)
         'reference/troubleshooting.md': 'post-install/troubleshooting.md'
 
@@ -195,8 +198,6 @@ nav:
 
   - Install & Run:
     - install/index.md
-    - Quick Start: getting-started/quick-start.md
-    - First Run: getting-started/first-run.md
 
   - Post Install:
     - post-install/index.md
