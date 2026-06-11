@@ -1,15 +1,23 @@
 ---
 title: Reference
-description: Reference documentation and guides
+description: Contracts, internals, and lookup material — the CLI, FAQ, drift detection, release integrity, and per-platform internals
 ---
 
 # Reference
 
-Quick access to reference documentation.
+Lookup material and contract pages — what Bootible guarantees and how the machinery works underneath.
 
 ---
 
 <div class="grid cards" markdown>
+
+-   :material-code-tags:{ .lg .middle } **CLI Reference**
+
+    ---
+
+    Command-line options, flags, and what the bootstrap does step by step.
+
+    [:octicons-arrow-right-24: CLI Reference](cli.md)
 
 -   :material-help-circle:{ .lg .middle } **FAQ**
 
@@ -19,20 +27,39 @@ Quick access to reference documentation.
 
     [:octicons-arrow-right-24: FAQ](faq.md)
 
--   :material-wrench:{ .lg .middle } **Troubleshooting**
+-   :material-radar:{ .lg .middle } **How Drift Detection Works**
 
     ---
 
-    Solutions to common issues.
+    The contract: exactly what is probed, where the baseline lives, and how repairs are verified.
 
-    [:octicons-arrow-right-24: Troubleshooting](../post-install/troubleshooting.md)
+    [:octicons-arrow-right-24: Drift Detection](drift.md)
 
--   :material-code-tags:{ .lg .middle } **CLI Reference**
+-   :material-shield-check:{ .lg .middle } **Release Channels & Integrity**
 
     ---
 
-    Command-line options and usage.
+    How the worker pins releases and verifies checksums — and where the trust boundaries honestly are.
 
-    [:octicons-arrow-right-24: CLI Reference](cli.md)
+    [:octicons-arrow-right-24: Channels & Integrity](integrity.md)
 
 </div>
+
+---
+
+## Platform Internals
+
+How each platform's engine is put together — for reading before you fork, or when the higher-level docs aren't deep enough.
+
+- [Architecture](architecture.md) — how the engine, targets, and private overlay fit together
+- [ROG Ally Modules](rog-ally-modules.md) — the PowerShell modules, their order, and re-run behavior
+- [Steam Deck Roles](steam-deck-roles.md) — the Ansible roles, their order, and config keys
+- [ROG Ally Platform Notes](rog-ally-platform.md)
+- [Steam Deck Platform Notes](steam-deck-platform.md)
+- [Android Platform Notes](android-platform.md)
+
+---
+
+## Looking for troubleshooting?
+
+Troubleshooting moved to the Post Install section: [Troubleshooting](../post-install/troubleshooting.md).

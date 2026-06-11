@@ -39,6 +39,7 @@ Roles execute in this order (defined in `playbook.yml`):
 |-----|------|---------|-------------|
 | `hostname` | string | - | System hostname |
 | `static_ip.enabled` | bool | `false` | Enable static IP |
+| `static_ip.connection` | string | - | NetworkManager connection name (`nmcli con show`) |
 | `static_ip.address` | string | - | IP address with CIDR |
 | `static_ip.gateway` | string | - | Default gateway |
 | `static_ip.dns` | list | - | DNS servers |
@@ -92,7 +93,7 @@ sdcard_path: "/run/media/..."
 | `install_obs` | `com.obsproject.Studio` | Productivity |
 | `install_vscode` | `com.visualstudio.code` | Development |
 | `install_moonlight` | `com.moonlight_stream.Moonlight` | Streaming |
-| `install_chiaki` | `re.chiaki.Chiaki4deck` | Streaming |
+| `install_chiaki` | `io.github.streetpea.Chiaki4deck` | Streaming |
 | `install_heroic` | `com.heroicgameslauncher.hgl` | Gaming |
 | `install_lutris` | `net.lutris.Lutris` | Gaming |
 | `install_bottles` | `com.usebottles.bottles` | Gaming |
@@ -109,22 +110,22 @@ sdcard_path: "/run/media/..."
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `install_ssh` | bool | `true` | Enable SSH role |
+| `install_ssh` | bool | `false` | Enable SSH role |
 | `ssh_port` | int | `22` | SSH server port |
 | `ssh_generate_key` | bool | `false` | Generate new SSH key |
-| `ssh_key_name` | string | `id_ed25519` | Key filename |
+| `ssh_key_name` | string | `""` | Key comment/identifier (default: hostname) |
 | `ssh_add_to_github` | bool | `false` | Add key to GitHub |
 | `ssh_import_authorized_keys` | bool | `false` | Import from private repo |
 | `ssh_authorized_keys` | list | `[]` | Key files to import |
+| `ssh_save_to_private` | bool | `false` | Save public key to private repo |
 | `ssh_configure_git` | bool | `false` | Configure git to use SSH |
 
 **What It Does:**
 
-1. Enables and starts sshd service
-2. Optionally generates SSH keypair
+1. Enables and starts sshd service (and changes the port if `ssh_port` is not 22)
+2. Optionally generates an ed25519 keypair — the key file is always `~/.ssh/id_ed25519`; `ssh_key_name` sets the key comment used as the GitHub key title
 3. Imports authorized keys from `private/ssh-keys/`
-4. Can add public key to GitHub via API
-5. Configures firewall for SSH access
+4. Can add the public key to GitHub via the `gh` CLI
 
 **Example:**
 
@@ -148,8 +149,8 @@ ssh_authorized_keys:
 
 **What It Does:**
 
-1. Installs Tailscale via Flatpak
-2. Enables the Tailscale service
+1. Installs Tailscale via the official install script (static binaries — survives SteamOS updates; there is no official Tailscale Flatpak)
+2. Enables and starts the `tailscaled` service
 3. Provides instructions for authentication
 
 **Post-Install:**
@@ -206,23 +207,31 @@ After install, access web UI at `https://localhost:47990` to pair devices.
 decky_plugins:
   powertools:
     enabled: true
-    description: "CPU/GPU power management"
+    store_name: "PowerTools"
+    description: "CPU/GPU control, per-game profiles"
   protondb_badges:
     enabled: true
-    description: "ProtonDB compatibility ratings"
+    store_name: "ProtonDB Badges"
+    description: "Show ProtonDB compatibility ratings"
   steamgriddb:
     enabled: true
+    store_name: "SteamGridDB"
     description: "Custom game artwork"
   css_loader:
-    enabled: true
-    description: "Visual themes"
+    enabled: false
+    store_name: "CSS Loader"
+    description: "Custom themes for Gaming Mode"
   hltb:
-    enabled: true
-    description: "How Long to Beat times"
+    enabled: false
+    store_name: "HLTB for Deck"
+    description: "How Long to Beat game times"
   autosuspend:
     enabled: false
-    description: "Auto-suspend on idle"
+    store_name: "AutoSuspend"
+    description: "Auto-suspend after inactivity"
 ```
+
+`store_name` must match the plugin's exact name in the Decky store — the role looks the plugin up by that name and reports "not found in Decky store" otherwise. The full default plugin list lives in `config/steamdeck/config.yml`.
 
 **Plugin Categories:**
 
@@ -343,21 +352,19 @@ Installs StickDeck, which turns your Steam Deck into a controller for your PC. U
 
 **What It Does:**
 
-1. Installs Waydroid container
-2. Downloads Android image
-3. Configures for Gaming Mode
+1. Clones the [SteamOS-Waydroid-Installer](https://github.com/ryanrudolfoba/SteamOS-Waydroid-Installer) into `~/Applications/`
+2. Creates a "Waydroid Installer" shortcut on the Desktop
+3. Skips everything if Waydroid is already installed
 
 **Post-Install:**
 
-Initialize Waydroid:
+The role only stages the installer — Android itself is set up interactively:
 
-```bash
-sudo waydroid init -s GAPPS  # With Google Play
-# or
-sudo waydroid init            # Without Google Play
-```
+1. Switch to Desktop Mode
+2. Launch **Waydroid Installer** from the Desktop
+3. Choose your Android variant in the GUI
 
-Launch from Gaming Mode library.
+Waydroid gets wiped by SteamOS updates; re-run Bootible and the installer again afterwards (your Android apps and data persist).
 
 ---
 
@@ -391,4 +398,4 @@ ansible-playbook playbook.yml --tags "ssh,tailscale" --ask-become-pass
 ansible-playbook playbook.yml --skip-tags "decky" --ask-become-pass
 ```
 
-Available tags match role names plus: `always`, `apps`, `remote`, `gaming`.
+Each role is tagged with its own name plus grouping tags (from `playbook.yml`): `apps`, `flatpak`, `remote`, `vpn`, `streaming`, `remote_desktop`, `plugins`, `gaming`, `wine`, `roms`, `controller`, `android`, `containers`, `password_manager`, and `always` (pre-flight checks and the base role).
