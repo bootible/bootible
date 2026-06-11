@@ -250,6 +250,9 @@ Before making changes, Bootible creates a snapshot:
 
 To restore if something goes wrong:
 
+!!! danger "This replaces your home folder's current state"
+    These commands delete the live `/home` subvolume and replace it with the pre-Bootible snapshot. **Everything changed since that snapshot is lost** — game saves, downloads, configs. Back up anything you want to keep first, and only proceed if rolling back to the pre-Bootible state is genuinely your goal. If you just want to fix a broken setting, re-run `bootible` instead.
+
 ```bash
 # List snapshots
 sudo ls /home/.snapshots/
@@ -306,7 +309,7 @@ bootible
 
     Detailed documentation of each Ansible role.
 
-    [:octicons-arrow-right-24: Roles](roles.md)
+    [:octicons-arrow-right-24: Roles](steam-deck-roles.md)
 
 -   :material-format-list-checks:{ .lg .middle } **Configuration**
 
@@ -314,6 +317,6 @@ bootible
 
     Full list of Steam Deck configuration options.
 
-    [:octicons-arrow-right-24: Config Reference](../../configuration/steam-deck.md)
+    [:octicons-arrow-right-24: Config Reference](../configure/steam-deck.md)
 
 </div>

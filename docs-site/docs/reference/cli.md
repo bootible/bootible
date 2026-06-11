@@ -202,7 +202,7 @@ ansible-playbook playbook.yml --skip-tags decky --ask-become-pass
     |----------|-------------|
     | `BOOTIBLE_PRIVATE` | Private repo URL to clone (skips the interactive prompt) |
     | `BOOTIBLE_RUN` | `1` = real run. Unset = dry run (the irm one-liner default). |
-    | `BOOTIBLE_DIRECT` | Internal — marks the re-launched elevated process; don't set manually |
+    | `BOOTIBLE_DIRECT` | Internal — marks the re-launched-from-saved-file process (fixes piped-stdin and git credential manager issues); don't set manually |
     | `BOOTIBLE_TRANSCRIPT` | Internal — transcript path handoff between `ally.ps1` and `Run.ps1` |
 
 ### Exit Behavior

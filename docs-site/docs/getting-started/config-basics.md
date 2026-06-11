@@ -1,9 +1,9 @@
 ---
-title: Configuration Reference
-description: Complete reference for Bootible configuration options
+title: Config Basics
+description: How Bootible configuration works - file layers, precedence, structure, and validation
 ---
 
-# Configuration Reference
+# Config Basics
 
 Bootible uses YAML configuration files to define what gets installed and configured on your device.
 
@@ -18,6 +18,31 @@ Configuration is loaded in this priority order (later overrides earlier):
 2. Local config         ~/.config/bootible/<platform>/config.yml
 3. Private repo config  private/device/<platform>/<instance>/config.yml
 ```
+
+!!! note "Fine print: the first one-liner run on Windows"
+    On Windows, the initial bootstrap hands the setup script an explicit config (the private instance it selected, or the defaults), which bypasses the local `~/.config` layer. The local layer applies on every `bootible` run after that. On Steam Deck, the local layer applies on every run including the first.
+
+---
+
+## Where your config lives on each device
+
+Your private repo is cloned alongside Bootible itself:
+
+=== "ROG Ally / Windows"
+
+    ```
+    %USERPROFILE%\bootible\private\device\rog-ally\<DeviceName>\config.yml
+    ```
+
+    Local (no-GitHub) config: `%USERPROFILE%\.config\bootible\rog-ally\config.yml`
+
+=== "Steam Deck"
+
+    ```
+    ~/bootible/private/device/steamdeck/<DeviceName>/config.yml
+    ```
+
+    Local (no-GitHub) config: `~/.config/bootible/steamdeck/config.yml`
 
 ---
 
@@ -97,7 +122,7 @@ install_steam: true
 
     Full reference for Android configuration options.
 
-    [:octicons-arrow-right-24: Android Config](android.md)
+    [:octicons-arrow-right-24: Android Config](../configure/android.md)
 
 -   :fontawesome-brands-steam:{ .lg .middle } **Steam Deck**
 
@@ -105,7 +130,7 @@ install_steam: true
 
     Full reference for Steam Deck configuration options.
 
-    [:octicons-arrow-right-24: Steam Deck Config](steam-deck.md)
+    [:octicons-arrow-right-24: Steam Deck Config](../configure/steam-deck.md)
 
 -   :material-laptop:{ .lg .middle } **ROG Ally**
 
@@ -113,7 +138,7 @@ install_steam: true
 
     Full reference for ROG Ally configuration options.
 
-    [:octicons-arrow-right-24: ROG Ally Config](rog-ally.md)
+    [:octicons-arrow-right-24: ROG Ally Config](../configure/rog-ally.md)
 
 </div>
 
@@ -196,7 +221,7 @@ Fix the above errors in your config.yml before continuing.
 |-------|---------|-------|
 | `ssh_port: "22"` | `ssh_port: 22` | Port should be number, not string |
 | `install_discord: yes` | `install_discord: true` | Use `true`/`false`, not `yes`/`no` |
-| `password_manager: 1Password` | `password_manager: "1password"` | Use exact lowercase value |
+| `password_managers: ["1Password"]` | `password_managers: ["1password"]` | Use exact lowercase values |
 
 ---
 
@@ -234,3 +259,15 @@ For complete examples with all available options, see the default configuration 
 - [Android config.yml](https://github.com/bootible/bootible/blob/main/config/android/config.yml)
 - [Steam Deck config.yml](https://github.com/bootible/bootible/blob/main/config/steamdeck/config.yml)
 - [ROG Ally config.yml](https://github.com/bootible/bootible/blob/main/config/rog-ally/config.yml)
+
+---
+
+## Applying changes
+
+The loop is: **edit → commit → push → run `bootible`**.
+
+1. Edit your device's `config.yml` — in the GitHub web editor or directly on the device.
+2. If you edited on GitHub: commit, then re-run the one-liner on the device so it pulls your changes (answer `y` and the same `owner/repo` at the prompt). If you edited the file on the device, skip this step.
+3. Run `bootible` to apply.
+
+The same loop repairs settings that drift after a Windows update — details in [Re-running & Drift](../post-install/re-running.md).

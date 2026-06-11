@@ -5,6 +5,8 @@ description: Complete configuration reference for Android gaming handhelds
 
 # Android Configuration Reference <span class="beta-badge">ALPHA</span>
 
+Changing a setting on a device that's already set up? Edit your config and re-run - see [Re-running & Drift](../post-install/re-running.md).
+
 Complete reference for all Android configuration options.
 
 !!! warning "Alpha Feature"

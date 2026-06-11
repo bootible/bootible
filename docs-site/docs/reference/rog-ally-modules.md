@@ -7,6 +7,11 @@ description: Reference documentation for ROG Ally PowerShell modules
 
 Bootible uses a modular PowerShell architecture to configure your ROG Ally. Each module handles a specific aspect of the setup.
 
+!!! warning "Extending Bootible: custom modules are not supported"
+    The module list (`$moduleOrder`) is hardcoded in `Run.ps1` — a `.ps1` file dropped into the `modules/` directory is never executed unless its name is in that list. The private repo's `scripts/` folder is not a hook system either: it is only consulted for specific known filenames (such as the EmuDeck EA installer, `EmuDeck EA Windows.bat`), never for arbitrary scripts.
+
+    The supported route for custom behavior is to fork the repo, edit the modules, and point the bootstrap at your fork — see [Can I contribute?](faq.md#can-i-contribute) in the FAQ.
+
 ---
 
 ## Module Overview
@@ -246,7 +251,7 @@ Battle.net uses a non-standard installer. Bootible downloads and launches it; yo
 | `install_geforcenow` | NVIDIA.GeForceNow | Cloud gaming |
 
 !!! note "No Sunshine host on the Ally"
-    Bootible installs streaming **clients** on the Ally. Sunshine (the host) belongs on the PC you stream from — install it there manually. See [Game Streaming](../../features/streaming.md).
+    Bootible installs streaming **clients** on the Ally. Sunshine (the host) belongs on the PC you stream from — install it there manually. See [Game Streaming](../configure/features/streaming.md).
 
 ---
 

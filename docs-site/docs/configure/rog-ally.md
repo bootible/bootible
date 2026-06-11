@@ -5,6 +5,8 @@ description: Complete configuration reference for ROG Ally
 
 # ROG Ally Configuration Reference
 
+Changing a setting on a device that's already set up? Edit your config and re-run - see [Re-running & Drift](../post-install/re-running.md).
+
 Complete reference for all ROG Ally configuration options.
 
 ---
@@ -246,7 +248,7 @@ password_managers:
 |-----|------|---------|-------------|
 | `install_emulation` | bool | `false` | Install EmuDeck (the all-in-one emulation setup) |
 
-This single key gates the EmuDeck install. EmuDeck then selects and configures individual emulators **interactively** — there are no per-emulator keys. See [Emulation](../features/emulation.md).
+This single key gates the EmuDeck install. EmuDeck then selects and configures individual emulators **interactively** — there are no per-emulator keys. See [Emulation](features/emulation.md).
 
 ---
 

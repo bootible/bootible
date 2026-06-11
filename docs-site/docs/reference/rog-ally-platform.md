@@ -84,7 +84,7 @@ install_hidhide: true   # Hide physical gamepad from games (needs reboot)
 
 !!! info "Canonical key reference"
     This page shows highlights only. The complete list of every key, type, and
-    default lives in the [ROG Ally Configuration Reference](../../configuration/rog-ally.md).
+    default lives in the [ROG Ally Configuration Reference](../configure/rog-ally.md).
 
 ---
 
@@ -172,7 +172,7 @@ PC you stream **from**. To stream from the Ally itself:
 install_parsec: true    # Parsec also works as a host
 ```
 
-Or install [Sunshine](https://github.com/LizardByte/Sunshine/releases) manually. See [Game Streaming](../../features/streaming.md).
+Or install [Sunshine](https://github.com/LizardByte/Sunshine/releases) manually. See [Game Streaming](../configure/features/streaming.md).
 
 ---
 
@@ -351,7 +351,7 @@ cd $env:USERPROFILE\bootible\config\rog-ally
 There is no skip flag — to skip a module, either pass `-Tags` with every module
 you *do* want, or disable it in config (e.g. `install_debloat: false`).
 
-See the [CLI Reference](../../reference/cli.md) for all parameters and the full tag list.
+See the [CLI Reference](cli.md) for all parameters and the full tag list.
 
 ---
 
@@ -365,7 +365,7 @@ See the [CLI Reference](../../reference/cli.md) for all parameters and the full 
 
     Detailed documentation of each PowerShell module.
 
-    [:octicons-arrow-right-24: Modules](modules.md)
+    [:octicons-arrow-right-24: Modules](rog-ally-modules.md)
 
 -   :material-format-list-checks:{ .lg .middle } **Configuration**
 
@@ -373,6 +373,6 @@ See the [CLI Reference](../../reference/cli.md) for all parameters and the full 
 
     Full list of ROG Ally configuration options.
 
-    [:octicons-arrow-right-24: Config Reference](../../configuration/rog-ally.md)
+    [:octicons-arrow-right-24: Config Reference](../configure/rog-ally.md)
 
 </div>

@@ -5,6 +5,8 @@ description: Complete configuration reference for Steam Deck
 
 # Steam Deck Configuration Reference
 
+Changing a setting on a device that's already set up? Edit your config and re-run - see [Re-running & Drift](../post-install/re-running.md).
+
 Complete reference for all Steam Deck configuration options.
 
 ---
@@ -147,7 +149,7 @@ password_managers:
 | `ssh_import_authorized_keys` | bool | `false` | Import keys from private repo |
 | `ssh_authorized_keys` | list | `[]` | Key files to authorize |
 | `ssh_generate_key` | bool | `false` | Generate SSH keypair |
-| `ssh_key_name` | string | `""` | Key filename (default: hostname) |
+| `ssh_key_name` | string | `""` | Key comment/identifier (default: hostname) — the key file itself is always `~/.ssh/id_ed25519` |
 | `ssh_add_to_github` | bool | `false` | Add key to GitHub |
 | `ssh_save_to_private` | bool | `false` | Save key to private repo |
 | `ssh_configure_git` | bool | `false` | Configure git for SSH |
@@ -301,8 +303,10 @@ install_decky: true
 decky_plugins:
   powertools:
     enabled: true
+    store_name: "PowerTools"
   protondb_badges:
     enabled: true
+    store_name: "ProtonDB Badges"
 ```
 
 ### Full-Featured Setup
@@ -331,14 +335,19 @@ install_decky: true
 decky_plugins:
   powertools:
     enabled: true
+    store_name: "PowerTools"
   protondb_badges:
     enabled: true
+    store_name: "ProtonDB Badges"
   steamgriddb:
     enabled: true
+    store_name: "SteamGridDB"
   css_loader:
     enabled: true
+    store_name: "CSS Loader"
   hltb:
     enabled: true
+    store_name: "HLTB for Deck"
 
 # Streaming
 install_moonlight: true
@@ -370,6 +379,7 @@ install_decky: true
 decky_plugins:
   powertools:
     enabled: true
+    store_name: "PowerTools"
 
 # Use SD card for everything
 emulation_storage: "sdcard"

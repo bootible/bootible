@@ -37,7 +37,7 @@ With GitHub:
 - Store custom configuration privately
 - Sync across multiple devices
 - Logs automatically pushed to your repo
-- SSH key management
+- SSH server & authorized key management (Ally); SSH key generation (Deck)
 
 ### Can I undo changes?
 
@@ -46,7 +46,7 @@ Yes!
 - **Steam Deck:** Restore from btrfs snapshot
 - **ROG Ally:** Use System Restore
 
-See [Troubleshooting](troubleshooting.md#backup--recovery) for details.
+See [Troubleshooting](../post-install/troubleshooting.md#backup--recovery) for details.
 
 ### Is my configuration private?
 
@@ -129,8 +129,8 @@ install_spotify: true
 
 See the Configuration Reference:
 
-- [Steam Deck Config](../configuration/steam-deck.md)
-- [ROG Ally Config](../configuration/rog-ally.md)
+- [Steam Deck Config](../configure/steam-deck.md)
+- [ROG Ally Config](../configure/rog-ally.md)
 
 Or look at the default config files in the repo.
 
@@ -278,7 +278,7 @@ Run dry-run to see what would happen:
 === "ROG Ally"
 
     ```powershell
-    .\Run.ps1 -DryRun
+    irm https://bootible.dev/rog | iex
     ```
 
 ### How do I report a bug?
