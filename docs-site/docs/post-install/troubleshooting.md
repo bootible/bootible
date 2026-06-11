@@ -151,6 +151,9 @@ Flatpak apps and your config survive updates.
 
 ## ROG Ally Issues
 
+!!! tip "Setup reverted after a Windows Update?"
+    Battery draining in sleep again, Game Bar back, settings undone — that's drift, not breakage, and the fix is one command. See [Re-running & Drift](re-running.md).
+
 ### Winget Not Working
 
 !!! info "Bootible retries this automatically"
@@ -401,6 +404,9 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ## Backup & Recovery {#backup--recovery}
 
 ### Steam Deck: Restore from Snapshot
+
+!!! danger "This replaces your home folder's current state"
+    These commands delete the live `/home` subvolume and replace it with the pre-Bootible snapshot. **Everything changed since that snapshot is lost** — game saves, downloads, configs. Back up anything you want to keep first, and only proceed if rolling back to the pre-Bootible state is genuinely your goal. If you just want to fix a broken setting, re-run `bootible` instead.
 
 ```bash
 # List snapshots
