@@ -11,6 +11,9 @@ files/rog-ally/configs/*
 # Ansible
 *.retry
 
+# Pester
+testResults.xml
+
 # Node
 node_modules/
 
