@@ -28,7 +28,7 @@ Two consequences worth being explicit about:
 
 | Key | What is read |
 |-----|--------------|
-| `hibernate_enabled` | Registry: `HKLM:\SYSTEM\CurrentControlSet\Control\Power` value `HibernateEnabled` (drifted when it is no longer `1`). A registry read, not `powercfg` output parsing — locale-independent. |
+| `hibernate_enabled` | Registry: `HKLM:\SYSTEM\CurrentControlSet\Control\Power` value `HibernateEnabled` (drifted when its value differs from your baseline — enabling hibernate when your baseline had it off is also drift). A registry read, not `powercfg` output parsing — locale-independent. |
 | `gamebar_present` | Whether the `Microsoft.XboxGamingOverlay` Appx package is installed (`Get-AppxPackage`) — detects Xbox Game Bar being reinstalled. |
 | `gpu_driver` | CIM query `Win32_VideoController`, filtered to adapters whose `PNPDeviceID` starts with `PCI\` (first match), reading `DriverVersion`. The PCI filter exists because streaming tools install virtual display adapters that would otherwise flap this probe. |
 | `wallpaper_value` | Registry: `HKCU:\Control Panel\Desktop` value `WallPaper`. Only probed when your config sets `wallpaper_path`. The actual registry value is stored, so a *replaced* wallpaper is drift, not just an unset one. |

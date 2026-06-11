@@ -126,7 +126,7 @@ graph LR
 
 ---
 
-## What Gets Installed
+## What's Available
 
 !!! tip "Curated defaults, full preview"
     The defaults are a curated gaming baseline — and the dry run shows you every change before anything is touched. Every item is a config key you can turn off, so your config only needs the overrides.

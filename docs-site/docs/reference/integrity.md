@@ -14,16 +14,16 @@ Piping a URL into your shell is normally an act of faith: you execute whatever t
 `bootible.dev/rog`, `/deck`, and `/android` are served by a Cloudflare Pages worker (`cloudflare/_worker.js` — public, auditable). The worker does not pass through whatever is on GitHub right now. On every request it:
 
 1. **Fetches a pinned ref.** Stable routes serve `STABLE_REF`, a git ref baked into the worker at deploy time (a release tag once a release exists; `main` before the first release). There are no runtime API lookups — the channel cannot silently drift to a newer commit.
-2. **Verifies a pinned checksum.** The worker computes the SHA-256 of the fetched script and compares it against a hash that is also baked into the worker per route and per channel. Stable content is checked against `sha256Stable`; beta against `sha256`.
+2. **Verifies a pinned checksum.** The worker computes the SHA-256 of the fetched script and compares it against a hash baked into the worker per route. Checksum selection is by the ref being served: when the served ref is `main`, `sha256` is used; for any other ref (a release tag), `sha256Stable` is used. Before the first release, `STABLE_REF` is `main`, so both channels verify against `sha256` — the distinction only matters once a release tag is pinned.
 3. **Refuses to serve a mismatch.** If the hash doesn't match, the fetched script is discarded — it is never served. The worker falls back to a cached copy *that itself passed verification when it was cached*, and if no such copy exists, you get a **502 error**, not an unverified script.
 
-The consequence: compromising the GitHub repository is not enough to change what the stable channel serves. The served ref and its expected hash live in the deployed worker; changing either requires a worker redeploy, which means a reviewable commit to `cloudflare/_worker.js` on `main`.
+The consequence: compromising the GitHub repository is not enough to *silently* change what the stable channel serves. The served ref and its expected hash live in the deployed worker; changing either requires a worker redeploy, which means a public, reviewable commit to `cloudflare/_worker.js` on `main`. The guarantee is visibility — tampered content requires an auditable commit trail — not prevention, because Cloudflare Pages auto-deploys when `main` is pushed (see the caveats below for where the actual trust boundary is).
 
 ### The two channels
 
 | Channel | Routes | Ref served | Checksum used | Who updates it |
 |---------|--------|-----------|---------------|----------------|
-| Stable | `/rog`, `/deck`, `/android` | `STABLE_REF` (pinned at deploy time) | `sha256Stable` | The release process, by hand, in one commit |
+| Stable | `/rog`, `/deck`, `/android` | `STABLE_REF` (pinned at deploy time) | `sha256Stable` (release tag) or `sha256` (pre-release, when `STABLE_REF` is `main`) | The release process, by hand, in one commit |
 | Beta | `/rog-beta`, `/deck-beta`, `/android-beta` | always `main` | `sha256` | The Update Checksums workflow, automatically whenever a target script changes on main |
 
 Beta is verified too — the automation keeps `sha256` synced to main, so beta's guarantee is "the current main, intact in transit," while stable's is "this exact reviewed release, intact, until the next release commit."

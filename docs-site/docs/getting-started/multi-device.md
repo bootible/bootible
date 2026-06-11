@@ -62,37 +62,52 @@ cd ~/bootible
 
 ### Method 2: Manual Creation
 
-For additional devices, create the folder structure manually inside your private repo. Each platform has its own config template — copy the one matching the new device.
+For additional devices, create the folder structure manually inside your private repo.
 
-=== "Steam Deck"
+=== "Web editor"
 
-    ```bash
-    # Create device folder
-    mkdir -p private/device/steamdeck/TravelDeck/{Logs,Images}
+    GitHub's web editor works without cloning. Typing `/` in the filename field creates folders:
 
-    # Copy config from an existing device of the same platform
-    cp private/device/steamdeck/GameDeck/config.yml \
-       private/device/steamdeck/TravelDeck/config.yml
+    1. In your private repo, click **Add file → Create new file**
+    2. In the filename field, type `device/rog-ally/Vixen/config.yml` — each `/` creates a folder
+    3. Paste or adapt a config from an existing device (or copy the [default template](https://raw.githubusercontent.com/bootible/bootible/main/config/rog-ally/config.yml))
+    4. Commit directly to main — done
 
-    # Or download a fresh template
-    curl -fsSL https://raw.githubusercontent.com/bootible/bootible/main/config/steamdeck/config.yml \
-      -o private/device/steamdeck/TravelDeck/config.yml
-    ```
+    The new device will pick up its config the next time you run Bootible on it.
 
-=== "ROG Ally"
+=== "Terminal"
 
-    ```bash
-    # Create device folder
-    mkdir -p private/device/rog-ally/Vixen/{Logs,Images}
+    Each platform has its own config template — copy the one matching the new device.
 
-    # Copy config from an existing device of the same platform
-    cp private/device/rog-ally/Vengeance/config.yml \
-       private/device/rog-ally/Vixen/config.yml
+    === "Steam Deck"
 
-    # Or download a fresh template
-    curl -fsSL https://raw.githubusercontent.com/bootible/bootible/main/config/rog-ally/config.yml \
-      -o private/device/rog-ally/Vixen/config.yml
-    ```
+        ```bash
+        # Create device folder
+        mkdir -p private/device/steamdeck/TravelDeck/{Logs,Images}
+
+        # Copy config from an existing device of the same platform
+        cp private/device/steamdeck/GameDeck/config.yml \
+           private/device/steamdeck/TravelDeck/config.yml
+
+        # Or download a fresh template
+        curl -fsSL https://raw.githubusercontent.com/bootible/bootible/main/config/steamdeck/config.yml \
+          -o private/device/steamdeck/TravelDeck/config.yml
+        ```
+
+    === "ROG Ally"
+
+        ```bash
+        # Create device folder
+        mkdir -p private/device/rog-ally/Vixen/{Logs,Images}
+
+        # Copy config from an existing device of the same platform
+        cp private/device/rog-ally/Vengeance/config.yml \
+           private/device/rog-ally/Vixen/config.yml
+
+        # Or download a fresh template
+        curl -fsSL https://raw.githubusercontent.com/bootible/bootible/main/config/rog-ally/config.yml \
+          -o private/device/rog-ally/Vixen/config.yml
+        ```
 
 Then customize the config for your new device.
 

@@ -181,9 +181,9 @@ Flatpak apps and your config survive updates.
 
 **Solutions:**
 
-1. **Run dry-run to validate:**
+1. **Run a fresh preview to validate:**
    ```powershell
-   .\Run.ps1 -DryRun
+   irm https://bootible.dev/rog | iex
    ```
 
 2. **Try manual install:**

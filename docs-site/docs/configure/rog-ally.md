@@ -5,6 +5,8 @@ description: Complete configuration reference for ROG Ally
 
 # ROG Ally Configuration Reference
 
+Changing a setting on a device that's already set up? Edit your config and re-run - see [Re-running & Drift](../post-install/re-running.md).
+
 Complete reference for all ROG Ally configuration options.
 
 ---

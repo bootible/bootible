@@ -37,7 +37,7 @@ With GitHub:
 - Store custom configuration privately
 - Sync across multiple devices
 - Logs automatically pushed to your repo
-- SSH key management
+- SSH server & authorized key management (Ally); SSH key generation (Deck)
 
 ### Can I undo changes?
 
@@ -278,7 +278,7 @@ Run dry-run to see what would happen:
 === "ROG Ally"
 
     ```powershell
-    .\Run.ps1 -DryRun
+    irm https://bootible.dev/rog | iex
     ```
 
 ### How do I report a bug?

@@ -24,7 +24,9 @@ Bootible supports multiple gaming platforms with platform-specific optimizations
     - Decky Loader plugins
     - Btrfs snapshots for rollback
 
-    [:octicons-arrow-right-24: Steam Deck Guide](../reference/steam-deck-platform.md)
+    [:octicons-arrow-right-24: Steam Deck Config](steam-deck.md)
+
+    [Platform internals](../reference/steam-deck-platform.md)
 
 -   :material-laptop:{ .lg .middle } **ROG Ally**
 
@@ -37,7 +39,9 @@ Bootible supports multiple gaming platforms with platform-specific optimizations
     - Windows optimization & debloating
     - System Restore Points
 
-    [:octicons-arrow-right-24: ROG Ally Guide](../reference/rog-ally-platform.md)
+    [:octicons-arrow-right-24: ROG Ally Config](rog-ally.md)
+
+    [Platform internals](../reference/rog-ally-platform.md)
 
 -   :material-android:{ .lg .middle } **Android** <span class="beta-badge">ALPHA</span>
 
@@ -50,7 +54,9 @@ Bootible supports multiple gaming platforms with platform-specific optimizations
     - System settings configuration
     - File push for ROMs/saves
 
-    [:octicons-arrow-right-24: Android Guide](../reference/android-platform.md)
+    [:octicons-arrow-right-24: Android Config](android.md)
+
+    [Platform internals](../reference/android-platform.md)
 
 </div>
 
