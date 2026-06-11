@@ -56,7 +56,7 @@ bootible
 **What it runs:**
 
 ```bash
-cd ~/bootible && git pull && BOOTIBLE_RUN=1 ./targets/deck.sh
+cd ~/bootible && git pull && BOOTIBLE_RUN=1 ./targets/deck.sh "$@"
 ```
 
 `deck.sh` takes no flags — it prompts for instance selection and runs the full Ansible playbook. For dry runs, re-run the curl one-liner; for tag-scoped runs, [run ansible-playbook manually](#steam-deck-running-ansible-manually).
