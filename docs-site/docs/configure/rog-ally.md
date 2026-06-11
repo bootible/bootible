@@ -246,7 +246,7 @@ password_managers:
 |-----|------|---------|-------------|
 | `install_emulation` | bool | `false` | Install EmuDeck (the all-in-one emulation setup) |
 
-This single key gates the EmuDeck install. EmuDeck then selects and configures individual emulators **interactively** — there are no per-emulator keys. See [Emulation](../features/emulation.md).
+This single key gates the EmuDeck install. EmuDeck then selects and configures individual emulators **interactively** — there are no per-emulator keys. See [Emulation](features/emulation.md).
 
 ---
 

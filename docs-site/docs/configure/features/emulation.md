@@ -76,7 +76,7 @@ games_path: "D:\\Games"          # e.g. secondary drive
 roms_path: "D:\\Emulation\\ROMs"
 ```
 
-See the [ROG Ally Configuration Reference](../configuration/rog-ally.md) for details.
+See the [ROG Ally Configuration Reference](../rog-ally.md) for details.
 
 ---
 

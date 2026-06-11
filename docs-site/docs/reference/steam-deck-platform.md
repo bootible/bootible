@@ -306,7 +306,7 @@ bootible
 
     Detailed documentation of each Ansible role.
 
-    [:octicons-arrow-right-24: Roles](roles.md)
+    [:octicons-arrow-right-24: Roles](steam-deck-roles.md)
 
 -   :material-format-list-checks:{ .lg .middle } **Configuration**
 
@@ -314,6 +314,6 @@ bootible
 
     Full list of Steam Deck configuration options.
 
-    [:octicons-arrow-right-24: Config Reference](../../configuration/steam-deck.md)
+    [:octicons-arrow-right-24: Config Reference](../configure/steam-deck.md)
 
 </div>

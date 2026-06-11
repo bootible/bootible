@@ -50,3 +50,4 @@ docs/ai-context/
 .claude/
 AGENTS.md
 .wrangler/
+docs-site/site/

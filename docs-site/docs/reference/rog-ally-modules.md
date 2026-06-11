@@ -246,7 +246,7 @@ Battle.net uses a non-standard installer. Bootible downloads and launches it; yo
 | `install_geforcenow` | NVIDIA.GeForceNow | Cloud gaming |
 
 !!! note "No Sunshine host on the Ally"
-    Bootible installs streaming **clients** on the Ally. Sunshine (the host) belongs on the PC you stream from — install it there manually. See [Game Streaming](../../features/streaming.md).
+    Bootible installs streaming **clients** on the Ally. Sunshine (the host) belongs on the PC you stream from — install it there manually. See [Game Streaming](../configure/features/streaming.md).
 
 ---
 
