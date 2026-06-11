@@ -264,4 +264,41 @@ try {
     Write-Status "Could not check Windows Update status" "Warning"
 }
 
+# Directory scaffolding
+# ---------------------
+# Creates the configured games/ROMs directories. Steam library registration
+# is deliberately NOT automated (editing libraryfolders.vdf is unreliable -
+# Steam overwrites it); add the folder in Steam > Settings > Storage.
+
+if (Get-Command Get-ScaffoldDirectories -ErrorAction SilentlyContinue) {
+    $requestedPaths = @((Get-ConfigValue "games_path" ""), (Get-ConfigValue "roms_path" "")) |
+        Where-Object { $_ -and $_.Trim() }
+    $scaffoldDirs = @(Get-ScaffoldDirectories -Paths $requestedPaths)
+    # Make every filtered path visible: warn for entries the rooting contract
+    # rejects (same regex as Get-ScaffoldDirectories). Case-duplicate drops
+    # are intentional dedupe, not rejections - they do not warn.
+    foreach ($requested in $requestedPaths) {
+        if ($requested.Trim() -notmatch '^[A-Za-z]:[\\\/]') {
+            Write-Status "Skipping '$requested' - only absolute drive-letter paths (e.g. D:\Games) are scaffolded" "Warning"
+        }
+    }
+    foreach ($dir in $scaffoldDirs) {
+        if (Test-Path $dir) {
+            Write-Status "Directory exists: $dir" "Info"
+        } elseif ($Script:DryRun) {
+            Write-Status "[DRY RUN] Would create directory: $dir" "Info"
+        } else {
+            try {
+                New-Item -ItemType Directory -Path $dir -Force | Out-Null
+                Write-Status "Created directory: $dir" "Success"
+                if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+                    Add-AppliedChange "Created directory: $dir"
+                }
+            } catch {
+                Write-Status "Could not create ${dir}: $_" "Warning"
+            }
+        }
+    }
+}
+
 Write-Status "Base setup complete" "Success"

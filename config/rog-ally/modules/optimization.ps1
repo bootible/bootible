@@ -34,6 +34,7 @@ if (Get-ConfigValue "enable_game_mode" $true) {
 # Hardware-accelerated GPU Scheduling
 # -----------------------------------
 # Can improve performance and reduce latency
+# AMD frame generation (AFMF) requires HAGS ON - bootible enables it and the drift guard monitors it.
 
 if (Get-ConfigValue "enable_hardware_gpu_scheduling" $true) {
     Write-Status "Enabling Hardware-accelerated GPU Scheduling..." "Info"

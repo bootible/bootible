@@ -168,7 +168,7 @@ Each device has a `config.yml` that overrides defaults:
 
     # Remote Access
     install_ssh: true
-    ssh_generate_key: true
+    ssh_server_enable: true
     install_tailscale: true
     ```
 
@@ -218,12 +218,28 @@ ssh-keys/
 
 Then configure which keys to authorize:
 
-```yaml
-ssh_import_authorized_keys: true
-ssh_authorized_keys:
-  - "desktop.pub"
-  - "laptop.pub"
-```
+=== "Steam Deck"
+
+    ```yaml
+    ssh_import_authorized_keys: true
+    ssh_authorized_keys:
+      - "desktop.pub"
+      - "laptop.pub"
+    ```
+
+    `ssh_import_authorized_keys` and `ssh_generate_key` are Steam Deck-only keys. They have no effect on ROG Ally.
+
+=== "ROG Ally"
+
+    ```yaml
+    install_ssh: true
+    ssh_server_enable: true
+    ssh_authorized_keys:
+      - "desktop.pub"
+      - "laptop.pub"
+    ```
+
+    ROG Ally uses `ssh_authorized_keys` directly. `install_ssh` installs OpenSSH Server; `ssh_server_enable` starts and enables the service.
 
 ---
 

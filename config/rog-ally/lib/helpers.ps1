@@ -182,3 +182,42 @@ function Write-SmartAppControlAdvice {
         }
     }
 }
+
+function Get-ScaffoldDirectories {
+    <#
+    .SYNOPSIS
+        Normalizes a list of candidate directory paths for scaffolding.
+    .DESCRIPTION
+        Pure function: the caller extracts the raw path strings from config
+        and passes them in. Trims whitespace, skips empty or whitespace-only
+        values, and accepts only explicit drive-letter paths (D:\Games).
+        Relative and drive-relative (\Games, /Games) paths are rejected
+        because resolution is ambiguous under an elevated shell: the working
+        directory and current drive may differ from what the user expects,
+        and silently creating directories in the wrong location is worse
+        than skipping them. UNC paths (\\nas\games) are also rejected -
+        network shares are out of scaffolding scope. Deduplicates
+        case-insensitively, preserving first occurrence; dedupe is textual,
+        separator variants (D:\Games vs D:/Games) are not normalized. Emits
+        each accepted path onto the pipeline.
+    #>
+    param(
+        [string[]]$Paths
+    )
+
+    $seen = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($path in $Paths) {
+        $val = ([string]$path).Trim()
+        if ([string]::IsNullOrWhiteSpace($val)) { continue }
+        # Drive-letter paths only (D:\, D:/); drive-relative (\Games, /Games)
+        # and UNC paths are skipped - see base.ps1 for the user-visible warning.
+        # IsPathRooted is intentionally excluded: on Windows it also accepts
+        # drive-relative paths, which are ambiguous under an elevated shell.
+        if ($val -notmatch '^[A-Za-z]:[\\\/]') { continue }
+        if ($seen.Add($val)) {
+            $val
+        }
+    }
+}

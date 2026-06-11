@@ -186,6 +186,30 @@ if (Get-ConfigValue "install_ghelper" $false) {
     }
 }
 
+# HidHide (Nefarius) - kernel-mode HID filter driver
+# ---------------------------------------------------
+# Hides the physical gamepad from games when a remapper (DS4Windows,
+# Handheld Companion) provides a virtual controller - prevents double input.
+
+if (Get-ConfigValue "install_hidhide" $false) {
+    # Pre-check: Install-WingetPackage returns $true for both skip and fresh install;
+    # a reboot warning on an already-installed kernel driver would be misleading.
+    $wasAlreadyInstalled = $false
+    try {
+        $wasAlreadyInstalled = (winget list --id "Nefarius.HidHide" --accept-source-agreements 2>$null) -match "Nefarius.HidHide"
+    } catch {
+        # winget list failed, continue with install attempt
+    }
+    $installed = Install-WingetPackage -PackageId "Nefarius.HidHide" -Name "HidHide"
+    if ($installed -and -not $wasAlreadyInstalled -and -not $Script:DryRun) {
+        Write-Status "HidHide installs a kernel filter driver - a REBOOT is required before it takes effect" "Warning"
+        if (Get-Command Add-AppliedChange -ErrorAction SilentlyContinue) {
+            Add-AppliedChange "HidHide installed (reboot required before it takes effect)"
+        }
+    }
+    Write-Status "HidHide: hides physical controller from games when using a remapper" "Info"
+}
+
 if (Get-ConfigValue "install_cpuz" $false) {
     Install-WingetPackage -PackageId "CPUID.CPU-Z" -Name "CPU-Z"
     Write-Status "CPU-Z: CPU information and benchmarking" "Info"

@@ -55,6 +55,10 @@ $powerHelpersPath = Join-Path $PSScriptRoot "lib/power-helpers.ps1"
 if (Test-Path $powerHelpersPath) {
     . $powerHelpersPath
 }
+$displayHelpersPath = Join-Path $PSScriptRoot "lib/display-helpers.ps1"
+if (Test-Path $displayHelpersPath) {
+    . $displayHelpersPath
+}
 $wingetHelpersPath = Join-Path $PSScriptRoot "lib/winget-helpers.ps1"
 if (Test-Path $wingetHelpersPath) {
     . $wingetHelpersPath
@@ -559,8 +563,8 @@ function Validate-ConfigSchema {
         'install_windows_terminal' = 'bool'
         'install_powershell7' = 'bool'
 
-        # Password manager
-        'password_manager' = 'enum:1password,bitwarden,keepassxc,none'
+        # Password managers
+        'password_managers' = 'list'
 
         # Gaming
         'install_steam' = 'bool'
@@ -573,9 +577,7 @@ function Validate-ConfigSchema {
         'install_playnite' = 'bool'
         'install_launchbox' = 'bool'
         'install_ds4windows' = 'bool'
-        'install_hidmanager' = 'bool'
         'install_nexus_mods' = 'bool'
-        'install_reshade' = 'bool'
 
         # Streaming
         'install_moonlight' = 'bool'
@@ -591,30 +593,10 @@ function Validate-ConfigSchema {
         'install_protonvpn' = 'bool'
         'install_anydesk' = 'bool'
         'install_rustdesk' = 'bool'
-        'install_parsec_remote' = 'bool'
 
         # SSH
         'ssh_server_enable' = 'bool'
-        'ssh_import_authorized_keys' = 'bool'
         'ssh_authorized_keys' = 'list'
-        'ssh_key_name' = 'string'
-        'ssh_generate_key' = 'bool'
-        'ssh_add_to_github' = 'bool'
-        'ssh_save_to_private' = 'bool'
-        'ssh_configure_git' = 'bool'
-
-        # Emulation
-        'install_emudeck' = 'bool'
-        'install_retroarch' = 'bool'
-        'install_emulationstation' = 'bool'
-        'install_dolphin' = 'bool'
-        'install_pcsx2' = 'bool'
-        'install_rpcs3' = 'bool'
-        'install_yuzu' = 'bool'
-        'install_ryujinx' = 'bool'
-        'install_cemu' = 'bool'
-        'install_duckstation' = 'bool'
-        'install_ppsspp' = 'bool'
 
         # ROG Ally specific
         'install_armoury_crate' = 'bool'
@@ -624,6 +606,7 @@ function Validate-ConfigSchema {
         'install_hwinfo' = 'bool'
         'install_msi_afterburner' = 'bool'
         'install_ghelper' = 'bool'
+        'install_hidhide' = 'bool'
         'install_cpuz' = 'bool'
         'install_gpuz' = 'bool'
         'configure_power_plans' = 'bool'
@@ -632,7 +615,6 @@ function Validate-ConfigSchema {
         'disable_xbox_game_bar' = 'bool'
         'disable_game_dvr' = 'bool'
         'disable_tips' = 'bool'
-        'disable_cortana' = 'bool'
         'enable_game_mode' = 'bool'
         'enable_hardware_gpu_scheduling' = 'bool'
         'disable_fullscreen_optimizations' = 'bool'
@@ -642,19 +624,10 @@ function Validate-ConfigSchema {
         'disable_amd_varibright' = 'bool'
         'steam_disable_guide_focus' = 'bool'
         'steam_start_big_picture' = 'bool'
-        'configure_hdr' = 'bool'
-        'set_refresh_rate' = 'int'
         'enable_storage_sense' = 'bool'
-        'compact_os' = 'bool'
         'run_disk_cleanup' = 'bool'
         'force_time_sync' = 'bool'
         'generate_battery_report' = 'bool'
-
-        # Paths
-        'user_home' = 'string'
-        'games_path' = 'string'
-        'roms_path' = 'string'
-        'bios_path' = 'string'
 
         # Debloat
         'disable_telemetry' = 'bool'
@@ -683,6 +656,14 @@ function Validate-ConfigSchema {
         'hibernate_after_minutes' = 'int'
         'power_button_action' = 'enum:,sleep,hibernate,shutdown'
         'disable_cpu_boost_on_battery' = 'bool'
+
+        # Display
+        'configure_hdr' = 'enum:,on,off'
+        'set_refresh_rate' = 'int'
+
+        # Paths
+        'games_path' = 'string'
+        'roms_path' = 'string'
 
         # Development
         'install_git' = 'bool'
@@ -1158,6 +1139,7 @@ $moduleOrder = @(
     "rog_ally",
     "optimization",   # Optimization after all installs
     "power",          # Power/sleep settings after optimization
+    "display",        # HDR toggle and refresh rate (after power)
     "debloat",        # Debloat last (configures installed apps like PS7)
     "health"          # Post-install checks
 )
@@ -1196,6 +1178,7 @@ if (-not $Script:DryRun -and $Script:StateSnapshotPath -and (Get-Command Save-St
                 gpu_driver        = "GPU driver version"
                 wallpaper_value   = "Desktop wallpaper"
                 sshd_running      = "SSH server state"
+                hags_enabled      = "Hardware-accelerated GPU scheduling"
             }
             $repairResult = Get-VerifiedRepairs -PreDrift $Script:PreRunDrift -Expected $Script:LastSnapshot -PostState $postState
             foreach ($item in @($repairResult.Repaired)) {

@@ -104,11 +104,9 @@ install_launchbox: false      # Game launcher with emulation focus
 
 # Utilities
 install_ds4windows: false     # DualShock/DualSense controller support
-install_hidmanager: false     # HID device management
 
 # Mods & Tweaks
 install_nexus_mods: false     # Vortex mod manager
-install_reshade: false        # Post-processing injector
 
 # =============================================================================
 # GAME STREAMING
@@ -145,29 +143,18 @@ install_protonvpn: false      # ProtonVPN
 # Remote Desktop
 install_anydesk: false        # Remote desktop access
 install_rustdesk: false       # Open-source remote desktop
-install_parsec_remote: false  # (Same as parsec above, for remote desktop use)
 
 # =============================================================================
 # SSH
 # =============================================================================
-# SSH server for remote access and key generation for GitHub auth.
+# SSH server for remote access.
 
 install_ssh: false
 
 # SSH Server (allow remote SSH into this device)
 ssh_server_enable: false      # Install & enable OpenSSH Server
-ssh_import_authorized_keys: false  # Import authorized keys from private repo
 ssh_authorized_keys: []       # List of key files from ssh-keys/ to authorize
                               # Example: ["PC.pub", "VixenX.pub"]
-
-# Key Generation (for this device to SSH out / authenticate)
-ssh_key_name: ""              # Key identifier (default: hostname)
-ssh_generate_key: true        # Generate SSH key if not exists
-
-# GitHub integration
-ssh_add_to_github: true       # Add public key to GitHub via gh CLI
-ssh_save_to_private: true     # Save public key to private repo (backup)
-ssh_configure_git: true       # Configure git to use SSH for GitHub
 
 # =============================================================================
 # EMULATION
@@ -175,24 +162,6 @@ ssh_configure_git: true       # Configure git to use SSH for GitHub
 # Retro gaming and emulation.
 
 install_emulation: false
-
-# EmuDeck - All-in-one emulation setup (recommended)
-# Uses EA/Patreon version if found in private/scripts/
-install_emudeck: false
-
-# Frontends
-install_retroarch: false      # Multi-system emulator frontend
-install_emulationstation: false  # EmulationStation Desktop Edition
-
-# Standalone Emulators
-install_dolphin: false        # GameCube/Wii
-install_pcsx2: false          # PlayStation 2
-install_rpcs3: false          # PlayStation 3
-install_yuzu: false           # Nintendo Switch (if available)
-install_ryujinx: false        # Nintendo Switch alternative
-install_cemu: false           # Wii U
-install_duckstation: false    # PlayStation 1
-install_ppsspp: false         # PlayStation Portable
 
 # =============================================================================
 # ROG ALLY SPECIFIC
@@ -215,6 +184,10 @@ install_hwinfo: true          # Hardware monitoring
 install_msi_afterburner: true # GPU tweaking (limited on Ally)
 # G-Helper - lightweight Armoury Crate alternative (TDP, fans, GPU modes)
 install_ghelper: false
+# HidHide - kernel-mode HID filter (hides physical gamepad from games when
+# using a remapper; prevents double input). Renamed from install_hidmanager.
+# NOTE: requires a reboot after first install.
+install_hidhide: false
 install_cpuz: true            # CPU information
 install_gpuz: true            # GPU information
 
@@ -229,6 +202,18 @@ hibernate_after_minutes: 0        # 0 = system default timing
 power_button_action: ""           # "" (unchanged) | sleep | hibernate | shutdown
 disable_cpu_boost_on_battery: false  # Turn off CPU boost on battery (better thermals/battery; AC untouched)
 
+# Display
+# HDR and refresh rate for the internal panel. Both default to "leave alone".
+configure_hdr: ""                 # "" (unchanged) | on | off  - needs HDRCmd (auto-downloaded)
+set_refresh_rate: 0               # 0 = unchanged | 60 | 120 (must be a mode the panel supports)
+
+# Paths - created if set (absolute Windows paths). Steam library registration
+# is manual: Steam > Settings > Storage (libraryfolders.vdf is unsafe to edit
+# programmatically). Drive-letter paths only (D:\Games). Network/UNC paths are
+# not scaffolded - create those manually.
+games_path: ""              # e.g. "D:\\Games"
+roms_path: ""               # e.g. "D:\\Emulation\\ROMs"
+
 # =============================================================================
 # SYSTEM OPTIMIZATION
 # =============================================================================
@@ -240,7 +225,6 @@ install_optimization: true
 disable_xbox_game_bar: false  # Xbox Game Bar overlay
 disable_game_dvr: true        # Background game recording
 disable_tips: true            # Windows tips and suggestions
-disable_cortana: false        # Cortana assistant
 
 # Gaming tweaks
 enable_game_mode: true        # Windows Game Mode
@@ -260,32 +244,13 @@ disable_amd_varibright: true        # Disable Vari-Bright for better display on 
 steam_disable_guide_focus: true     # Prevent Xbox button from opening Steam overlay
 steam_start_big_picture: true       # Start Steam in Big Picture mode (controller UI)
 
-# Display
-configure_hdr: false          # HDR settings (if supported)
-set_refresh_rate: 0           # 0 = don't change, or set to 120, 144, etc.
-
 # Storage
 enable_storage_sense: true    # Auto-cleanup temporary files
-compact_os: false             # Compact OS to save space (takes time)
 
 # System Maintenance
 run_disk_cleanup: false       # Run Windows Disk Cleanup (recovers 10-20GB)
 force_time_sync: true         # Force NTP time sync (fixes Xbox Game Pass issues)
 generate_battery_report: false  # Generate battery health report on Desktop
-
-# =============================================================================
-# PATHS
-# =============================================================================
-# Generally don't need to change these.
-
-# User directories
-user_home: "%USERPROFILE%"
-
-# Game libraries (for emulation, etc.)
-# Change to D: or SD card path if you have secondary storage
-games_path: "C:\\Games"
-roms_path: "C:\\Emulation\\ROMs"
-bios_path: "C:\\Emulation\\BIOS"
 
 # =============================================================================
 # DEBLOAT & PRIVACY

@@ -31,6 +31,12 @@ Describe "Compare-StateSnapshot" {
     It "Ignores keys present only in actual (new state is not drift)" {
         @(Compare-StateSnapshot -Expected @{} -Actual @{ extra = 1 }).Count | Should -Be 0
     }
+
+    It "Reports hags_enabled drift" {
+        $drift = @(Compare-StateSnapshot -Expected @{ hags_enabled = $true } -Actual @{ hags_enabled = $false })
+        $drift.Count | Should -Be 1
+        $drift[0].Key | Should -Be "hags_enabled"
+    }
 }
 
 Describe "Get-VerifiedRepairs" {

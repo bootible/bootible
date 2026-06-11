@@ -48,6 +48,9 @@ Select configuration [1-2]:
 
 ## Adding a New Device
 
+!!! info "Where these commands run"
+    Run these on any machine with a clone of your **private repo** — your desktop/laptop is easiest, but an existing device works too. The new device picks the config up from git; you never have to create files on it directly.
+
 ### Method 1: Using init-private-repo.sh
 
 If this is your first device, run the init script:
@@ -59,22 +62,68 @@ cd ~/bootible
 
 ### Method 2: Manual Creation
 
-For additional devices, create the folder structure manually:
+For additional devices, create the folder structure manually inside your private repo. Each platform has its own config template — copy the one matching the new device.
 
-```bash
-# Create device folder
-mkdir -p private/device/steamdeck/TravelDeck/{Logs,Images}
+=== "Steam Deck"
 
-# Copy config from existing device
-cp private/device/steamdeck/GameDeck/config.yml \
-   private/device/steamdeck/TravelDeck/config.yml
+    ```bash
+    # Create device folder
+    mkdir -p private/device/steamdeck/TravelDeck/{Logs,Images}
 
-# Or download fresh template
-curl -fsSL https://raw.githubusercontent.com/bootible/bootible/main/config/steamdeck/config.yml \
-  -o private/device/steamdeck/TravelDeck/config.yml
-```
+    # Copy config from an existing device of the same platform
+    cp private/device/steamdeck/GameDeck/config.yml \
+       private/device/steamdeck/TravelDeck/config.yml
+
+    # Or download a fresh template
+    curl -fsSL https://raw.githubusercontent.com/bootible/bootible/main/config/steamdeck/config.yml \
+      -o private/device/steamdeck/TravelDeck/config.yml
+    ```
+
+=== "ROG Ally"
+
+    ```bash
+    # Create device folder
+    mkdir -p private/device/rog-ally/Vixen/{Logs,Images}
+
+    # Copy config from an existing device of the same platform
+    cp private/device/rog-ally/Vengeance/config.yml \
+       private/device/rog-ally/Vixen/config.yml
+
+    # Or download a fresh template
+    curl -fsSL https://raw.githubusercontent.com/bootible/bootible/main/config/rog-ally/config.yml \
+      -o private/device/rog-ally/Vixen/config.yml
+    ```
 
 Then customize the config for your new device.
+
+### Commit and Push
+
+The new device folder must reach your private repo's remote before the device can see it:
+
+```bash
+cd private
+git add device/
+git commit -m "Add new device instance"
+git push
+```
+
+### Run Bootible on the New Device
+
+On the new device, run the platform one-liner and select the new instance when prompted:
+
+=== "Steam Deck"
+
+    ```bash
+    curl -fsSL https://bootible.dev/deck | bash
+    ```
+
+=== "ROG Ally"
+
+    ```powershell
+    irm https://bootible.dev/rog | iex
+    ```
+
+The dry run shows what would change; run `bootible` to apply.
 
 ---
 
@@ -248,9 +297,9 @@ install_gaming: true
 install_steam: true
 install_xbox_app: true
 
-# Windows streaming (send TO TV)
+# Windows streaming
 install_parsec: true
-install_sunshine: true
+install_moonlight: true
 
 # Windows optimization
 disable_telemetry: true

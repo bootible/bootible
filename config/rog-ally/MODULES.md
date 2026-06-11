@@ -17,6 +17,7 @@
 | rog_ally | base | Yes | Yes |
 | optimization | base, (gaming for Steam) | Yes | Yes |
 | power | - | Yes | Yes |
+| display | - | Yes | Yes |
 | debloat | all prior modules | Yes | Yes |
 | health | all prior modules | Yes | Yes (read-only checks) |
 
@@ -90,8 +91,9 @@ Modules execute in this fixed order (defined in `Run.ps1`):
 10. rog_ally      [Device-specific tools]
 11. optimization  [Windows gaming tweaks]
 12. power         [Sleep-to-hibernate, power button, CPU boost via powercfg]
-13. debloat       [Privacy & performance tweaks]
-14. health        [Post-install health checks]
+13. display       [HDR toggle & refresh rate]
+14. debloat       [Privacy & performance tweaks]
+15. health        [Post-install health checks]
 ```
 
 **Why this order matters:**
@@ -131,7 +133,7 @@ Validates that all package IDs in the configuration exist in winget sources befo
 
 **Purpose:** System foundation and prerequisites
 **Dependencies:** None (foundation module)
-**Config Keys:** `hostname`, `static_ip`, `package_managers`, `optimize_winget`
+**Config Keys:** `hostname`, `static_ip`, `package_managers`, `optimize_winget`, `games_path`, `roms_path`
 
 Sets up:
 - Hostname configuration
@@ -140,6 +142,7 @@ Sets up:
 - Winget source optimization
 - Essential utilities (7-Zip, Everything, PowerToys)
 - Windows Terminal verification
+- Directory scaffolding for configured games/ROMs paths (absolute drive-letter paths only)
 
 **Idempotency:** Yes
 - Hostname: skips if already set
@@ -244,6 +247,7 @@ Configures:
 **Config Keys:** `install_emulation`
 
 Installs EmuDeck for emulator management:
+- Installs Git and Python 3.12 first (EmuDeck prerequisites - pre-installing them shortens the EmuDeck installer's elevated session)
 - Checks for existing EmuDeck installation
 - Uses EA (Patreon) installer from private repo if available
 - Falls back to public installer
@@ -261,6 +265,7 @@ Installs/checks:
 - Armoury Crate (verification - usually pre-installed)
 - MyASUS / ASUS PC Assistant
 - Handheld Companion (alternative controller mapper)
+- HidHide kernel-mode HID filter driver (hides the physical controller from games when using a remapper; requires a reboot to take effect)
 - Performance monitoring (RTSS, HWiNFO, MSI Afterburner)
 - Hardware info (CPU-Z, GPU-Z)
 - AMD Adrenalin detection
@@ -287,6 +292,23 @@ Configures:
 
 **Idempotency:** Yes - registry settings are idempotent
 **Re-run Safety:** Yes - setting same value has no effect
+
+### display
+
+**Purpose:** HDR toggle and refresh rate for the internal panel
+**Dependencies:** None (uses `lib/display-helpers.ps1`, loaded by Run.ps1)
+**Config Keys:** `configure_hdr`, `set_refresh_rate`
+
+Configures:
+- HDR on/off via HDRCmd (res2k/HDRTray) - auto-downloaded and cached on first use; handles the Win11 24H2 Auto Color Management edge case
+- Refresh rate via Win32 `ChangeDisplaySettingsEx` - only panel-supported modes are applied (validated via `EnumDisplaySettings`); unsupported rates are skipped with a warning listing the available rates
+
+`configure_hdr` accepts `""` (unchanged), `on`, or `off`. `set_refresh_rate` is an integer Hz value (`0` = unchanged).
+
+Display settings are user preferences, not drift-monitored - the drift guard intentionally excludes them.
+
+**Idempotency:** Yes - setting the same HDR state or refresh rate has no effect
+**Re-run Safety:** Yes - empty/zero config values leave the display unchanged
 
 ### debloat
 
