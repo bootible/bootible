@@ -5,6 +5,9 @@ description: Step-by-step guide to your first Bootible run
 
 # First Run Walkthrough
 
+!!! info "Content being consolidated"
+    This page is being merged into [Install & Run](../install/index.md). The walkthrough here is accurate; a unified per-device tab view is coming in the next docs update.
+
 This guide walks through every step of your first Bootible run, explaining what happens at each stage.
 
 ---
@@ -67,7 +70,7 @@ Enter your private repo (e.g., username/my-config): myuser/gaming
 ```
 
 !!! info "First time? Set up your private repo first"
-    See [Private Configuration](private-config.md) for how to set this up.
+    See [Your Config Repo](config-repo.md) for how to set this up.
 
 ---
 
@@ -228,7 +231,7 @@ On Windows handhelds, Bootible also writes **`Bootible - Read Me.md`** to your D
 
     Edit your config.yml to enable more features.
 
-    [:octicons-arrow-right-24: Configuration](../configuration/index.md)
+    [:octicons-arrow-right-24: Configuration](config-basics.md)
 
 -   :material-controller:{ .lg .middle } **Platform Guides**
 
@@ -236,6 +239,6 @@ On Windows handhelds, Bootible also writes **`Bootible - Read Me.md`** to your D
 
     Deep dive into platform-specific features.
 
-    [:octicons-arrow-right-24: Platforms](../platforms/index.md)
+    [:octicons-arrow-right-24: Configure Your Device](../configure/index.md)
 
 </div>

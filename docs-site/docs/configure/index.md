@@ -1,9 +1,9 @@
 ---
-title: Supported Platforms
-description: Overview of gaming handhelds and devices supported by Bootible
+title: Configure Your Device
+description: Platform-specific configuration guides and comparison for Bootible
 ---
 
-# Supported Platforms
+# Configure Your Device
 
 Bootible supports multiple gaming platforms with platform-specific optimizations and tooling.
 
@@ -24,7 +24,7 @@ Bootible supports multiple gaming platforms with platform-specific optimizations
     - Decky Loader plugins
     - Btrfs snapshots for rollback
 
-    [:octicons-arrow-right-24: Steam Deck Guide](steam-deck/index.md)
+    [:octicons-arrow-right-24: Steam Deck Guide](../reference/steam-deck-platform.md)
 
 -   :material-laptop:{ .lg .middle } **ROG Ally**
 
@@ -37,7 +37,7 @@ Bootible supports multiple gaming platforms with platform-specific optimizations
     - Windows optimization & debloating
     - System Restore Points
 
-    [:octicons-arrow-right-24: ROG Ally Guide](rog-ally/index.md)
+    [:octicons-arrow-right-24: ROG Ally Guide](../reference/rog-ally-platform.md)
 
 -   :material-android:{ .lg .middle } **Android** <span class="beta-badge">ALPHA</span>
 
@@ -50,7 +50,7 @@ Bootible supports multiple gaming platforms with platform-specific optimizations
     - System settings configuration
     - File push for ROMs/saves
 
-    [:octicons-arrow-right-24: Android Guide](android/index.md)
+    [:octicons-arrow-right-24: Android Guide](../reference/android-platform.md)
 
 </div>
 
@@ -105,63 +105,3 @@ Future platforms under consideration:
 
 !!! tip "Request a Platform"
     Want Bootible support for another device? [Open an issue](https://github.com/bootible/bootible/issues) with your platform details.
-
----
-
-## Architecture Overview
-
-### Steam Deck (Ansible)
-
-```
-targets/deck.sh          # Bootstrap script
-config/steamdeck/
-├── playbook.yml         # Main Ansible playbook
-├── config.yml           # Default configuration
-└── roles/
-    ├── base/            # Flathub, hostname, SD card
-    ├── flatpak_apps/    # Application installation
-    ├── ssh/             # SSH server setup
-    ├── tailscale/       # VPN configuration
-    ├── decky/           # Decky Loader + plugins
-    ├── proton/          # Proton-GE, Protontricks
-    ├── emulation/       # EmuDeck setup
-    └── ...
-```
-
-### ROG Ally (PowerShell)
-
-```
-targets/ally.ps1         # Bootstrap script
-config/rog-ally/
-├── Run.ps1              # Main orchestrator
-├── config.yml           # Default configuration
-├── lib/
-│   └── helpers.ps1      # Utility functions
-└── modules/
-    ├── validate.ps1     # Package validation
-    ├── base.ps1         # Hostname, network, winget
-    ├── apps.ps1         # Application installation
-    ├── gaming.ps1       # Game platforms
-    ├── streaming.ps1    # Streaming clients
-    ├── ssh.ps1          # OpenSSH server
-    ├── optimization.ps1 # Gaming tweaks
-    ├── debloat.ps1      # Privacy settings
-    └── ...
-```
-
-### Android (Bash + ADB) <span class="beta-badge">ALPHA</span>
-
-```
-targets/android.sh       # Bootstrap script (runs on host)
-config/android/
-├── Run.sh               # Provisioning engine
-├── config.yml           # Default configuration (100+ apps)
-└── lib/
-    ├── adb-helpers.sh   # ADB wrapper functions
-    ├── apk-install.sh   # APK installation
-    ├── settings.sh      # Settings configuration
-    └── files.sh         # File push logic
-```
-
-!!! note "Host-based provisioning"
-    Unlike Steam Deck and ROG Ally, Android provisioning runs **from your computer** and connects to the Android device via Wireless ADB.

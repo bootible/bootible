@@ -25,7 +25,7 @@ Quick access to reference documentation.
 
     Solutions to common issues.
 
-    [:octicons-arrow-right-24: Troubleshooting](troubleshooting.md)
+    [:octicons-arrow-right-24: Troubleshooting](../post-install/troubleshooting.md)
 
 -   :material-code-tags:{ .lg .middle } **CLI Reference**
 

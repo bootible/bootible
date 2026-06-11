@@ -103,6 +103,30 @@ plugins:
   - git-revision-date-localized:
       enable_creation_date: true
       type: timeago
+  - redirects:
+      redirect_maps:
+        # Getting Started restructure
+        'getting-started/private-config.md': 'getting-started/config-repo.md'
+        # configuration/* → getting-started/ or configure/
+        'configuration/index.md': 'getting-started/config-basics.md'
+        'configuration/rog-ally.md': 'configure/rog-ally.md'
+        'configuration/steam-deck.md': 'configure/steam-deck.md'
+        'configuration/android.md': 'configure/android.md'
+        # features/* → configure/features/*
+        'features/index.md': 'configure/index.md'
+        'features/streaming.md': 'configure/features/streaming.md'
+        'features/emulation.md': 'configure/features/emulation.md'
+        'features/remote-access.md': 'configure/features/remote-access.md'
+        'features/decky.md': 'configure/features/decky.md'
+        # platforms/* → configure/ or reference/*
+        'platforms/index.md': 'configure/index.md'
+        'platforms/rog-ally/index.md': 'reference/rog-ally-platform.md'
+        'platforms/rog-ally/modules.md': 'reference/rog-ally-modules.md'
+        'platforms/steam-deck/index.md': 'reference/steam-deck-platform.md'
+        'platforms/steam-deck/roles.md': 'reference/steam-deck-roles.md'
+        'platforms/android/index.md': 'reference/android-platform.md'
+        # reference/* → post-install/* (receipt FAQ load-bearing redirect)
+        'reference/troubleshooting.md': 'post-install/troubleshooting.md'
 
 markdown_extensions:
   - abbr
@@ -153,37 +177,44 @@ nav:
 
   - Getting Started:
     - getting-started/index.md
+    - Try It in 5 Minutes: getting-started/quick-try.md
+    - Your Config Repo: getting-started/config-repo.md
+    - Config Basics: getting-started/config-basics.md
+    - Multi-Device: getting-started/multi-device.md
+
+  - Configure Your Device:
+    - configure/index.md
+    - ROG Ally: configure/rog-ally.md
+    - Steam Deck: configure/steam-deck.md
+    - Android (ALPHA): configure/android.md
+    - Features:
+      - configure/features/streaming.md
+      - configure/features/emulation.md
+      - configure/features/remote-access.md
+      - configure/features/decky.md
+
+  - Install & Run:
+    - install/index.md
     - Quick Start: getting-started/quick-start.md
-    - First Run Walkthrough: getting-started/first-run.md
-    - Private Configuration: getting-started/private-config.md
-    - Multi-Device Setup: getting-started/multi-device.md
+    - First Run: getting-started/first-run.md
 
-  - Platforms:
-    - platforms/index.md
-    - Android (ALPHA):
-      - platforms/android/index.md
-    - ROG Ally (Windows):
-      - platforms/rog-ally/index.md
-      - Module Reference: platforms/rog-ally/modules.md
-    - Steam Deck (SteamOS):
-      - platforms/steam-deck/index.md
-      - Role Reference: platforms/steam-deck/roles.md
-
-  - Configuration:
-    - configuration/index.md
-    - Android Options: configuration/android.md
-    - Steam Deck Options: configuration/steam-deck.md
-    - ROG Ally Options: configuration/rog-ally.md
-
-  - Features:
-    - features/index.md
-    - Game Streaming: features/streaming.md
-    - Emulation: features/emulation.md
-    - Remote Access: features/remote-access.md
-    - Decky Plugins: features/decky.md
+  - Post Install:
+    - post-install/index.md
+    - Re-running & Drift: post-install/re-running.md
+    - What Stays Manual: post-install/manual-steps.md
+    - Updates & Channels: post-install/channels.md
+    - Troubleshooting: post-install/troubleshooting.md
 
   - Reference:
     - reference/index.md
-    - CLI Reference: reference/cli.md
+    - CLI: reference/cli.md
     - FAQ: reference/faq.md
-    - Troubleshooting: reference/troubleshooting.md
+    - How Drift Detection Works: reference/drift.md
+    - Release Channels & Integrity: reference/integrity.md
+    - Platform Internals:
+      - ROG Ally Modules: reference/rog-ally-modules.md
+      - Steam Deck Roles: reference/steam-deck-roles.md
+      - Architecture: reference/architecture.md
+      - ROG Ally Platform Notes: reference/rog-ally-platform.md
+      - Steam Deck Platform Notes: reference/steam-deck-platform.md
+      - Android Platform Notes: reference/android-platform.md

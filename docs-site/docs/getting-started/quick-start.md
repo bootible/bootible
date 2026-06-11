@@ -5,6 +5,9 @@ description: Get Bootible running in under 5 minutes
 
 # Quick Start
 
+!!! info "Content being consolidated"
+    This page is being merged into [Install & Run](../install/index.md). The steps here are accurate; a unified per-device tab view is coming in the next docs update.
+
 Get your gaming handheld configured in minutes with a single command.
 
 ---
@@ -103,7 +106,7 @@ When the run finishes, Bootible leaves **`Bootible - Read Me.md`** on your Deskt
 
     Set up a private repo and customize what gets installed.
 
-    [:octicons-arrow-right-24: Private Configuration](private-config.md)
+    [:octicons-arrow-right-24: Your Config Repo](config-repo.md)
 
 -   :material-format-list-checks:{ .lg .middle } **See All Options**
 
@@ -111,7 +114,7 @@ When the run finishes, Bootible leaves **`Bootible - Read Me.md`** on your Deskt
 
     Browse the complete configuration reference.
 
-    [:octicons-arrow-right-24: Configuration](../configuration/index.md)
+    [:octicons-arrow-right-24: Config Basics](config-basics.md)
 
 -   :material-help-circle:{ .lg .middle } **Troubleshooting**
 
@@ -119,6 +122,6 @@ When the run finishes, Bootible leaves **`Bootible - Read Me.md`** on your Deskt
 
     Having issues? Check the troubleshooting guide.
 
-    [:octicons-arrow-right-24: Troubleshooting](../reference/troubleshooting.md)
+    [:octicons-arrow-right-24: Troubleshooting](../post-install/troubleshooting.md)
 
 </div>

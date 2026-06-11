@@ -46,7 +46,7 @@ Yes!
 - **Steam Deck:** Restore from btrfs snapshot
 - **ROG Ally:** Use System Restore
 
-See [Troubleshooting](troubleshooting.md#backup--recovery) for details.
+See [Troubleshooting](../post-install/troubleshooting.md#backup--recovery) for details.
 
 ### Is my configuration private?
 
@@ -129,8 +129,8 @@ install_spotify: true
 
 See the Configuration Reference:
 
-- [Steam Deck Config](../configuration/steam-deck.md)
-- [ROG Ally Config](../configuration/rog-ally.md)
+- [Steam Deck Config](../configure/steam-deck.md)
+- [ROG Ally Config](../configure/rog-ally.md)
 
 Or look at the default config files in the repo.
 

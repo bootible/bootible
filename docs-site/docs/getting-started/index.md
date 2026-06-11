@@ -27,13 +27,13 @@ Welcome to Bootible! This guide will walk you through setting up your gaming han
 
     [:octicons-arrow-right-24: First Run](first-run.md)
 
--   :material-lock:{ .lg .middle } **Private Configuration**
+-   :material-lock:{ .lg .middle } **Your Config Repo**
 
     ---
 
     Set up your own private GitHub repo to store and sync your personal configuration.
 
-    [:octicons-arrow-right-24: Private Config](private-config.md)
+    [:octicons-arrow-right-24: Your Config Repo](config-repo.md)
 
 -   :material-devices:{ .lg .middle } **Multi-Device Setup**
 

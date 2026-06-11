@@ -13,29 +13,29 @@ Bootible automates the configuration of Steam Deck, ROG Ally, Android handhelds,
 
 <div class="grid cards" markdown>
 
--   :material-lightning-bolt:{ .lg .middle } **Quick Start**
+-   :material-lightning-bolt:{ .lg .middle } **Getting Started**
 
     ---
 
     Get your device configured in minutes with a single command.
 
-    [:octicons-arrow-right-24: Get started](getting-started/quick-start.md)
+    [:octicons-arrow-right-24: Get started](getting-started/index.md)
 
--   :material-cog:{ .lg .middle } **Configuration**
+-   :material-cog:{ .lg .middle } **Config Basics**
 
     ---
 
     Customize every aspect of your setup with simple YAML.
 
-    [:octicons-arrow-right-24: Configure](configuration/index.md)
+    [:octicons-arrow-right-24: Config Basics](getting-started/config-basics.md)
 
--   :material-controller:{ .lg .middle } **Features**
+-   :material-controller:{ .lg .middle } **Configure Your Device**
 
     ---
 
     Game streaming, emulation, remote access, and more.
 
-    [:octicons-arrow-right-24: Explore features](features/index.md)
+    [:octicons-arrow-right-24: Configure](configure/index.md)
 
 -   :material-book-open-page-variant:{ .lg .middle } **Reference**
 
