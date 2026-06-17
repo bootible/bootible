@@ -46,7 +46,7 @@ jobs:
         if: steps.checksums.outputs.needs_update == 'true'
         run: |
           # Update only the beta 'sha256' field inside each route's block.
-          # 'sha256Stable' is pinned by the release process (docs/releasing.md)
+          # 'sha256Stable' is pinned by the release process (docs/v1/releasing.md)
           # and must never be touched by this workflow.
           sed -i "/'\/rog':/,/}/ s/sha256: '[a-f0-9]\{64\}'/sha256: '${{ steps.checksums.outputs.ally_hash }}'/" cloudflare/_worker.js
           sed -i "/'\/deck':/,/}/ s/sha256: '[a-f0-9]\{64\}'/sha256: '${{ steps.checksums.outputs.deck_hash }}'/" cloudflare/_worker.js

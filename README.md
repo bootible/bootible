@@ -49,7 +49,7 @@ curl -fsSL https://bootible.dev/deck | bash
 ![The receipt bootible leaves on your Desktop](docs-site/docs/assets/receipt-demo.png)
 -->
 
-Bootible also detects Smart App Control — known to break Armoury Crate on the Ally — and gives you guidance before it becomes a problem. App installs run per-app through winget with automatic source recovery, so one flaky source doesn't sink the run. For what Bootible deliberately does NOT do (TDP profiles, driver rollback), see the [checklist parity table](docs/checklist-parity.md).
+Bootible also detects Smart App Control — known to break Armoury Crate on the Ally — and gives you guidance before it becomes a problem. App installs run per-app through winget with automatic source recovery, so one flaky source doesn't sink the run. For what Bootible deliberately does NOT do (TDP profiles, driver rollback), see the [checklist parity table](docs/v1/checklist-parity.md).
 
 ## Supported Devices
 

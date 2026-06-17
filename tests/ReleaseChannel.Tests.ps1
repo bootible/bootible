@@ -8,7 +8,7 @@
 # lookup would rate-limit on shared Cloudflare egress IPs and silently collapse
 # the stable channel to main. These are text-level assertions in the
 # RuntimeWiring style: they pin the wiring the release process
-# (docs/releasing.md) depends on, not behavior.
+# (docs/v1/releasing.md) depends on, not behavior.
 
 BeforeAll {
     $script:AllyPs1Path = Join-Path $PSScriptRoot "../targets/ally.ps1"

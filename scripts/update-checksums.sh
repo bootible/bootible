@@ -4,7 +4,7 @@
 #
 # The worker has two checksum fields per route:
 #   sha256       - beta channel (main); auto-updated by .github/workflows/update-checksums.yml
-#   sha256Stable - stable channel; pinned by the release process (see docs/releasing.md)
+#   sha256Stable - stable channel; pinned by the release process (see docs/v1/releasing.md)
 # Run this script from a checkout of the ref you are pinning (main for beta,
 # the release tag for stable).
 
