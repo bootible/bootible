@@ -1,0 +1,28 @@
+{
+  "name": "bootible-v2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "bootible v2 — TypeScript monorepo (core, cli, app, site). See docs/v2/.",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "validate:schemas": "bun run scripts/validate-schemas.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "@types/node": "^25.9.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

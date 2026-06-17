@@ -1,0 +1,17 @@
+{
+  "name": "@bootible/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "bootible": "./dist/index.js"
+  },
+  "dependencies": {
+    "@bootible/core": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "compile": "bun build ./src/index.ts --compile --outfile dist/bootible"
+  }
+}

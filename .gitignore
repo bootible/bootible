@@ -16,6 +16,9 @@ testResults.xml
 
 # Node
 node_modules/
+dist/
+coverage/
+*.tsbuildinfo
 
 # Python
 __pycache__/

@@ -1,0 +1,7 @@
+{
+  "name": "@bootible/app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase 4 — the LLM-assisted Electron desktop app (stub)."
+}
