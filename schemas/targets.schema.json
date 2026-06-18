@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/bootible/bootible/main/schemas/targets.schema.json",
+  "title": "bootible sync-target manifest",
+  "type": "object",
+  "required": ["schema", "targets"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "type": "integer", "const": 1 },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "roles"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "enum": ["local", "syncthing", "s3", "smb", "nfs", "romm", "bootible.dev"] },
+          "roles": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "enum": ["config", "saves", "content"] }
+          },
+          "path": { "type": "string" },
+          "credential": { "type": "string", "pattern": "^secret://" }
+        }
+      }
+    }
+  }
+}

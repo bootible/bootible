@@ -25,3 +25,15 @@ export function validateYamlAgainstSchema(
       );
   return { valid, errors };
 }
+
+/**
+ * Validate a YAML document against a schema and return it parsed and typed.
+ * Throws with the validation errors (prefixed by `label`) if invalid.
+ */
+export function parseValidatedYaml<T>(yamlText: string, schema: object, label = "document"): T {
+  const { valid, errors } = validateYamlAgainstSchema(yamlText, schema);
+  if (!valid) {
+    throw new Error(`invalid ${label}:\n  ${errors.join("\n  ")}`);
+  }
+  return parseYaml(yamlText) as T;
+}

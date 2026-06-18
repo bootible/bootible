@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bootible/bootible/main/schemas/config.schema.json
+schema: 2
+device: rog-ally
+instance: vengeance
+settings:
+  install_emulation: true

@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parse as parseYaml } from "yaml";
-import { validateYamlAgainstSchema } from "./validate-schema";
+import { parseValidatedYaml } from "./validate-schema";
 
 export type ProvisioningModel = "on-device" | "host-media-prep" | "guided" | "android-host";
 
@@ -24,11 +23,7 @@ export interface DeviceEntry {
  * JSON Schema. Throws with the validation errors if the entry is invalid.
  */
 export function parseDeviceEntry(yamlText: string, schema: object): DeviceEntry {
-  const { valid, errors } = validateYamlAgainstSchema(yamlText, schema);
-  if (!valid) {
-    throw new Error(`invalid device entry:\n  ${errors.join("\n  ")}`);
-  }
-  return parseYaml(yamlText) as DeviceEntry;
+  return parseValidatedYaml<DeviceEntry>(yamlText, schema, "device entry");
 }
 
 /**

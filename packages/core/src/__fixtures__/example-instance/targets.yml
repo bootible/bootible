@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bootible/bootible/main/schemas/targets.schema.json
+schema: 1
+targets:
+  - name: nas
+    kind: nfs
+    roles: [config, saves]
+    path: /mnt/nas/bootible
+  - name: account
+    kind: bootible.dev
+    roles: [config]

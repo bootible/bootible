@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/bootible/bootible/main/schemas/config.schema.json",
+  "title": "bootible config artifact — Layer 1 (declarative config)",
+  "type": "object",
+  "required": ["schema", "device"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "type": "integer", "const": 2 },
+    "device": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "instance": { "type": "string" },
+    "settings": { "type": "object" }
+  }
+}
