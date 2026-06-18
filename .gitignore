@@ -17,6 +17,7 @@ testResults.xml
 # Node
 node_modules/
 dist/
+out/
 coverage/
 *.tsbuildinfo
 

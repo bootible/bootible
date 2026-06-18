@@ -3,5 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Phase 4 — the LLM-assisted Electron desktop app (stub)."
+  "description": "The bootible desktop app (Electron) — the player surface for setting up a handheld.",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build:app": "electron-vite build",
+    "preview": "electron-vite preview"
+  },
+  "dependencies": {
+    "@bootible/core": "*"
+  },
+  "devDependencies": {
+    "electron": "^42.4.1",
+    "electron-vite": "^5.0.0",
+    "vite": "^7.3.5"
+  }
 }
