@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bootible/bootible/main/schemas/device.schema.json
+id: steamdeck
+name: Steam Deck / Deck OLED
+provisioning_models:
+  - on-device
+os: steamos
+capabilities:
+  great:
+    - nes
+    - snes
+    - genesis
+    - gb
+    - gbc
+    - gba
+    - n64
+    - ps1
+    - psp
+    - dreamcast
+    - gamecube
+    - wii
+    - ps2
+  varies:
+    - switch
+    - ps3
+    - wiiu

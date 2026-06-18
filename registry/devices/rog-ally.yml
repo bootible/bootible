@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bootible/bootible/main/schemas/device.schema.json
+id: rog-ally
+name: ROG Ally / Ally X
+provisioning_models:
+  - on-device
+os: windows
+capabilities:
+  great:
+    - nes
+    - snes
+    - genesis
+    - gb
+    - gbc
+    - gba
+    - n64
+    - ps1
+    - psp
+    - dreamcast
+    - gamecube
+    - wii
+    - ps2
+  varies:
+    - switch
+    - ps3
+    - wiiu

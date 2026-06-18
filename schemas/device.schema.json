@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/bootible/bootible/main/schemas/device.schema.json",
+  "title": "bootible device registry entry",
+  "description": "A device is data, not code. Adding a handheld means adding one of these.",
+  "type": "object",
+  "required": ["id", "name", "provisioning_models"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "provisioning_models": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["on-device", "host-media-prep", "guided", "android-host"] }
+    },
+    "os": { "type": "string" },
+    "body_variant": { "type": "string" },
+    "media": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "kind": { "type": "string" }, "fs": { "type": "string" } }
+    },
+    "firmware": { "type": "object" },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "dirs": { "type": "array", "items": { "type": "string" } } }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "great": { "type": "array", "items": { "type": "string" } },
+        "varies": { "type": "array", "items": { "type": "string" } },
+        "none": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "guide": { "type": ["string", "null"] },
+    "questions": { "type": "array" },
+    "connection": { "type": "object" },
+    "notes": { "type": "string" }
+  }
+}
