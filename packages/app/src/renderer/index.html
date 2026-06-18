@@ -4,9 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>bootible</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <div id="app"></div>
+    <div class="device">
+      <header class="sysbar">
+        <span class="wordmark">bootible<span class="dot"></span></span>
+        <span class="sysstatus">v2 · local</span>
+      </header>
+
+      <main class="stage">
+        <div class="lede">
+          <p class="eyebrow">Ready to set up</p>
+          <h1 class="device-name">ROG&nbsp;Ally&nbsp;X</h1>
+          <p class="device-sub">Windows 11 handheld — detected on this machine.</p>
+
+          <div class="actions">
+            <button class="btn-primary" type="button">
+              Set up this device <span class="arrow" aria-hidden="true">→</span>
+            </button>
+            <button class="btn-ghost" type="button">Restore a backup</button>
+          </div>
+        </div>
+
+        <section class="readout" aria-label="Device status">
+          <div class="rline"><span class="mark">◢</span><span class="rkey">device</span><span class="rval">ROG Ally X</span></div>
+          <div class="rline"><span class="mark">◢</span><span class="rkey">system</span><span class="rval">Windows 11</span></div>
+          <div class="rline"><span class="mark">◢</span><span class="rkey">modules</span><span class="rval">14 available · <span class="muted">0 applied</span></span></div>
+          <div class="rline"><span class="mark">◢</span><span class="rkey">storage</span><span class="rval">awaiting a target<span class="cursor"></span></span></div>
+        </section>
+      </main>
+    </div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

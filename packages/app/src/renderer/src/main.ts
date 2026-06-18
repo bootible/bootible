@@ -6,14 +6,7 @@ declare global {
   }
 }
 
-const root = document.querySelector<HTMLDivElement>("#app");
-if (root) {
-  const version = window.bootible?.version ?? "v2";
-  root.innerHTML = `
-    <main class="shell">
-      <div class="brand">bootible</div>
-      <p class="tagline">Set up your handheld.</p>
-      <span class="version">${version}</span>
-    </main>
-  `;
+const status = document.querySelector<HTMLElement>(".sysstatus");
+if (status && window.bootible?.version) {
+  status.textContent = `${window.bootible.version} · local`;
 }
