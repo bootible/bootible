@@ -1,3 +1,4 @@
+export { allyExecutor } from "./ally-executor";
 export type {
   Artifact,
   ArtifactSchemas,
@@ -14,6 +15,8 @@ export type {
   RestoreOptions,
 } from "./orchestrator";
 export { restore } from "./orchestrator";
+export type { PowerOptions } from "./power";
+export { getPowerConfigCommands } from "./power";
 export type { Capabilities, DeviceEntry, ProvisioningModel } from "./registry";
 export { loadRegistry, parseDeviceEntry } from "./registry";
 export { findSchemaUrl } from "./schema-header";
