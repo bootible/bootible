@@ -6,6 +6,14 @@ export type {
   TargetsManifest,
 } from "./config";
 export { deepMerge, loadArtifact } from "./config";
+export type {
+  ApplyContext,
+  Executor,
+  ExecutorReceipt,
+  Receipt,
+  RestoreOptions,
+} from "./orchestrator";
+export { restore } from "./orchestrator";
 export type { Capabilities, DeviceEntry, ProvisioningModel } from "./registry";
 export { loadRegistry, parseDeviceEntry } from "./registry";
 export { findSchemaUrl } from "./schema-header";
