@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { allyExecutor } from "./ally-executor";
+import type { StepEvent } from "./modules";
 import type { ApplyContext } from "./orchestrator";
 
 const device: ApplyContext["device"] = {
@@ -35,5 +36,20 @@ describe("allyExecutor", () => {
     });
     expect(calls).toEqual([]);
     expect(receipt.actions).toEqual([]);
+  });
+
+  it("streams a running event then a terminal status for every module", () => {
+    const events: StepEvent[] = [];
+    allyExecutor(() => "").apply({ device, config: { schema: 2, device: "rog-ally" } }, (e) =>
+      events.push(e),
+    );
+
+    const running = events.filter((e) => e.status === "running").map((e) => e.moduleId);
+    expect(running).toContain("power");
+    expect(running).toContain("emudeck");
+
+    // every module that started also reported a terminal (non-running) status
+    const terminal = events.filter((e) => e.status !== "running");
+    expect(terminal).toHaveLength(running.length);
   });
 });

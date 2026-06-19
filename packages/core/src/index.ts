@@ -1,4 +1,5 @@
 export { allyExecutor } from "./ally-executor";
+export { allyCatalog } from "./ally-modules";
 export type { DeviceSummary } from "./app-view";
 export { deviceSummary, prettyOs, selectDevice } from "./app-view";
 export type {
@@ -9,6 +10,16 @@ export type {
   TargetsManifest,
 } from "./config";
 export { deepMerge, loadArtifact } from "./config";
+export type {
+  BootibleModule,
+  GroupSummary,
+  ModuleGroup,
+  ModuleResult,
+  StepEvent,
+  StepListener,
+  StepStatus,
+} from "./modules";
+export { GROUP_META, groupCatalog } from "./modules";
 export type {
   ApplyContext,
   Executor,

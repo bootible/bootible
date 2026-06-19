@@ -1,27 +1,29 @@
+import { allyCatalog } from "./ally-modules";
+import type { StepListener } from "./modules";
 import type { ApplyContext, Executor, ExecutorReceipt } from "./orchestrator";
-import { getPowerConfigCommands } from "./power";
 import type { Exec } from "./secrets";
 
 /**
- * The ROG Ally / Windows executor — implements the Executor seam by running
- * native commands through an injected runner (testable without Windows; real
- * proof comes on the device). Phase-1 slice: the power/hibernate module.
+ * The ROG Ally / Windows executor — runs the Ally module catalog through an
+ * injected command runner (testable without Windows; real proof comes on the
+ * device). Each module emits a `running` event then a terminal status to the
+ * optional listener, so the desktop app can stream a live setup log.
  */
 export function allyExecutor(exec: Exec): Executor {
   return {
-    apply(ctx: ApplyContext): ExecutorReceipt {
-      const settings = (ctx.config.settings ?? {}) as Record<string, unknown>;
+    apply(ctx: ApplyContext, onStep?: StepListener): ExecutorReceipt {
       const actions: string[] = [];
 
-      const powerCommands = getPowerConfigCommands({
-        sleepMode: settings.sleep_mode as string | undefined,
-        hibernateAfterMinutes: settings.hibernate_after_minutes as number | undefined,
-        powerButtonAction: settings.power_button_action as string | undefined,
-        disableCpuBoostOnBattery: settings.disable_cpu_boost_on_battery as boolean | undefined,
-      });
-      for (const args of powerCommands) {
-        exec(["powercfg", ...args]);
-        actions.push(`powercfg ${args.join(" ")}`);
+      for (const mod of allyCatalog) {
+        const base = { moduleId: mod.id, name: mod.name, group: mod.group };
+        onStep?.({ ...base, status: "running" });
+        try {
+          const result = mod.apply(ctx, exec);
+          if (result.actions) actions.push(...result.actions);
+          onStep?.({ ...base, status: result.status, detail: result.detail });
+        } catch (error) {
+          onStep?.({ ...base, status: "failed", detail: (error as Error).message });
+        }
       }
 
       return { actions };

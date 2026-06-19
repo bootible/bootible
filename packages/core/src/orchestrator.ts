@@ -1,4 +1,5 @@
 import { type ArtifactSchemas, type BootibleConfig, loadArtifact } from "./config";
+import type { StepListener } from "./modules";
 import type { DeviceEntry } from "./registry";
 import { resolveSecrets, type SecretProvider } from "./secrets";
 import type { SyncTarget } from "./sync-target";
@@ -12,9 +13,12 @@ export interface ExecutorReceipt {
   actions: string[];
 }
 
-/** A platform applier (Ally, Deck, retro). Plan 7 implements this. */
+/**
+ * A platform applier (Ally, Deck, retro). Runs the device's module catalog,
+ * optionally streaming a step event per module to `onStep` for a live log.
+ */
 export interface Executor {
-  apply(ctx: ApplyContext): ExecutorReceipt;
+  apply(ctx: ApplyContext, onStep?: StepListener): ExecutorReceipt;
 }
 
 export interface RestoreOptions {
