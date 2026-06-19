@@ -1,5 +1,6 @@
 import type { BootibleModule, ModuleGroup } from "./modules";
 import { getPowerConfigCommands } from "./power";
+import { getWingetInstallCommands } from "./winget";
 
 /** Power & thermals — the first module ported from v1 (config/rog-ally). */
 const power: BootibleModule = {
@@ -42,6 +43,36 @@ function planned(id: string, name: string, group: ModuleGroup, summary: string):
   };
 }
 
+/**
+ * An app-install module ported from v1 apps.ps1 — installs a set of verified
+ * winget packages via the injected runner.
+ */
+function appInstall(
+  id: string,
+  name: string,
+  summary: string,
+  packageIds: string[],
+): BootibleModule {
+  return {
+    id,
+    name,
+    group: "apps",
+    summary,
+    apply(_ctx, exec) {
+      const commands = getWingetInstallCommands(packageIds);
+      if (commands.length === 0) {
+        return { status: "skipped", detail: "no packages configured" };
+      }
+      const actions: string[] = [];
+      for (const args of commands) {
+        exec(args);
+        actions.push(args.join(" "));
+      }
+      return { status: "applied", actions };
+    },
+  };
+}
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -70,9 +101,14 @@ export const allyCatalog: BootibleModule[] = [
     "performance",
     "Driver, storage and firmware sanity checks.",
   ),
-  planned("companion", "Companion apps", "apps", "Handheld overlay and quick-settings tools."),
+  appInstall(
+    "utilities",
+    "Desktop utilities",
+    "PowerToys, 7-Zip, Everything and Windows Terminal.",
+    ["Microsoft.PowerToys", "7zip.7zip", "voidtools.Everything", "Microsoft.WindowsTerminal"],
+  ),
   planned("emudeck", "EmuDeck", "apps", "Emulation frontend — kept current, never frozen."),
-  planned("steam", "Steam & launchers", "apps", "Steam, Big Picture boot and launcher tidy."),
+  appInstall("steam", "Steam", "Steam and Big Picture mode.", ["Valve.Steam"]),
   planned("streaming", "Game streaming", "apps", "Moonlight / Chiaki streaming clients."),
   planned(
     "sync-target",

@@ -24,7 +24,7 @@ describe("allyExecutor", () => {
     expect(receipt.actions).toContain("powercfg /hibernate on");
   });
 
-  it("does nothing for a config with no power settings", () => {
+  it("skips power when unconfigured but still runs the app-install modules", () => {
     const calls: string[][] = [];
     const exec = (cmd: string[]) => {
       calls.push(cmd);
@@ -34,8 +34,19 @@ describe("allyExecutor", () => {
       device,
       config: { schema: 2, device: "rog-ally" },
     });
-    expect(calls).toEqual([]);
-    expect(receipt.actions).toEqual([]);
+    // no powercfg without power settings...
+    expect(calls.some((c) => c[0] === "powercfg")).toBe(false);
+    // ...but Steam's winget install still runs
+    expect(calls).toContainEqual([
+      "winget",
+      "install",
+      "--id",
+      "Valve.Steam",
+      "--accept-source-agreements",
+      "--accept-package-agreements",
+      "--silent",
+    ]);
+    expect(receipt.actions.length).toBeGreaterThan(0);
   });
 
   it("streams a running event then a terminal status for every module", () => {

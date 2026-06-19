@@ -45,3 +45,4 @@ export type { SyncTarget, TargetCapabilities, TargetRole } from "./sync-target";
 export { localTarget } from "./sync-target";
 export type { SchemaValidationResult } from "./validate-schema";
 export { parseValidatedYaml, validateYamlAgainstSchema } from "./validate-schema";
+export { getWingetInstallCommands } from "./winget";

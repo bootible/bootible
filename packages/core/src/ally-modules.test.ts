@@ -36,6 +36,42 @@ describe("allyCatalog", () => {
     expect(result?.status).toBe("skipped");
   });
 
+  it("installs Steam via winget and reports applied", () => {
+    const steam = allyCatalog.find((m) => m.id === "steam");
+    expect(steam).toBeDefined();
+    const calls: string[][] = [];
+    const result = steam?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    expect(result?.status).toBe("applied");
+    expect(calls).toContainEqual([
+      "winget",
+      "install",
+      "--id",
+      "Valve.Steam",
+      "--accept-source-agreements",
+      "--accept-package-agreements",
+      "--silent",
+    ]);
+  });
+
+  it("installs the verified desktop utility set", () => {
+    const utilities = allyCatalog.find((m) => m.id === "utilities");
+    const calls: string[][] = [];
+    utilities?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    const ids = calls.map((c) => c[3]);
+    expect(ids).toEqual([
+      "Microsoft.PowerToys",
+      "7zip.7zip",
+      "voidtools.Everything",
+      "Microsoft.WindowsTerminal",
+    ]);
+  });
+
   it("declares not-yet-ported modules as skipped without running anything", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();
