@@ -7,38 +7,168 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=Space+Mono:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
   </head>
-  <body>
+  <body data-view="home">
     <div class="device">
       <header class="sysbar">
         <span class="wordmark">bootible<span class="dot"></span></span>
-        <span class="sysstatus">v2 · local</span>
+        <span class="sysstatus"><span class="led"></span><span class="sysstatus-text">v2 · local</span></span>
       </header>
 
-      <main class="stage">
-        <div class="lede">
-          <p class="eyebrow">Ready to set up</p>
-          <h1 class="device-name">ROG&nbsp;Ally&nbsp;X</h1>
-          <p class="device-sub">Windows 11 handheld — detected on this machine.</p>
+      <div class="views">
+        <!-- ───────────────────── HOME ───────────────────── -->
+        <main class="view stage" data-view="home">
+          <div class="lede">
+            <p class="eyebrow">Ready to set up</p>
+            <h1 class="device-name">ROG&nbsp;Ally&nbsp;X</h1>
+            <p class="device-sub">Windows 11 handheld — detected on this machine.</p>
 
-          <div class="actions">
-            <button class="btn-primary" type="button">
-              Set up this device <span class="arrow" aria-hidden="true">→</span>
-            </button>
-            <button class="btn-ghost" type="button">Restore a backup</button>
+            <div class="actions">
+              <button class="btn-primary" type="button" data-go="setup">
+                Set up this device <span class="arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="btn-ghost" type="button" data-go="restore">Restore a backup</button>
+            </div>
           </div>
-        </div>
 
-        <section class="readout" aria-label="Device status">
-          <div class="rline"><span class="mark">◢</span><span class="rkey">device</span><span class="rval">ROG Ally X</span></div>
-          <div class="rline"><span class="mark">◢</span><span class="rkey">system</span><span class="rval">Windows 11</span></div>
-          <div class="rline"><span class="mark">◢</span><span class="rkey">modules</span><span class="rval">14 available · <span class="muted">0 applied</span></span></div>
-          <div class="rline"><span class="mark">◢</span><span class="rkey">storage</span><span class="rval">awaiting a target<span class="cursor"></span></span></div>
-        </section>
-      </main>
+          <aside class="readout" aria-label="Device status">
+            <div class="rline"><span class="mark"></span><span class="rkey">device</span><span class="rval">ROG Ally X</span></div>
+            <div class="rline"><span class="mark"></span><span class="rkey">system</span><span class="rval">Windows 11</span></div>
+            <div class="rline"><span class="mark"></span><span class="rkey">modules</span><span class="rval">14 available <span class="muted">· 0 applied</span></span></div>
+            <div class="rline"><span class="mark"></span><span class="rkey">target</span><span class="rval muted">not set yet</span></div>
+            <div class="rline"><span class="mark"></span><span class="rkey">backup</span><span class="rval">none found<span class="cursor"></span></span></div>
+            <p class="readout-foot">Nothing on your device changes until you confirm.</p>
+          </aside>
+        </main>
+
+        <!-- ───────────────────── SETUP ───────────────────── -->
+        <main class="view setup" data-view="setup">
+          <div class="setup-head">
+            <p class="eyebrow">Setup plan</p>
+            <h1 class="setup-title">Here's the plan for your Ally</h1>
+            <p class="setup-sub">
+              Four groups, set up in order. Leave it as-is for the recommended
+              setup, or switch off anything you'd rather skip.
+            </p>
+          </div>
+
+          <div class="setup-body">
+            <div class="groups">
+              <button class="group is-on" type="button" aria-pressed="true">
+                <span class="group-toggle" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">System essentials</span>
+                  <span class="group-desc">Power, controller, display &amp; sensible Windows defaults.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">configure</span><span class="group-count">5 steps</span></span>
+              </button>
+
+              <button class="group is-on" type="button" aria-pressed="true">
+                <span class="group-toggle" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Performance</span>
+                  <span class="group-desc">Drivers, background trim &amp; storage tuned for games.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">tune</span><span class="group-count">3 steps</span></span>
+              </button>
+
+              <button class="group is-on" type="button" aria-pressed="true">
+                <span class="group-toggle" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Apps &amp; emulation</span>
+                  <span class="group-desc">Handheld overlay, Steam &amp; EmuDeck — kept current, never frozen.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">install</span><span class="group-count">4 steps</span></span>
+              </button>
+
+              <button class="group is-on" type="button" aria-pressed="true">
+                <span class="group-toggle" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Library &amp; saves</span>
+                  <span class="group-desc">Connect a sync target; links to legal, first-party game sources.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">link</span><span class="group-count">2 steps</span></span>
+              </button>
+            </div>
+
+            <aside class="summary" aria-label="Setup summary">
+              <div class="rline"><span class="mark"></span><span class="rkey">groups</span><span class="rval">4 of 4 on</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">steps</span><span class="rval">14 to run</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">target</span><span class="rval muted">not set yet</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">est.</span><span class="rval">~8 min<span class="cursor"></span></span></div>
+
+              <div class="summary-actions">
+                <button class="btn-primary" type="button" data-go="provision">
+                  Begin setup <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <button class="btn-ghost" type="button" data-go="home">Back</button>
+              </div>
+              <p class="readout-foot">You'll get a chance to review before anything is written.</p>
+            </aside>
+          </div>
+        </main>
+
+        <!-- ───────────────────── PROVISION ───────────────────── -->
+        <main class="view provision" data-view="provision">
+          <div class="provision-head">
+            <p class="eyebrow">Setting up</p>
+            <h1 class="provision-title">Setting up your Ally</h1>
+            <p class="provision-now">Installing EmuDeck<span class="cursor"></span></p>
+
+            <div class="progress" role="progressbar" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-fill" style="width: 62%"></div>
+            </div>
+            <p class="progress-meta">Step 9 of 14 — keep the device plugged in.</p>
+
+            <div class="provision-actions">
+              <button class="btn-ghost" type="button" data-go="done">Skip to result (demo)</button>
+            </div>
+          </div>
+
+          <aside class="log" aria-label="Setup log">
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Power &amp; thermals</span><span class="logstate">done</span></div>
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Controller &amp; input</span><span class="logstate">done</span></div>
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Display &amp; refresh</span><span class="logstate">done</span></div>
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Background trim</span><span class="logstate">done</span></div>
+            <div class="logline is-run"><span class="logmark"></span><span class="logname">Installing EmuDeck</span><span class="logstate">running</span></div>
+            <div class="logline is-wait"><span class="logmark"></span><span class="logname">Steam + Big Picture</span><span class="logstate">queued</span></div>
+            <div class="logline is-wait"><span class="logmark"></span><span class="logname">Connect sync target</span><span class="logstate">queued</span></div>
+          </aside>
+        </main>
+
+        <!-- ───────────────────── DONE ───────────────────── -->
+        <main class="view done" data-view="done">
+          <div class="done-inner">
+            <span class="done-badge" aria-hidden="true">✓</span>
+            <p class="eyebrow">All set</p>
+            <h1 class="done-title">Your Ally is ready</h1>
+            <p class="done-sub">
+              14 steps applied across 4 groups. Your saves and BIOS now follow
+              you to your sync target.
+            </p>
+
+            <aside class="receipt" aria-label="Setup receipt">
+              <div class="rline"><span class="mark"></span><span class="rkey">applied</span><span class="rval">14 of 14 steps</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">target</span><span class="rval">Syncthing · home-nas</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">backup</span><span class="rval">snapshot saved</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">receipt</span><span class="rval">.bootible/receipt.md<span class="cursor"></span></span></div>
+            </aside>
+
+            <div class="done-actions">
+              <button class="btn-primary" type="button" data-go="home">Done</button>
+              <button class="btn-ghost" type="button" data-go="home">View full receipt</button>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <footer class="baseline">
+        <span class="baseline-left">The missing first hour for Windows handhelds.</span>
+        <span class="baseline-right">14 modules ready</span>
+      </footer>
     </div>
     <script type="module" src="./src/main.ts"></script>
   </body>
