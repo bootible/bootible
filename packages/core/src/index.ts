@@ -10,6 +10,7 @@ export type {
   TargetsManifest,
 } from "./config";
 export { deepMerge, loadArtifact } from "./config";
+export { getDisplayTweakCommands } from "./display";
 export type {
   BootibleModule,
   GroupSummary,

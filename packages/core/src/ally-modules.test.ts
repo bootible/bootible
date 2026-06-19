@@ -98,7 +98,7 @@ describe("allyCatalog", () => {
     expect(calls).toContainEqual(["sc", "config", "DiagTrack", "start=", "demand"]);
   });
 
-  it("declares not-yet-ported modules as skipped without running anything", () => {
+  it("applies display/GPU tweaks via reg add", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();
     const calls: string[][] = [];
@@ -106,6 +106,21 @@ describe("allyCatalog", () => {
       calls.push(cmd);
       return "";
     });
+    expect(result?.status).toBe("applied");
+    expect(calls.some((c) => c.includes("HwSchMode"))).toBe(true);
+  });
+
+  it("declares not-yet-ported modules as skipped without running anything", () => {
+    const controller = allyCatalog.find((m) => m.id === "controller");
+    expect(controller).toBeDefined();
+    const calls: string[][] = [];
+    const result = controller?.apply(
+      { device, config: { schema: 2, device: "rog-ally" } },
+      (cmd) => {
+        calls.push(cmd);
+        return "";
+      },
+    );
     expect(result?.status).toBe("skipped");
     expect(calls).toEqual([]);
   });

@@ -1,3 +1,4 @@
+import { getDisplayTweakCommands } from "./display";
 import type { BootibleModule, ModuleGroup } from "./modules";
 import { getServiceTrimCommands } from "./optimization";
 import { getPowerConfigCommands } from "./power";
@@ -91,6 +92,17 @@ const windowsDefaults: BootibleModule = {
   },
 };
 
+/** Display & GPU — HAGS on, AMD Vari-Bright off (ported from v1). */
+const display: BootibleModule = {
+  id: "display",
+  name: "Display & GPU",
+  group: "system",
+  summary: "Enable GPU scheduling (HAGS) and disable AMD Vari-Bright.",
+  apply(_ctx, exec) {
+    return { status: "applied", actions: runCommands(exec, getDisplayTweakCommands()) };
+  },
+};
+
 /** Background trim — set non-essential services to manual (ported from v1). */
 const backgroundTrim: BootibleModule = {
   id: "optimization",
@@ -111,7 +123,7 @@ export const allyCatalog: BootibleModule[] = [
     "system",
     "Map buttons, enable gyro and trigger ranges.",
   ),
-  planned("display", "Display & refresh", "system", "Native resolution, refresh rate and VRR."),
+  display,
   windowsDefaults,
   backgroundTrim,
   planned(
