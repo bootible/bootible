@@ -6,7 +6,17 @@ declare global {
   }
 }
 
-const VIEWS = ["home", "setup", "provision", "done", "restore", "empty", "failed"] as const;
+const VIEWS = [
+  "home",
+  "setup",
+  "review",
+  "connect",
+  "provision",
+  "done",
+  "restore",
+  "empty",
+  "failed",
+] as const;
 type View = (typeof VIEWS)[number];
 
 function isView(value: string): value is View {

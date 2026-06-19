@@ -97,11 +97,11 @@
             <aside class="summary" aria-label="Setup summary">
               <div class="rline"><span class="mark"></span><span class="rkey">groups</span><span class="rval">4 of 4 on</span></div>
               <div class="rline"><span class="mark"></span><span class="rkey">steps</span><span class="rval">14 to run</span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">target</span><span class="rval muted">not set yet</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">target</span><span class="rval"><button class="linkbtn" type="button" data-go="connect">connect a target →</button></span></div>
               <div class="rline"><span class="mark"></span><span class="rkey">est.</span><span class="rval">~8 min<span class="cursor"></span></span></div>
 
               <div class="summary-actions">
-                <button class="btn-primary" type="button" data-go="provision">
+                <button class="btn-primary" type="button" data-go="review">
                   Begin setup <span class="arrow" aria-hidden="true">→</span>
                 </button>
                 <button class="btn-ghost" type="button" data-go="home">Back</button>
@@ -275,6 +275,101 @@
             <div class="logline is-wait"><span class="logmark"></span><span class="logname">Steam + Big Picture</span><span class="logstate">queued</span></div>
             <div class="logline is-wait"><span class="logmark"></span><span class="logname">Connect sync target</span><span class="logstate">queued</span></div>
           </aside>
+        </main>
+
+        <!-- ───────────────────── REVIEW (confirm before write) ───────────────────── -->
+        <main class="view done" data-view="review">
+          <div class="done-inner done-inner--wide">
+            <p class="eyebrow">Final check</p>
+            <h1 class="done-title">Ready to set up your Ally?</h1>
+            <p class="done-sub">
+              Here's exactly what bootible will do. Nothing has been written to
+              your device yet.
+            </p>
+
+            <aside class="readout review-plan" aria-label="What will run">
+              <div class="plan-row"><span class="mark"></span><span class="plan-name">System essentials</span><span class="plan-n">5 steps</span></div>
+              <div class="plan-row"><span class="mark"></span><span class="plan-name">Performance</span><span class="plan-n">3 steps</span></div>
+              <div class="plan-row"><span class="mark"></span><span class="plan-name">Apps &amp; emulation</span><span class="plan-n">4 steps</span></div>
+              <div class="plan-row"><span class="mark"></span><span class="plan-name">Library &amp; saves</span><span class="plan-n">2 steps</span></div>
+              <div class="plan-row plan-row--target"><span class="mark"></span><span class="plan-name">Sync target</span><span class="plan-n muted">not set</span></div>
+              <p class="readout-foot">A restore point is saved first — you can roll back anytime.</p>
+            </aside>
+
+            <div class="done-actions">
+              <button class="btn-primary" type="button" data-go="provision">
+                Write changes <span class="arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="btn-ghost" type="button" data-go="setup">Back</button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── CONNECT (pick a sync target) ───────────────────── -->
+        <main class="view setup" data-view="connect">
+          <div class="setup-head">
+            <p class="eyebrow">Sync target</p>
+            <h1 class="setup-title">Where should your stuff live?</h1>
+            <p class="setup-sub">
+              Pick where saves, BIOS and configs are kept so they follow you
+              between devices. Optional — you can add one later.
+            </p>
+          </div>
+
+          <div class="setup-body">
+            <div class="snaps">
+              <button class="snap" type="button" aria-pressed="false">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Network share (SMB / NFS)</span>
+                  <span class="group-desc">Your NAS or home server on the local network.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">nas</span></span>
+              </button>
+
+              <button class="snap" type="button" aria-pressed="false">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">S3-compatible storage</span>
+                  <span class="group-desc">Backblaze B2, Cloudflare R2, MinIO — bring your own bucket.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">cloud</span></span>
+              </button>
+
+              <button class="snap is-sel" type="button" aria-pressed="true">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Syncthing</span>
+                  <span class="group-desc">Peer-to-peer between your devices — no server to run.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">p2p</span></span>
+              </button>
+
+              <button class="snap" type="button" aria-pressed="false">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Link a RomM server</span>
+                  <span class="group-desc">Point bootible at your own RomM library and let it sync.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">link</span></span>
+              </button>
+            </div>
+
+            <aside class="summary" aria-label="Target summary">
+              <div class="rline"><span class="mark"></span><span class="rkey">type</span><span class="rval">Syncthing</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">mode</span><span class="rval">peer-to-peer</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">syncs</span><span class="rval">saves · BIOS · configs</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">hosting</span><span class="rval">none needed<span class="cursor"></span></span></div>
+
+              <div class="summary-actions">
+                <button class="btn-primary" type="button" data-go="setup">
+                  Use this target <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <button class="btn-ghost" type="button" data-go="setup">Skip for now</button>
+              </div>
+              <p class="readout-foot">bootible orchestrates your target — it never hosts your data.</p>
+            </aside>
+          </div>
         </main>
       </div>
 

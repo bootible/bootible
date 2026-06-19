@@ -77,6 +77,14 @@ body[data-view="failed"] .view[data-view="failed"] {
   display: grid;
 }
 
+body[data-view="review"] .view[data-view="review"] {
+  display: flex;
+}
+
+body[data-view="connect"] .view[data-view="connect"] {
+  display: flex;
+}
+
 /* system bar — the device chrome */
 .sysbar {
   display: flex;
@@ -851,6 +859,64 @@ body[data-view="empty"] .readout {
 
 .logline.is-fail .logstate {
   color: var(--danger);
+}
+
+/* ───────────────────── review screen ───────────────────── */
+.done-inner--wide {
+  max-width: 520px;
+}
+
+.review-plan {
+  width: 100%;
+  margin-top: 30px;
+  text-align: left;
+  gap: 13px;
+}
+
+body[data-view="review"] .readout::before {
+  content: "WILL RUN";
+}
+
+.plan-row {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.plan-name {
+  color: var(--ink);
+}
+
+.plan-n {
+  color: var(--dim);
+}
+
+.plan-n.muted {
+  color: var(--muted);
+}
+
+/* ───────────────────── connect screen ───────────────────── */
+body[data-view="connect"] .summary::before {
+  content: "TARGET";
+}
+
+/* inline link-style button inside the mono panels */
+.linkbtn {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--signal);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s ease;
+}
+
+.linkbtn:hover {
+  border-bottom-color: var(--signal);
 }
 
 @media (prefers-reduced-motion: reduce) {
