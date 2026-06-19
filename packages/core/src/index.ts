@@ -45,4 +45,5 @@ export type { SyncTarget, TargetCapabilities, TargetRole } from "./sync-target";
 export { localTarget } from "./sync-target";
 export type { SchemaValidationResult } from "./validate-schema";
 export { parseValidatedYaml, validateYamlAgainstSchema } from "./validate-schema";
+export { getWindowsDefaultsCommands } from "./windows-defaults";
 export { getWingetInstallCommands } from "./winget";

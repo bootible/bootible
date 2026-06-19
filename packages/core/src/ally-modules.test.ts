@@ -72,6 +72,19 @@ describe("allyCatalog", () => {
     ]);
   });
 
+  it("applies Windows defaults via reg add", () => {
+    const wd = allyCatalog.find((m) => m.id === "windows-defaults");
+    expect(wd).toBeDefined();
+    const calls: string[][] = [];
+    const result = wd?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    expect(result?.status).toBe("applied");
+    expect(calls.every((c) => c[0] === "reg" && c[1] === "add")).toBe(true);
+    expect(calls.some((c) => c.includes("AllowTelemetry"))).toBe(true);
+  });
+
   it("declares not-yet-ported modules as skipped without running anything", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();

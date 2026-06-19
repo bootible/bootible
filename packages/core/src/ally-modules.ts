@@ -1,5 +1,6 @@
 import type { BootibleModule, ModuleGroup } from "./modules";
 import { getPowerConfigCommands } from "./power";
+import { getWindowsDefaultsCommands } from "./windows-defaults";
 import { getWingetInstallCommands } from "./winget";
 
 /** Power & thermals — the first module ported from v1 (config/rog-ally). */
@@ -43,6 +44,16 @@ function planned(id: string, name: string, group: ModuleGroup, summary: string):
   };
 }
 
+/** Run a fixed list of command arrays via the injected runner, recording them. */
+function runCommands(exec: (cmd: string[]) => string, commands: string[][]): string[] {
+  const actions: string[] = [];
+  for (const args of commands) {
+    exec(args);
+    actions.push(args.join(" "));
+  }
+  return actions;
+}
+
 /**
  * An app-install module ported from v1 apps.ps1 — installs a set of verified
  * winget packages via the injected runner.
@@ -63,15 +74,21 @@ function appInstall(
       if (commands.length === 0) {
         return { status: "skipped", detail: "no packages configured" };
       }
-      const actions: string[] = [];
-      for (const args of commands) {
-        exec(args);
-        actions.push(args.join(" "));
-      }
-      return { status: "applied", actions };
+      return { status: "applied", actions: runCommands(exec, commands) };
     },
   };
 }
+
+/** Windows defaults — curated debloat/registry tweaks ported from v1. */
+const windowsDefaults: BootibleModule = {
+  id: "windows-defaults",
+  name: "Windows defaults",
+  group: "system",
+  summary: "Disable telemetry, Copilot & Bing search; show file extensions.",
+  apply(_ctx, exec) {
+    return { status: "applied", actions: runCommands(exec, getWindowsDefaultsCommands()) };
+  },
+};
 
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
@@ -83,12 +100,7 @@ export const allyCatalog: BootibleModule[] = [
     "Map buttons, enable gyro and trigger ranges.",
   ),
   planned("display", "Display & refresh", "system", "Native resolution, refresh rate and VRR."),
-  planned(
-    "windows-defaults",
-    "Windows defaults",
-    "system",
-    "Sensible handheld defaults for Windows.",
-  ),
+  windowsDefaults,
   planned(
     "optimization",
     "Background trim",
