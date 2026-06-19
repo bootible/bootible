@@ -1,4 +1,4 @@
-import type { DeviceSummary } from "@bootible/core";
+import type { DeviceSummary, GroupSummary } from "@bootible/core";
 import { contextBridge, ipcRenderer } from "electron";
 
 // The renderer surface. Each call forwards to a main-process IPC handler that
@@ -7,6 +7,7 @@ import { contextBridge, ipcRenderer } from "electron";
 const api = {
   version: "v2 (dev)",
   getDevice: (): Promise<DeviceSummary | null> => ipcRenderer.invoke("device:get"),
+  getCatalog: (): Promise<GroupSummary[]> => ipcRenderer.invoke("catalog:get"),
 };
 
 export type BootibleApi = typeof api;

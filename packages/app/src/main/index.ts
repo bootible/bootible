@@ -1,6 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type DeviceSummary, deviceSummary, loadRegistry, selectDevice } from "@bootible/core";
+import {
+  allyCatalog,
+  type DeviceSummary,
+  deviceSummary,
+  type GroupSummary,
+  groupCatalog,
+  loadRegistry,
+  selectDevice,
+} from "@bootible/core";
 import { app, BrowserWindow, ipcMain } from "electron";
 
 // NOTE (dev): schemas + registry are resolved relative to the repo root. The
@@ -23,6 +31,11 @@ function getDevice(): DeviceSummary | null {
   }
 }
 
+/** The device's module catalog, grouped for the setup screen. */
+function getCatalog(): GroupSummary[] {
+  return groupCatalog(allyCatalog);
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1040,
@@ -38,16 +51,19 @@ function createWindow(): void {
 
   win.on("ready-to-show", () => win.show());
 
+  // BOOTIBLE_VIEW deep-links a starting screen (used for dev screenshots).
+  const hash = process.env.BOOTIBLE_VIEW;
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
-    win.loadURL(devUrl);
+    win.loadURL(hash ? `${devUrl}#${hash}` : devUrl);
   } else {
-    win.loadFile(join(__dirname, "../renderer/index.html"));
+    win.loadFile(join(__dirname, "../renderer/index.html"), hash ? { hash } : undefined);
   }
 }
 
 app.whenReady().then(() => {
   ipcMain.handle("device:get", () => getDevice());
+  ipcMain.handle("catalog:get", () => getCatalog());
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

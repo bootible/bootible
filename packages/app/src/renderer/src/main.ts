@@ -8,9 +8,18 @@ interface DeviceSummary {
   emulationCount: number;
 }
 
+interface GroupSummary {
+  group: string;
+  label: string;
+  description: string;
+  moduleCount: number;
+  modules: { id: string; name: string }[];
+}
+
 interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
+  getCatalog(): Promise<GroupSummary[]>;
 }
 
 declare global {
@@ -55,12 +64,14 @@ document.addEventListener("click", (event) => {
   if (target) location.hash = target;
 });
 
-// Group toggles on the setup screen flip their own pressed state.
+// Group toggles on the setup screen flip their own pressed state and update
+// the live plan summary.
 document.addEventListener("click", (event) => {
   const group = (event.target as HTMLElement).closest<HTMLElement>(".group");
   if (!group) return;
   const on = group.classList.toggle("is-on");
   group.setAttribute("aria-pressed", String(on));
+  updateSetupSummary();
 });
 
 // Snapshot cards on the restore screen are single-select (radio behaviour).
@@ -114,3 +125,116 @@ async function hydrateDevice(): Promise<void> {
 }
 
 void hydrateDevice();
+
+// ── module catalog ────────────────────────────────────────────────────────
+// The setup groups, the review plan and every module count are driven by the
+// real catalog the core exposes — no hardcoded "14".
+
+const GROUP_TAGS: Record<string, string> = {
+  system: "configure",
+  performance: "tune",
+  apps: "install",
+  library: "link",
+};
+
+let catalog: GroupSummary[] = [];
+
+function el(tag: string, className: string, text?: string): HTMLElement {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/** "1 step" / "3 steps" — pluralise the step count. */
+function steps(n: number): string {
+  return `${n} step${n === 1 ? "" : "s"}`;
+}
+
+/** Render the setup screen's toggleable group cards from the catalog. */
+function renderGroups(): void {
+  const container = document.querySelector<HTMLElement>(".groups");
+  if (!container) return;
+
+  container.replaceChildren(
+    ...catalog.map((group) => {
+      const btn = el("button", "group is-on") as HTMLButtonElement;
+      btn.type = "button";
+      btn.setAttribute("aria-pressed", "true");
+
+      const toggle = el("span", "group-toggle");
+      toggle.setAttribute("aria-hidden", "true");
+
+      const main = el("span", "group-main");
+      main.append(
+        el("span", "group-name", group.label),
+        el("span", "group-desc", group.description),
+      );
+
+      const meta = el("span", "group-meta");
+      meta.append(
+        el("span", "group-tag", GROUP_TAGS[group.group] ?? ""),
+        el("span", "group-count", steps(group.moduleCount)),
+      );
+
+      btn.append(toggle, main, meta);
+      return btn;
+    }),
+  );
+}
+
+/** Render the review screen's WILL RUN rows from the catalog. */
+function renderReviewPlan(): void {
+  const plan = document.querySelector<HTMLElement>(".review-plan");
+  if (!plan) return;
+
+  const foot = plan.querySelector(".readout-foot");
+  const rows = catalog.map((group) => {
+    const row = el("div", "plan-row");
+    row.append(
+      el("span", "mark"),
+      el("span", "plan-name", group.label),
+      el("span", "plan-n", steps(group.moduleCount)),
+    );
+    return row;
+  });
+
+  plan.replaceChildren(...rows);
+  if (foot) plan.append(foot);
+}
+
+/** Reflect which groups are toggled on in the setup summary rail. */
+function updateSetupSummary(): void {
+  const cards = [...document.querySelectorAll<HTMLElement>(".groups .group")];
+  let stepsOn = 0;
+  let groupsOn = 0;
+  cards.forEach((card, i) => {
+    if (card.classList.contains("is-on")) {
+      groupsOn += 1;
+      stepsOn += catalog[i]?.moduleCount ?? 0;
+    }
+  });
+  fill("groups-summary", `${groupsOn} of ${catalog.length} on`);
+  fill("steps-summary", `${stepsOn} to run`);
+}
+
+async function hydrateCatalog(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getCatalog) return;
+
+  try {
+    catalog = await api.getCatalog();
+  } catch {
+    return;
+  }
+  if (catalog.length === 0) return;
+
+  const total = catalog.reduce((sum, group) => sum + group.moduleCount, 0);
+  fill("module-total", String(total));
+  fill("modules-ready", `${total} modules ready`);
+  renderGroups();
+  renderReviewPlan();
+  updateSetupSummary();
+}
+
+void hydrateCatalog();
