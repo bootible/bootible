@@ -16,10 +16,26 @@ interface GroupSummary {
   modules: { id: string; name: string }[];
 }
 
+interface StepEvent {
+  moduleId: string;
+  name: string;
+  group: string;
+  status: "running" | "applied" | "skipped" | "failed";
+  detail?: string;
+}
+
+interface ProvisionResult {
+  applied: number;
+  skipped: number;
+}
+
 interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
   getCatalog(): Promise<GroupSummary[]>;
+  provision(): Promise<ProvisionResult>;
+  onProvisionStep(cb: (event: StepEvent) => void): void;
+  onProvisionDone(cb: (result: ProvisionResult) => void): void;
 }
 
 declare global {
@@ -53,7 +69,9 @@ function show(view: string): void {
 
 /** Drive the active view from the URL hash so screens are deep-linkable. */
 function syncFromHash(): void {
-  show(location.hash.replace(/^#/, ""));
+  const view = location.hash.replace(/^#/, "") || "home";
+  show(view);
+  if (view === "provision") startProvision();
 }
 
 // Navigation: any [data-go] control sets the hash, which drives the view.
@@ -86,7 +104,6 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("hashchange", syncFromHash);
-syncFromHash();
 
 /** Write a value into every [data-field="<field>"] element. */
 function fill(field: string, value: string): void {
@@ -238,3 +255,112 @@ async function hydrateCatalog(): Promise<void> {
 }
 
 void hydrateCatalog();
+
+// ── provisioning (dry run) ─────────────────────────────────────────────────
+// Entering #provision streams real module step events from the executor into
+// the live log. It is a dry run: nothing is written to the device.
+
+const STATE_CLASS: Record<string, string> = {
+  running: "is-run",
+  applied: "is-done",
+  skipped: "is-wait",
+  failed: "is-fail",
+};
+const STATE_LABEL: Record<string, string> = {
+  running: "running",
+  applied: "done",
+  skipped: "skipped",
+  failed: "failed",
+};
+
+const provisionLines = new Map<string, HTMLElement>();
+let provisionDone = 0;
+let provisioning = false;
+
+function provisionEl(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('.view[data-view="provision"]');
+}
+
+function provisionTotal(): number {
+  return catalog.reduce((sum, group) => sum + group.moduleCount, 0) || provisionLines.size || 1;
+}
+
+function resetProvision(): void {
+  const view = provisionEl();
+  if (!view) return;
+  provisionLines.clear();
+  provisionDone = 0;
+  view.querySelector(".log")?.replaceChildren();
+  const now = view.querySelector(".provision-now");
+  if (now) now.textContent = "Starting dry run…";
+  const fill = view.querySelector<HTMLElement>(".progress-fill");
+  if (fill) fill.style.width = "0%";
+  const meta = view.querySelector(".progress-meta");
+  if (meta) meta.textContent = "Dry run — nothing is written to your device.";
+}
+
+function onProvisionStep(event: StepEvent): void {
+  const view = provisionEl();
+  const log = view?.querySelector(".log");
+  if (!view || !log) return;
+
+  let line = provisionLines.get(event.moduleId);
+  if (!line) {
+    line = el("div", "logline");
+    line.append(
+      el("span", "logmark"),
+      el("span", "logname", event.name),
+      el("span", "logstate", ""),
+    );
+    provisionLines.set(event.moduleId, line);
+    log.append(line);
+  }
+
+  line.classList.remove("is-run", "is-done", "is-wait", "is-fail");
+  line.classList.add(STATE_CLASS[event.status] ?? "is-wait");
+  const state = line.querySelector(".logstate");
+  if (state) state.textContent = STATE_LABEL[event.status] ?? event.status;
+
+  if (event.status === "running") {
+    const now = view.querySelector(".provision-now");
+    if (now) now.textContent = event.name;
+    return;
+  }
+
+  provisionDone += 1;
+  const total = provisionTotal();
+  const fill = view.querySelector<HTMLElement>(".progress-fill");
+  if (fill) fill.style.width = `${Math.round((provisionDone / total) * 100)}%`;
+  const meta = view.querySelector(".progress-meta");
+  if (meta) meta.textContent = `Step ${provisionDone} of ${total} — dry run, nothing is written.`;
+}
+
+function onProvisionDone(result: ProvisionResult): void {
+  const view = provisionEl();
+  const now = view?.querySelector(".provision-now");
+  if (now) {
+    now.textContent = `Dry run complete — ${result.applied} applied, ${result.skipped} planned.`;
+  }
+  window.setTimeout(() => {
+    if (document.body.dataset.view === "provision") location.hash = "done";
+  }, 1200);
+}
+
+function startProvision(): void {
+  const api = window.bootible;
+  if (!api?.provision || provisioning) return; // browser: keep the mock log
+  provisioning = true;
+  resetProvision();
+  api
+    .provision()
+    .catch(() => {})
+    .finally(() => {
+      provisioning = false;
+    });
+}
+
+window.bootible?.onProvisionStep?.(onProvisionStep);
+window.bootible?.onProvisionDone?.(onProvisionDone);
+
+// First render — run after all declarations so deep-linking #provision is safe.
+syncFromHash();
