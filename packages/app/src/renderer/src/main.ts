@@ -6,7 +6,7 @@ declare global {
   }
 }
 
-const VIEWS = ["home", "setup", "provision", "done", "restore"] as const;
+const VIEWS = ["home", "setup", "provision", "done", "restore", "empty", "failed"] as const;
 type View = (typeof VIEWS)[number];
 
 function isView(value: string): value is View {
@@ -38,6 +38,17 @@ document.addEventListener("click", (event) => {
   if (!group) return;
   const on = group.classList.toggle("is-on");
   group.setAttribute("aria-pressed", String(on));
+});
+
+// Snapshot cards on the restore screen are single-select (radio behaviour).
+document.addEventListener("click", (event) => {
+  const snap = (event.target as HTMLElement).closest<HTMLElement>(".snap");
+  if (!snap) return;
+  for (const sibling of snap.parentElement?.querySelectorAll(".snap") ?? []) {
+    const selected = sibling === snap;
+    sibling.classList.toggle("is-sel", selected);
+    sibling.setAttribute("aria-pressed", String(selected));
+  }
 });
 
 window.addEventListener("hashchange", syncFromHash);

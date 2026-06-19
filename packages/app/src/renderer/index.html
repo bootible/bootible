@@ -163,6 +163,119 @@
             </div>
           </div>
         </main>
+
+        <!-- ───────────────────── RESTORE ───────────────────── -->
+        <main class="view setup" data-view="restore">
+          <div class="setup-head">
+            <p class="eyebrow">Restore</p>
+            <h1 class="setup-title">Restore a backup</h1>
+            <p class="setup-sub">
+              Roll your Ally back to an earlier snapshot. Your saves are kept and
+              merged — only the setup is rewound.
+            </p>
+          </div>
+
+          <div class="setup-body">
+            <div class="snaps">
+              <button class="snap is-sel" type="button" aria-pressed="true">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Today, 14:02</span>
+                  <span class="group-desc">Full setup — 14 steps, saves included.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">latest</span><span class="group-count">2.4 GB</span></span>
+              </button>
+
+              <button class="snap" type="button" aria-pressed="false">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">3 days ago, 09:18</span>
+                  <span class="group-desc">Auto-snapshot taken before a Windows update.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">auto</span><span class="group-count">2.1 GB</span></span>
+              </button>
+
+              <button class="snap" type="button" aria-pressed="false">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">2 weeks ago, 20:40</span>
+                  <span class="group-desc">Your very first bootible setup on this device.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">initial</span><span class="group-count">1.8 GB</span></span>
+              </button>
+            </div>
+
+            <aside class="summary" aria-label="Restore summary">
+              <div class="rline"><span class="mark"></span><span class="rkey">from</span><span class="rval">Today, 14:02</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">steps</span><span class="rval">14 restored</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">saves</span><span class="rval">kept &amp; merged</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">source</span><span class="rval">home-nas<span class="cursor"></span></span></div>
+
+              <div class="summary-actions">
+                <button class="btn-primary" type="button" data-go="provision">
+                  Restore this backup <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <button class="btn-ghost" type="button" data-go="home">Back</button>
+              </div>
+              <p class="readout-foot">A safety snapshot of the current state is taken first.</p>
+            </aside>
+          </div>
+        </main>
+
+        <!-- ───────────────────── EMPTY (no device) ───────────────────── -->
+        <main class="view done" data-view="empty">
+          <div class="done-inner">
+            <span class="seek-badge" aria-hidden="true"></span>
+            <p class="eyebrow">No device found</p>
+            <h1 class="done-title">Plug in your handheld</h1>
+            <p class="done-sub">
+              Connect your ROG Ally or Steam Deck to this PC and bootible will
+              pick it up automatically.
+            </p>
+
+            <aside class="readout" aria-label="Detection status">
+              <div class="rline"><span class="mark"></span><span class="rkey">scan</span><span class="rval">searching for devices<span class="cursor"></span></span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">usb</span><span class="rval muted">no handheld on the bus</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">found</span><span class="rval muted">none yet</span></div>
+            </aside>
+
+            <div class="done-actions">
+              <button class="btn-primary" type="button" data-go="home">Scan again</button>
+              <button class="btn-ghost" type="button" data-go="setup">Choose manually</button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── FAILED (provision paused) ───────────────────── -->
+        <main class="view provision" data-view="failed">
+          <div class="provision-head">
+            <p class="eyebrow">Setup paused</p>
+            <h1 class="provision-title">A step needs attention</h1>
+            <p class="provision-now is-fail">Installing EmuDeck failed — network timeout</p>
+
+            <div class="progress" role="progressbar" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-fill is-fail" style="width: 62%"></div>
+            </div>
+            <p class="progress-meta">Step 9 of 14 — retry when you're ready, or skip it.</p>
+
+            <div class="provision-actions provision-actions--row">
+              <button class="btn-primary" type="button" data-go="provision">
+                Retry step <span class="arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="btn-ghost" type="button" data-go="done">Skip step</button>
+            </div>
+          </div>
+
+          <aside class="log" aria-label="Setup log">
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Power &amp; thermals</span><span class="logstate">done</span></div>
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Controller &amp; input</span><span class="logstate">done</span></div>
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Display &amp; refresh</span><span class="logstate">done</span></div>
+            <div class="logline is-done"><span class="logmark"></span><span class="logname">Background trim</span><span class="logstate">done</span></div>
+            <div class="logline is-fail"><span class="logmark"></span><span class="logname">Installing EmuDeck</span><span class="logstate">failed</span></div>
+            <div class="logline is-wait"><span class="logmark"></span><span class="logname">Steam + Big Picture</span><span class="logstate">queued</span></div>
+            <div class="logline is-wait"><span class="logmark"></span><span class="logname">Connect sync target</span><span class="logstate">queued</span></div>
+          </aside>
+        </main>
       </div>
 
       <footer class="baseline">
