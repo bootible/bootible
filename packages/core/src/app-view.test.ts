@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import { deviceSummary, prettyOs, selectDevice } from "./app-view";
+import type { DeviceEntry } from "./registry";
+
+const ally: DeviceEntry = {
+  id: "rog-ally",
+  name: "ROG Ally / Ally X",
+  provisioning_models: ["on-device"],
+  os: "windows",
+  capabilities: { great: ["nes", "snes", "ps1"], varies: ["switch"] },
+};
+
+const deck: DeviceEntry = {
+  id: "steamdeck",
+  name: "Steam Deck",
+  provisioning_models: ["on-device"],
+  os: "linux",
+};
+
+describe("prettyOs", () => {
+  it("maps known os ids to display names", () => {
+    expect(prettyOs("windows")).toBe("Windows");
+    expect(prettyOs("linux")).toBe("Linux");
+    expect(prettyOs("steamos")).toBe("SteamOS");
+  });
+
+  it("title-cases unknown os ids", () => {
+    expect(prettyOs("haiku")).toBe("Haiku");
+  });
+});
+
+describe("deviceSummary", () => {
+  it("projects a registry entry into a renderer view-model", () => {
+    expect(deviceSummary(ally)).toEqual({
+      id: "rog-ally",
+      name: "ROG Ally / Ally X",
+      system: "Windows",
+      provisioning: "on-device",
+      emulationCount: 3,
+    });
+  });
+
+  it("defaults missing os and capabilities", () => {
+    expect(deviceSummary(deck)).toEqual({
+      id: "steamdeck",
+      name: "Steam Deck",
+      system: "Linux",
+      provisioning: "on-device",
+      emulationCount: 0,
+    });
+  });
+});
+
+describe("selectDevice", () => {
+  it("picks the entry whose os matches the platform", () => {
+    expect(selectDevice([deck, ally], "win32")?.id).toBe("rog-ally");
+    expect(selectDevice([deck, ally], "linux")?.id).toBe("steamdeck");
+  });
+
+  it("returns null when nothing matches", () => {
+    expect(selectDevice([deck], "darwin")).toBeNull();
+  });
+});

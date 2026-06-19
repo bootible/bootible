@@ -1,8 +1,21 @@
 import "./styles.css";
 
+interface DeviceSummary {
+  id: string;
+  name: string;
+  system: string;
+  provisioning: string;
+  emulationCount: number;
+}
+
+interface BootibleApi {
+  version: string;
+  getDevice(): Promise<DeviceSummary | null>;
+}
+
 declare global {
   interface Window {
-    bootible?: { version: string };
+    bootible?: BootibleApi;
   }
 }
 
@@ -64,8 +77,40 @@ document.addEventListener("click", (event) => {
 window.addEventListener("hashchange", syncFromHash);
 syncFromHash();
 
+/** Write a value into every [data-field="<field>"] element. */
+function fill(field: string, value: string): void {
+  for (const el of document.querySelectorAll<HTMLElement>(`[data-field="${field}"]`)) {
+    el.textContent = value;
+  }
+}
+
 // Reflect the real core version in the system bar without clobbering the LED.
 const statusText = document.querySelector<HTMLElement>(".sysstatus-text");
 if (statusText && window.bootible?.version) {
   statusText.textContent = `${window.bootible.version} · local`;
 }
+
+// Hydrate the home screen from the real device the main process detects. In a
+// plain browser (no preload) window.bootible is undefined and the mock markup
+// stands, which keeps the screens screenshot-able outside Electron.
+async function hydrateDevice(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getDevice) return;
+
+  let device: DeviceSummary | null;
+  try {
+    device = await api.getDevice();
+  } catch {
+    return;
+  }
+
+  if (!device) {
+    if (!location.hash) show("empty");
+    return;
+  }
+
+  fill("name", device.name);
+  fill("system", device.system);
+}
+
+void hydrateDevice();

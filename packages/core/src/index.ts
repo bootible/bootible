@@ -1,4 +1,6 @@
 export { allyExecutor } from "./ally-executor";
+export type { DeviceSummary } from "./app-view";
+export { deviceSummary, prettyOs, selectDevice } from "./app-view";
 export type {
   Artifact,
   ArtifactSchemas,
