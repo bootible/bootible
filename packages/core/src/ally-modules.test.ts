@@ -85,6 +85,19 @@ describe("allyCatalog", () => {
     expect(calls.some((c) => c.includes("AllowTelemetry"))).toBe(true);
   });
 
+  it("trims background services via sc config", () => {
+    const trim = allyCatalog.find((m) => m.id === "optimization");
+    expect(trim).toBeDefined();
+    const calls: string[][] = [];
+    const result = trim?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    expect(result?.status).toBe("applied");
+    expect(calls.every((c) => c[0] === "sc" && c[1] === "config")).toBe(true);
+    expect(calls).toContainEqual(["sc", "config", "DiagTrack", "start=", "demand"]);
+  });
+
   it("declares not-yet-ported modules as skipped without running anything", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();

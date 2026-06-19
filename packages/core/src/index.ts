@@ -20,6 +20,7 @@ export type {
   StepStatus,
 } from "./modules";
 export { GROUP_META, groupCatalog } from "./modules";
+export { getServiceTrimCommands } from "./optimization";
 export type {
   ApplyContext,
   Executor,

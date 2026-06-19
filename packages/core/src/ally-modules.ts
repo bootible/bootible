@@ -1,4 +1,5 @@
 import type { BootibleModule, ModuleGroup } from "./modules";
+import { getServiceTrimCommands } from "./optimization";
 import { getPowerConfigCommands } from "./power";
 import { getWindowsDefaultsCommands } from "./windows-defaults";
 import { getWingetInstallCommands } from "./winget";
@@ -90,6 +91,17 @@ const windowsDefaults: BootibleModule = {
   },
 };
 
+/** Background trim — set non-essential services to manual (ported from v1). */
+const backgroundTrim: BootibleModule = {
+  id: "optimization",
+  name: "Background trim",
+  group: "performance",
+  summary: "Set non-essential services (telemetry, maps, remote registry) to manual.",
+  apply(_ctx, exec) {
+    return { status: "applied", actions: runCommands(exec, getServiceTrimCommands()) };
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -101,12 +113,7 @@ export const allyCatalog: BootibleModule[] = [
   ),
   planned("display", "Display & refresh", "system", "Native resolution, refresh rate and VRR."),
   windowsDefaults,
-  planned(
-    "optimization",
-    "Background trim",
-    "performance",
-    "Trim background apps and services for games.",
-  ),
+  backgroundTrim,
   planned(
     "health",
     "System health check",
