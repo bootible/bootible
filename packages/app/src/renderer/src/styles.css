@@ -487,6 +487,12 @@ body[data-view="connect"] .view[data-view="connect"] {
   color: var(--muted);
 }
 
+.group-state {
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  color: #4caf6a;
+}
+
 /* summary rail — shares the readout's panel language */
 .summary {
   position: relative;

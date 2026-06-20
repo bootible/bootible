@@ -7,6 +7,7 @@ import {
   allyExecutor,
   buildConfig,
   buildUsbBundle,
+  checkModules,
   type DeviceEntry,
   type DeviceSummary,
   deviceSummary,
@@ -15,6 +16,7 @@ import {
   generateBootstrapScript,
   groupCatalog,
   loadRegistry,
+  type ModuleStateReport,
   type StepEvent,
   type SystemInfo,
   selectDevice,
@@ -74,6 +76,22 @@ function getDevice(): DeviceSummary | null {
 /** The device's module catalog, grouped for the setup screen. */
 function getCatalog(): GroupSummary[] {
   return groupCatalog(allyCatalog);
+}
+
+/** Probe current module state on the detected device (read-only). [] off-device. */
+function getDeviceState(): ModuleStateReport[] {
+  const device = loadDeviceEntry();
+  if (!device) return [];
+  const readExec: Exec = (cmd) => {
+    const [file, ...args] = cmd;
+    try {
+      return execFileSync(file ?? "", args, { encoding: "utf8" });
+    } catch (error) {
+      return String((error as { stdout?: Buffer }).stdout ?? "");
+    }
+  };
+  const config = buildConfig({ device: device.id, settings: RECOMMENDED_SETTINGS });
+  return checkModules(allyCatalog, { device, config }, readExec);
 }
 
 /**
@@ -269,6 +287,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   ipcMain.handle("device:get", () => getDevice());
+  ipcMain.handle("device:state", () => getDeviceState());
   ipcMain.handle("catalog:get", () => getCatalog());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, groups: string[]) => {

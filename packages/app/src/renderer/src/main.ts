@@ -35,10 +35,18 @@ interface UsbBuildRequest {
   wifi?: { ssid: string; password: string };
 }
 
+interface ModuleStateReport {
+  id: string;
+  name: string;
+  group: string;
+  state: "applied" | "pending" | "unknown";
+}
+
 interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
   getCatalog(): Promise<GroupSummary[]>;
+  getState(): Promise<ModuleStateReport[]>;
   provision(): Promise<ProvisionResult>;
   onProvisionStep(cb: (event: StepEvent) => void): void;
   onProvisionDone(cb: (result: ProvisionResult) => void): void;
@@ -235,6 +243,7 @@ function renderGroups(): void {
       meta.append(
         el("span", "group-tag", GROUP_TAGS[group.group] ?? ""),
         el("span", "group-count", steps(group.moduleCount)),
+        el("span", "group-state", ""),
       );
 
       btn.append(toggle, main, meta);
@@ -295,6 +304,43 @@ async function hydrateCatalog(): Promise<void> {
   renderGroups();
   renderReviewPlan();
   updateSetupSummary();
+  void hydrateState();
+}
+
+/** Annotate the group cards with current on-device state ("✓ set" / "N/M set"). */
+async function hydrateState(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getState) return;
+
+  let reports: ModuleStateReport[];
+  try {
+    reports = await api.getState();
+  } catch {
+    return;
+  }
+  if (reports.length === 0) return; // off-device: nothing to annotate
+
+  const byGroup = new Map<string, { applied: number; total: number }>();
+  for (const report of reports) {
+    if (report.state === "unknown") continue; // planned / no probe
+    const tally = byGroup.get(report.group) ?? { applied: 0, total: 0 };
+    tally.total += 1;
+    if (report.state === "applied") tally.applied += 1;
+    byGroup.set(report.group, tally);
+  }
+
+  const cards = [...document.querySelectorAll<HTMLElement>(".groups .group")];
+  cards.forEach((card, i) => {
+    const tally = catalog[i] ? byGroup.get(catalog[i].group) : undefined;
+    const slot = card.querySelector(".group-state");
+    if (!tally || tally.total === 0 || !slot) return;
+    if (tally.applied === tally.total) {
+      slot.textContent = "✓ set";
+      card.classList.add("is-applied");
+    } else if (tally.applied > 0) {
+      slot.textContent = `${tally.applied}/${tally.total} set`;
+    }
+  });
 }
 
 void hydrateCatalog();
