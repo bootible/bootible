@@ -8,13 +8,13 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build:app": "electron-vite build",
-    "preview": "electron-vite preview"
-  },
-  "dependencies": {
-    "@bootible/core": "*"
+    "preview": "electron-vite preview",
+    "dist": "electron-vite build && electron-builder --win portable"
   },
   "devDependencies": {
+    "@bootible/core": "*",
     "electron": "^42.4.1",
+    "electron-builder": "^25.1.8",
     "electron-vite": "^5.0.0",
     "vite": "^7.3.5"
   }

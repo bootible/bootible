@@ -1,0 +1,27 @@
+appId: dev.bootible.app
+productName: bootible
+# electron is hoisted to the monorepo root, so electron-builder can't infer it.
+electronVersion: 42.4.1
+directories:
+  output: dist
+asar: true
+# Everything (core, ajv, yaml) is bundled into out/ by electron-vite, so there
+# are no native deps to rebuild. Skipping this also stops electron-builder from
+# running `npm --omit=dev` in the workspace, which would prune its own tooling.
+npmRebuild: false
+files:
+  - out/**/*
+  - package.json
+# schemas + registry + the USB builder script ship as resources so the packaged
+# main process can resolve them via process.resourcesPath.
+extraResources:
+  - from: ../../schemas
+    to: schemas
+  - from: ../../registry
+    to: registry
+  - from: resources/prepare-usb.ps1
+    to: prepare-usb.ps1
+win:
+  target: portable
+  requestedExecutionLevel: requireAdministrator
+  artifactName: ${productName}.${ext}

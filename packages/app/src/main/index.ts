@@ -25,10 +25,14 @@ import {
 } from "@bootible/core";
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from "electron";
 
-// NOTE (dev): schemas + registry are resolved relative to the repo root. The
-// packaged app will embed them instead — a follow-on slice. From the built
-// main at packages/app/out/main/, the repo root is four levels up.
+// Resource roots. In dev, schemas/registry live at the repo root and the USB
+// script under packages/app/resources. In a packaged app they're shipped as
+// extraResources under process.resourcesPath (see electron-builder config).
 const repoRoot = join(__dirname, "../../../../");
+const dataRoot = app.isPackaged ? process.resourcesPath : repoRoot;
+const prepareUsbScript = app.isPackaged
+  ? join(process.resourcesPath, "prepare-usb.ps1")
+  : join(repoRoot, "packages/app/resources/prepare-usb.ps1");
 
 /** Read a value from the BIOS hardware key (fast, no WMI), or undefined. */
 function regBios(value: string): string | undefined {
@@ -56,9 +60,9 @@ function getSystemInfo(): SystemInfo {
 /** Load the registry and the device whose hardware whitelist matches, or null. */
 function loadDeviceEntry(): DeviceEntry | null {
   const deviceSchema = JSON.parse(
-    readFileSync(join(repoRoot, "schemas/device.schema.json"), "utf8"),
+    readFileSync(join(dataRoot, "schemas/device.schema.json"), "utf8"),
   );
-  const registry = loadRegistry(join(repoRoot, "registry/devices"), deviceSchema);
+  const registry = loadRegistry(join(dataRoot, "registry/devices"), deviceSchema);
   return selectDevice(registry, getSystemInfo());
 }
 
@@ -156,8 +160,7 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
 
   // Drop the builder script beside the bundle so it runs in place (its
   // -BundleDir defaults to its own folder).
-  const script = join(repoRoot, "packages/app/resources/prepare-usb.ps1");
-  copyFileSync(script, join(stagingPath, "prepare-usb.ps1"));
+  copyFileSync(prepareUsbScript, join(stagingPath, "prepare-usb.ps1"));
 
   const command = "Right-click prepare-usb.ps1 in this folder → Run as administrator.";
   return { stagingPath, command };
