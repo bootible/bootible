@@ -11,6 +11,8 @@ export type {
 export { generateAutounattend, generateWifiProfileXml } from "./autounattend";
 export type { BootstrapOptions } from "./bootstrap";
 export { generateBootstrapScript } from "./bootstrap";
+export type { BundleFile, UsbBuildSpec } from "./bundle";
+export { buildUsbBundle } from "./bundle";
 export type {
   Artifact,
   ArtifactSchemas,
