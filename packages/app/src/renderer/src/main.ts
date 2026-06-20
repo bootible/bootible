@@ -49,6 +49,8 @@ const VIEWS = [
   "home",
   "method",
   "setup",
+  "account",
+  "wifi",
   "review",
   "connect",
   "provision",
@@ -112,7 +114,7 @@ document.addEventListener("click", (event) => {
   updateSetupSummary();
 });
 
-// Snapshot cards on the restore screen are single-select (radio behaviour).
+// Snapshot / account / target cards are single-select (radio behaviour).
 document.addEventListener("click", (event) => {
   const snap = (event.target as HTMLElement).closest<HTMLElement>(".snap");
   if (!snap) return;
@@ -121,6 +123,16 @@ document.addEventListener("click", (event) => {
     sibling.classList.toggle("is-sel", selected);
     sibling.setAttribute("aria-pressed", String(selected));
   }
+  // Account cards drive which install-time fields show (local vs Microsoft).
+  if (snap.dataset.account) document.body.dataset.account = snap.dataset.account;
+});
+
+// After picking the config, the USB method needs account + WiFi steps first;
+// the other methods go straight to review.
+document.addEventListener("click", (event) => {
+  const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-action="config-next"]');
+  if (!trigger) return;
+  location.hash = document.body.dataset.method === "usb" ? "account" : "review";
 });
 
 window.addEventListener("hashchange", syncFromHash);

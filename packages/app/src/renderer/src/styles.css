@@ -61,6 +61,14 @@ body[data-view="method"] .view[data-view="method"] {
   display: flex;
 }
 
+body[data-view="account"] .view[data-view="account"] {
+  display: flex;
+}
+
+body[data-view="wifi"] .view[data-view="wifi"] {
+  display: flex;
+}
+
 body[data-view="provision"] .view[data-view="provision"] {
   display: grid;
 }
@@ -736,6 +744,63 @@ body[data-view="connect"] .view[data-view="connect"] {
   margin-top: 28px;
   display: flex;
   gap: 12px;
+}
+
+/* ───────────────────── form fields (account / wifi) ───────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field + .field {
+  margin-top: 14px;
+}
+
+.field-label {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  color: var(--dim);
+  letter-spacing: 0.02em;
+}
+
+.field-input {
+  font-family: "Space Mono", monospace;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px 13px;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+
+.field-input::placeholder {
+  color: var(--muted);
+}
+
+.field-input:focus {
+  border-color: var(--signal);
+}
+
+/* hide local-only account fields when Microsoft is chosen */
+body[data-account="microsoft"] .field[data-when="local"] {
+  display: none;
+}
+
+.wifi-form {
+  width: 100%;
+  margin-top: 28px;
+  text-align: left;
+}
+
+body[data-view="wifi"] .readout::before {
+  content: "WIFI";
+}
+
+body[data-view="account"] .summary::before {
+  content: "ACCOUNT";
 }
 
 /* ───────────────────── method screen ───────────────────── */

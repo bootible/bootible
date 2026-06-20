@@ -139,10 +139,10 @@
               <div class="rline"><span class="mark"></span><span class="rkey">est.</span><span class="rval">~8 min<span class="cursor"></span></span></div>
 
               <div class="summary-actions">
-                <button class="btn-primary" type="button" data-go="review">
-                  Begin setup <span class="arrow" aria-hidden="true">→</span>
+                <button class="btn-primary" type="button" data-action="config-next">
+                  Continue <span class="arrow" aria-hidden="true">→</span>
                 </button>
-                <button class="btn-ghost" type="button" data-go="home">Back</button>
+                <button class="btn-ghost" type="button" data-go="method">Back</button>
               </div>
               <p class="readout-foot">You'll get a chance to review before anything is written.</p>
             </aside>
@@ -313,6 +313,89 @@
             <div class="logline is-wait"><span class="logmark"></span><span class="logname">Steam + Big Picture</span><span class="logstate">queued</span></div>
             <div class="logline is-wait"><span class="logmark"></span><span class="logname">Connect sync target</span><span class="logstate">queued</span></div>
           </aside>
+        </main>
+
+        <!-- ───────────────────── ACCOUNT (USB method) ───────────────────── -->
+        <main class="view setup" data-view="account">
+          <div class="setup-head">
+            <p class="eyebrow">Windows account</p>
+            <h1 class="setup-title">How will you sign in?</h1>
+            <p class="setup-sub">
+              The one thing Windows won't let us fully automate. Pick how the
+              Ally's account is set up.
+            </p>
+          </div>
+
+          <div class="setup-body">
+            <div class="snaps">
+              <button class="snap is-sel" type="button" data-account="local" aria-pressed="true">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Local account</span>
+                  <span class="group-desc">Full zero-touch — no sign-in prompts. Add a Microsoft account in the Xbox app later for Game Pass.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">zero-touch</span></span>
+              </button>
+
+              <button class="snap" type="button" data-account="microsoft" aria-pressed="false">
+                <span class="snap-radio" aria-hidden="true"></span>
+                <span class="group-main">
+                  <span class="group-name">Microsoft account</span>
+                  <span class="group-desc">Setup pauses once for your sign-in (it can't be pre-filled), then continues on its own.</span>
+                </span>
+                <span class="group-meta"><span class="group-tag">one prompt</span></span>
+              </button>
+            </div>
+
+            <aside class="summary" aria-label="Account details">
+              <div class="field" data-when="local">
+                <label class="field-label" for="acct-user">Username</label>
+                <input class="field-input" id="acct-user" type="text" value="ally" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="field" data-when="local">
+                <label class="field-label" for="acct-pass">Password <span class="muted">(optional)</span></label>
+                <input class="field-input" id="acct-pass" type="password" placeholder="leave blank for none" autocomplete="off" />
+              </div>
+
+              <div class="summary-actions">
+                <button class="btn-primary" type="button" data-go="wifi">
+                  Continue <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <button class="btn-ghost" type="button" data-go="setup">Back</button>
+              </div>
+              <p class="readout-foot">Stored only in the answer file on your USB.</p>
+            </aside>
+          </div>
+        </main>
+
+        <!-- ───────────────────── WIFI (USB method) ───────────────────── -->
+        <main class="view done" data-view="wifi">
+          <div class="done-inner done-inner--wide">
+            <p class="eyebrow">Network</p>
+            <h1 class="done-title">Pre-seed WiFi?</h1>
+            <p class="done-sub">
+              Optional — so the Ally has internet during setup. The password
+              stays on your machine and the USB; it's never sent anywhere.
+            </p>
+
+            <aside class="readout wifi-form" aria-label="WiFi details">
+              <div class="field">
+                <label class="field-label" for="wifi-ssid">Network name (SSID)</label>
+                <input class="field-input" id="wifi-ssid" type="text" placeholder="e.g. NerdzNet" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="wifi-pass">Password</label>
+                <input class="field-input" id="wifi-pass" type="password" placeholder="WiFi password" autocomplete="off" />
+              </div>
+            </aside>
+
+            <div class="done-actions">
+              <button class="btn-primary" type="button" data-go="review">
+                Continue <span class="arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="btn-ghost" type="button" data-go="review">Skip</button>
+            </div>
+          </div>
         </main>
 
         <!-- ───────────────────── REVIEW (confirm before write) ───────────────────── -->
