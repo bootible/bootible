@@ -36,6 +36,7 @@ interface BootibleApi {
   provision(): Promise<ProvisionResult>;
   onProvisionStep(cb: (event: StepEvent) => void): void;
   onProvisionDone(cb: (result: ProvisionResult) => void): void;
+  exportConfig(groups: string[]): Promise<{ path: string } | null>;
 }
 
 declare global {
@@ -68,10 +69,23 @@ function show(view: string): void {
   document.body.dataset.view = next;
 }
 
+const APPLY_LABELS: Record<string, string> = {
+  usb: "Build USB",
+  export: "Export config",
+  device: "Apply now",
+};
+
+/** Set the review screen's primary-button label to match the chosen method. */
+function setApplyLabel(): void {
+  const method = document.body.dataset.method ?? "device";
+  fill("apply-label", APPLY_LABELS[method] ?? "Apply");
+}
+
 /** Drive the active view from the URL hash so screens are deep-linkable. */
 function syncFromHash(): void {
   const view = location.hash.replace(/^#/, "") || "home";
   show(view);
+  if (view === "review") setApplyLabel();
   if (view === "provision") startProvision();
 }
 
@@ -143,6 +157,7 @@ async function hydrateDevice(): Promise<void> {
     return;
   }
 
+  deviceName = device.name;
   fill("name", device.name);
   fill("system", device.system);
 }
@@ -161,6 +176,7 @@ const GROUP_TAGS: Record<string, string> = {
 };
 
 let catalog: GroupSummary[] = [];
+let deviceName = "ROG Ally X";
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -367,6 +383,55 @@ function startProvision(): void {
 
 window.bootible?.onProvisionStep?.(onProvisionStep);
 window.bootible?.onProvisionDone?.(onProvisionDone);
+
+// ── method actions ─────────────────────────────────────────────────────────
+// The review screen's primary button is method-aware: "export" saves a config
+// file; "run on device" (and, for now, "build USB") enters the provision flow.
+
+/** Group ids of the currently toggled-on setup cards (empty = all). */
+function selectedGroupIds(): string[] {
+  const cards = [...document.querySelectorAll<HTMLElement>(".groups .group")];
+  return catalog.filter((_g, i) => cards[i]?.classList.contains("is-on")).map((g) => g.group);
+}
+
+function receiptRow(key: string, value: string): HTMLElement {
+  const row = el("div", "rline");
+  row.append(el("span", "mark"), el("span", "rkey", key), el("span", "rval", value));
+  return row;
+}
+
+async function runExport(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.exportConfig) return;
+  const result = await api.exportConfig(selectedGroupIds());
+  if (!result) return; // cancelled
+
+  const groups = selectedGroupIds();
+  fill("done-eyebrow", "Exported");
+  fill("done-title", "Config exported");
+  fill("done-sub", "Saved to your machine. Re-apply it any time — or build a USB from it.");
+
+  const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
+  if (receipt) {
+    receipt.replaceChildren(
+      receiptRow("device", deviceName),
+      receiptRow("groups", groups.length ? groups.join(" · ") : "all"),
+      receiptRow("format", "config.yml"),
+      receiptRow("saved", result.path),
+    );
+  }
+  location.hash = "done";
+}
+
+document.addEventListener("click", (event) => {
+  const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-action="apply"]');
+  if (!trigger) return;
+  if ((document.body.dataset.method ?? "device") === "export") {
+    void runExport();
+  } else {
+    location.hash = "provision";
+  }
+});
 
 // First render — run after all declarations so deep-linking #provision is safe.
 syncFromHash();

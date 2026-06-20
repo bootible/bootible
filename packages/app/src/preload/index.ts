@@ -14,6 +14,8 @@ const api = {
   getDevice: (): Promise<DeviceSummary | null> => ipcRenderer.invoke("device:get"),
   getCatalog: (): Promise<GroupSummary[]> => ipcRenderer.invoke("catalog:get"),
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),
+  exportConfig: (groups: string[]): Promise<{ path: string } | null> =>
+    ipcRenderer.invoke("config:export", groups),
   onProvisionStep: (cb: (event: StepEvent) => void): void => {
     ipcRenderer.on("provision:step", (_e, event: StepEvent) => cb(event));
   },

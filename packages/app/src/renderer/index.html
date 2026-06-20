@@ -181,9 +181,9 @@
         <main class="view done" data-view="done">
           <div class="done-inner">
             <span class="done-badge" aria-hidden="true">✓</span>
-            <p class="eyebrow">All set</p>
-            <h1 class="done-title">Your Ally is ready</h1>
-            <p class="done-sub">
+            <p class="eyebrow" data-field="done-eyebrow">All set</p>
+            <h1 class="done-title" data-field="done-title">Your Ally is ready</h1>
+            <p class="done-sub" data-field="done-sub">
               14 steps applied across 4 groups. Your saves and BIOS now follow
               you to your sync target.
             </p>
@@ -335,8 +335,8 @@
             </aside>
 
             <div class="done-actions">
-              <button class="btn-primary" type="button" data-go="provision">
-                Write changes <span class="arrow" aria-hidden="true">→</span>
+              <button class="btn-primary" type="button" data-action="apply">
+                <span data-field="apply-label">Write changes</span> <span class="arrow" aria-hidden="true">→</span>
               </button>
               <button class="btn-ghost" type="button" data-go="setup">Back</button>
             </div>

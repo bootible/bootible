@@ -1,8 +1,9 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   allyCatalog,
   allyExecutor,
+  buildConfig,
   type DeviceEntry,
   type DeviceSummary,
   deviceSummary,
@@ -12,8 +13,9 @@ import {
   loadRegistry,
   type StepEvent,
   selectDevice,
+  serializeConfig,
 } from "@bootible/core";
-import { app, BrowserWindow, ipcMain, type WebContents } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, type WebContents } from "electron";
 
 // NOTE (dev): schemas + registry are resolved relative to the repo root. The
 // packaged app will embed them instead — a follow-on slice. From the built
@@ -43,6 +45,32 @@ function getDevice(): DeviceSummary | null {
 /** The device's module catalog, grouped for the setup screen. */
 function getCatalog(): GroupSummary[] {
   return groupCatalog(allyCatalog);
+}
+
+/**
+ * Method B — serialize the chosen config and let the user save it (a save
+ * dialog; the account sync is a later, separate path). Returns the written
+ * path, or null if cancelled.
+ */
+async function exportConfig(
+  win: BrowserWindow,
+  groups: string[],
+): Promise<{ path: string } | null> {
+  const device = loadDeviceEntry();
+  const config = buildConfig({
+    device: device?.id ?? "rog-ally",
+    groups: groups.length ? groups : undefined,
+  });
+
+  const result = await dialog.showSaveDialog(win, {
+    title: "Export bootible config",
+    defaultPath: "config.yml",
+    filters: [{ name: "YAML", extensions: ["yml", "yaml"] }],
+  });
+  if (result.canceled || !result.filePath) return null;
+
+  writeFileSync(result.filePath, serializeConfig(config), "utf8");
+  return { path: result.filePath };
 }
 
 // bootible's recommended Ally settings — what a default setup would apply.
@@ -121,6 +149,10 @@ app.whenReady().then(() => {
   ipcMain.handle("device:get", () => getDevice());
   ipcMain.handle("catalog:get", () => getCatalog());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
+  ipcMain.handle("config:export", (event, groups: string[]) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? exportConfig(win, groups ?? []) : null;
+  });
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
