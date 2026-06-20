@@ -16,6 +16,15 @@
       "items": { "enum": ["on-device", "host-media-prep", "guided", "android-host"] }
     },
     "os": { "type": "string" },
+    "detect": {
+      "type": "object",
+      "description": "Hardware whitelist for auto-detecting this device on the running machine.",
+      "additionalProperties": false,
+      "properties": {
+        "manufacturer": { "type": "string" },
+        "models": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "body_variant": { "type": "string" },
     "media": {
       "type": "object",

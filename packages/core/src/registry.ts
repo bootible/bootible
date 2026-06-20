@@ -10,11 +10,18 @@ export interface Capabilities {
   none?: string[];
 }
 
+/** Hardware whitelist for auto-detecting a device on the running machine. */
+export interface DeviceDetect {
+  manufacturer?: string;
+  models?: string[];
+}
+
 export interface DeviceEntry {
   id: string;
   name: string;
   provisioning_models: ProvisioningModel[];
   capabilities?: Capabilities;
+  detect?: DeviceDetect;
   [key: string]: unknown;
 }
 

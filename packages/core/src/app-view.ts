@@ -19,16 +19,31 @@ const OS_NAMES: Record<string, string> = {
   macos: "macOS",
 };
 
-/** Map a Node `process.platform` value to a registry `os` id. */
-const PLATFORM_OS: Record<string, string> = {
-  win32: "windows",
-  linux: "linux",
-  darwin: "macos",
-};
+/** What the running machine reports about itself, for hardware detection. */
+export interface SystemInfo {
+  platform: NodeJS.Platform;
+  manufacturer?: string;
+  model?: string;
+}
 
 /** Display name for an `os` registry id, title-casing anything unknown. */
 export function prettyOs(os: string): string {
   return OS_NAMES[os] ?? os.charAt(0).toUpperCase() + os.slice(1);
+}
+
+/** True when the machine matches a device's hardware whitelist (case-insensitive). */
+function matchesHardware(entry: DeviceEntry, system: SystemInfo): boolean {
+  const detect = entry.detect;
+  if (!detect) return false; // no whitelist → never auto-detected
+  if (detect.manufacturer) {
+    const want = detect.manufacturer.toLowerCase();
+    if (!(system.manufacturer ?? "").toLowerCase().includes(want)) return false;
+  }
+  if (detect.models?.length) {
+    const model = (system.model ?? "").toLowerCase();
+    if (!detect.models.some((m) => model.includes(m.toLowerCase()))) return false;
+  }
+  return true;
 }
 
 /** Project a registry entry into the renderer's device view-model. */
@@ -44,13 +59,12 @@ export function deviceSummary(entry: DeviceEntry): DeviceSummary {
 }
 
 /**
- * Pick the registry entry whose `os` matches the running platform. Returns
- * null when nothing matches — the renderer then shows its no-device state.
+ * Pick the registry entry whose hardware whitelist matches this machine. It's
+ * a whitelist, not a greylist: only an explicit hardware match counts, so a
+ * non-handheld (or any device without a `detect` block) returns null and the
+ * renderer shows its no-device state. This is what hard-blocks "Run on device"
+ * from touching the wrong machine.
  */
-export function selectDevice(
-  registry: DeviceEntry[],
-  platform: NodeJS.Platform,
-): DeviceEntry | null {
-  const os = PLATFORM_OS[platform] ?? platform;
-  return registry.find((entry) => typeof entry.os === "string" && entry.os === os) ?? null;
+export function selectDevice(registry: DeviceEntry[], system: SystemInfo): DeviceEntry | null {
+  return registry.find((entry) => matchesHardware(entry, system)) ?? null;
 }

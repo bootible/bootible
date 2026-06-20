@@ -4,6 +4,15 @@ name: ROG Ally / Ally X
 provisioning_models:
   - on-device
 os: windows
+# Hardware whitelist — auto-detected only on a real Ally. RC71L = ROG Ally,
+# RC72LA = ROG Ally X. Confirm the exact model string on-device if detection
+# misses (the wizard shows what it read).
+detect:
+  manufacturer: ASUSTeK
+  models:
+    - RC71L
+    - RC72LA
+    - ROG Ally
 capabilities:
   great:
     - nes

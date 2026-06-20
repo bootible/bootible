@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
@@ -14,6 +15,7 @@ import {
   groupCatalog,
   loadRegistry,
   type StepEvent,
+  type SystemInfo,
   selectDevice,
   serializeConfig,
   type UsbBuildSpec,
@@ -25,13 +27,36 @@ import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from "el
 // main at packages/app/out/main/, the repo root is four levels up.
 const repoRoot = join(__dirname, "../../../../");
 
-/** Load the registry and the device entry matching this platform, or null. */
+/** Read a value from the BIOS hardware key (fast, no WMI), or undefined. */
+function regBios(value: string): string | undefined {
+  try {
+    const out = execFileSync(
+      "reg",
+      ["query", "HKLM\\HARDWARE\\DESCRIPTION\\System\\BIOS", "/v", value],
+      { encoding: "utf8" },
+    );
+    return out.match(new RegExp(`${value}\\s+REG_SZ\\s+(.+)`))?.[1]?.trim();
+  } catch {
+    return undefined;
+  }
+}
+
+/** What this machine reports about itself, for hardware whitelist detection. */
+function getSystemInfo(): SystemInfo {
+  return {
+    platform: process.platform,
+    manufacturer: regBios("SystemManufacturer"),
+    model: regBios("SystemProductName"),
+  };
+}
+
+/** Load the registry and the device whose hardware whitelist matches, or null. */
 function loadDeviceEntry(): DeviceEntry | null {
   const deviceSchema = JSON.parse(
     readFileSync(join(repoRoot, "schemas/device.schema.json"), "utf8"),
   );
   const registry = loadRegistry(join(repoRoot, "registry/devices"), deviceSchema);
-  return selectDevice(registry, process.platform);
+  return selectDevice(registry, getSystemInfo());
 }
 
 /** Project the detected device for the renderer, or null if none matches. */

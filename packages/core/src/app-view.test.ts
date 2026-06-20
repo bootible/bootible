@@ -7,6 +7,7 @@ const ally: DeviceEntry = {
   name: "ROG Ally / Ally X",
   provisioning_models: ["on-device"],
   os: "windows",
+  detect: { manufacturer: "ASUSTeK", models: ["RC71L", "RC72LA"] },
   capabilities: { great: ["nes", "snes", "ps1"], varies: ["switch"] },
 };
 
@@ -52,12 +53,26 @@ describe("deviceSummary", () => {
 });
 
 describe("selectDevice", () => {
-  it("picks the entry whose os matches the platform", () => {
-    expect(selectDevice([deck, ally], "win32")?.id).toBe("rog-ally");
-    expect(selectDevice([deck, ally], "linux")?.id).toBe("steamdeck");
+  it("matches a device by its hardware whitelist (manufacturer + model)", () => {
+    const device = selectDevice([deck, ally], {
+      platform: "win32",
+      manufacturer: "ASUSTeK COMPUTER INC.",
+      model: "RC72LA",
+    });
+    expect(device?.id).toBe("rog-ally");
   });
 
-  it("returns null when nothing matches", () => {
-    expect(selectDevice([deck], "darwin")).toBeNull();
+  it("hard-blocks: returns null on hardware that is not whitelisted", () => {
+    expect(
+      selectDevice([deck, ally], {
+        platform: "win32",
+        manufacturer: "Gigabyte Technology Co., Ltd.",
+        model: "X870E AORUS ELITE WIFI7",
+      }),
+    ).toBeNull();
+  });
+
+  it("returns null for entries without a detect whitelist", () => {
+    expect(selectDevice([deck], { platform: "linux", model: "Jupiter" })).toBeNull();
   });
 });
