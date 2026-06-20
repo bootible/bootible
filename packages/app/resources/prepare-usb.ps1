@@ -38,7 +38,7 @@
 #>
 [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
 param(
-    [Parameter(Mandatory)][string]$BundleDir,
+    [string]$BundleDir = $PSScriptRoot,
     [string]$IsoPath,
     [string]$DriverPath,
     [int]$DiskNumber = -1,

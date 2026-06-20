@@ -1,9 +1,11 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import {
+  type AccountMode,
   allyCatalog,
   allyExecutor,
   buildConfig,
+  buildUsbBundle,
   type DeviceEntry,
   type DeviceSummary,
   deviceSummary,
@@ -14,8 +16,9 @@ import {
   type StepEvent,
   selectDevice,
   serializeConfig,
+  type UsbBuildSpec,
 } from "@bootible/core";
-import { app, BrowserWindow, dialog, ipcMain, type WebContents } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from "electron";
 
 // NOTE (dev): schemas + registry are resolved relative to the repo root. The
 // packaged app will embed them instead — a follow-on slice. From the built
@@ -71,6 +74,49 @@ async function exportConfig(
 
   writeFileSync(result.filePath, serializeConfig(config), "utf8");
   return { path: result.filePath };
+}
+
+export interface UsbBuildRequest {
+  groups: string[];
+  account: { mode: "local" | "microsoft"; username?: string; password?: string };
+  wifi?: { ssid: string; password: string };
+}
+
+/**
+ * Method A — assemble the USB bundle and write it to a staging folder, then
+ * return the path + the prepare-usb.ps1 command that turns it into a stick.
+ * (The destructive, elevated, interactive USB write stays in the script.)
+ */
+function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string } | null {
+  const device = loadDeviceEntry();
+  if (!device) return null;
+
+  const config = buildConfig({
+    device: device.id,
+    groups: req.groups.length ? req.groups : undefined,
+    settings: RECOMMENDED_SETTINGS,
+  });
+  const account: AccountMode =
+    req.account.mode === "local"
+      ? { mode: "local", username: req.account.username || "ally", password: req.account.password }
+      : { mode: "microsoft" };
+  const spec: UsbBuildSpec = { device, config, account, wifi: req.wifi };
+
+  const stagingPath = join(app.getPath("temp"), "bootible-usb-bundle");
+  rmSync(stagingPath, { recursive: true, force: true });
+  for (const file of buildUsbBundle(spec, allyExecutor)) {
+    const dest = join(stagingPath, file.path);
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, file.content, "utf8");
+  }
+
+  // Drop the builder script beside the bundle so it runs in place (its
+  // -BundleDir defaults to its own folder).
+  const script = join(repoRoot, "packages/app/resources/prepare-usb.ps1");
+  copyFileSync(script, join(stagingPath, "prepare-usb.ps1"));
+
+  const command = "Right-click prepare-usb.ps1 in this folder → Run as administrator.";
+  return { stagingPath, command };
 }
 
 // bootible's recommended Ally settings — what a default setup would apply.
@@ -153,6 +199,8 @@ app.whenReady().then(() => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win ? exportConfig(win, groups ?? []) : null;
   });
+  ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
+  ipcMain.handle("shell:open", (_event, path: string) => shell.openPath(path));
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

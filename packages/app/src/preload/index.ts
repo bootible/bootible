@@ -6,6 +6,12 @@ export interface ProvisionResult {
   skipped: number;
 }
 
+export interface UsbBuildRequest {
+  groups: string[];
+  account: { mode: "local" | "microsoft"; username?: string; password?: string };
+  wifi?: { ssid: string; password: string };
+}
+
 // The renderer surface. Each call forwards to a main-process IPC handler that
 // drives @bootible/core. Provisioning streams step events back over the
 // provision:step / provision:done channels.
@@ -16,6 +22,9 @@ const api = {
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),
   exportConfig: (groups: string[]): Promise<{ path: string } | null> =>
     ipcRenderer.invoke("config:export", groups),
+  buildUsb: (req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null> =>
+    ipcRenderer.invoke("usb:build", req),
+  openPath: (path: string): Promise<string> => ipcRenderer.invoke("shell:open", path),
   onProvisionStep: (cb: (event: StepEvent) => void): void => {
     ipcRenderer.on("provision:step", (_e, event: StepEvent) => cb(event));
   },

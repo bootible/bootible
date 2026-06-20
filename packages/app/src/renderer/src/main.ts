@@ -29,6 +29,12 @@ interface ProvisionResult {
   skipped: number;
 }
 
+interface UsbBuildRequest {
+  groups: string[];
+  account: { mode: "local" | "microsoft"; username?: string; password?: string };
+  wifi?: { ssid: string; password: string };
+}
+
 interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
@@ -37,6 +43,8 @@ interface BootibleApi {
   onProvisionStep(cb: (event: StepEvent) => void): void;
   onProvisionDone(cb: (result: ProvisionResult) => void): void;
   exportConfig(groups: string[]): Promise<{ path: string } | null>;
+  buildUsb(req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null>;
+  openPath(path: string): Promise<string>;
 }
 
 declare global {
@@ -435,14 +443,54 @@ async function runExport(): Promise<void> {
   location.hash = "done";
 }
 
+/** Gather the USB build inputs from the wizard's account + WiFi fields. */
+function gatherUsbRequest(): UsbBuildRequest {
+  const val = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.value.trim() ?? "";
+  const mode = document.body.dataset.account === "microsoft" ? "microsoft" : "local";
+  const account =
+    mode === "local"
+      ? { mode, username: val("#acct-user") || "ally", password: val("#acct-pass") || undefined }
+      : { mode };
+  const ssid = val("#wifi-ssid");
+  const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
+  return { groups: selectedGroupIds(), account, wifi };
+}
+
+async function runBuildUsb(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.buildUsb) return;
+  const result = await api.buildUsb(gatherUsbRequest());
+  if (!result) return;
+
+  const account = document.body.dataset.account === "microsoft" ? "Microsoft" : "local";
+  const ssid = document.querySelector<HTMLInputElement>("#wifi-ssid")?.value.trim();
+  fill("done-eyebrow", "USB bundle ready");
+  fill("done-title", "Bundle staged for your USB");
+  fill(
+    "done-sub",
+    "The folder's open. Run prepare-usb.ps1 in it as administrator to write the stick — it fetches Windows + the WiFi driver, then asks which drive to erase.",
+  );
+
+  const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
+  if (receipt) {
+    receipt.replaceChildren(
+      receiptRow("device", deviceName),
+      receiptRow("account", account),
+      receiptRow("wifi", ssid ? ssid : "none"),
+      receiptRow("staged", result.stagingPath),
+    );
+  }
+  void api.openPath?.(result.stagingPath);
+  location.hash = "done";
+}
+
 document.addEventListener("click", (event) => {
   const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-action="apply"]');
   if (!trigger) return;
-  if ((document.body.dataset.method ?? "device") === "export") {
-    void runExport();
-  } else {
-    location.hash = "provision";
-  }
+  const method = document.body.dataset.method ?? "device";
+  if (method === "export") void runExport();
+  else if (method === "usb") void runBuildUsb();
+  else location.hash = "provision";
 });
 
 // First render — run after all declarations so deep-linking #provision is safe.
