@@ -57,6 +57,10 @@ body[data-view="setup"] .view[data-view="setup"] {
   display: flex;
 }
 
+body[data-view="method"] .view[data-view="method"] {
+  display: flex;
+}
+
 body[data-view="provision"] .view[data-view="provision"] {
   display: grid;
 }
@@ -732,6 +736,79 @@ body[data-view="connect"] .view[data-view="connect"] {
   margin-top: 28px;
   display: flex;
   gap: 12px;
+}
+
+/* ───────────────────── method screen ───────────────────── */
+.method-list {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 760px;
+}
+
+.method-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 20px;
+  text-align: left;
+  font-family: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 22px 24px;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.method-card:hover {
+  border-color: #3a3f48;
+  transform: translateY(-1px);
+}
+
+.method-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  background: var(--signal-soft);
+  color: var(--signal);
+  font-size: 20px;
+}
+
+.method-name {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.method-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+.method-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.method-card .arrow {
+  color: var(--signal);
+  font-size: 18px;
+  transition: transform 0.12s ease;
+}
+
+.method-card:hover .arrow {
+  transform: translateX(3px);
 }
 
 /* ───────────────────── restore screen ───────────────────── */

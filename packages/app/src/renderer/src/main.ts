@@ -46,6 +46,7 @@ declare global {
 
 const VIEWS = [
   "home",
+  "method",
   "setup",
   "review",
   "connect",
@@ -74,10 +75,15 @@ function syncFromHash(): void {
   if (view === "provision") startProvision();
 }
 
-// Navigation: any [data-go] control sets the hash, which drives the view.
+// Navigation: any [data-go] control sets the hash, which drives the view. A
+// [data-method] control also records which provisioning method was chosen.
 document.addEventListener("click", (event) => {
   const trigger = (event.target as HTMLElement).closest<HTMLElement>("[data-go]");
   if (!trigger) return;
+  const method = trigger.dataset.method;
+  if (method === "usb" || method === "export" || method === "device") {
+    document.body.dataset.method = method;
+  }
   const target = trigger.dataset.go;
   if (target) location.hash = target;
 });

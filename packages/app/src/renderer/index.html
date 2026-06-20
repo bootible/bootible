@@ -27,7 +27,7 @@
             <p class="device-sub">Windows 11 handheld — detected on this machine.</p>
 
             <div class="actions">
-              <button class="btn-primary" type="button" data-go="setup">
+              <button class="btn-primary" type="button" data-go="method">
                 Set up this device <span class="arrow" aria-hidden="true">→</span>
               </button>
               <button class="btn-ghost" type="button" data-go="restore">Restore a backup</button>
@@ -42,6 +42,44 @@
             <div class="rline"><span class="mark"></span><span class="rkey">backup</span><span class="rval">none found<span class="cursor"></span></span></div>
             <p class="readout-foot">Nothing on your device changes until you confirm.</p>
           </aside>
+        </main>
+
+        <!-- ───────────────────── METHOD ───────────────────── -->
+        <main class="view setup" data-view="method">
+          <div class="setup-head">
+            <p class="eyebrow">Choose a method</p>
+            <h1 class="setup-title">How should we set up your Ally?</h1>
+            <p class="setup-sub">Same config, three ways to apply it — pick what fits.</p>
+          </div>
+
+          <div class="method-list">
+            <button class="method-card" type="button" data-method="usb" data-go="setup">
+              <span class="method-icon" aria-hidden="true">▤</span>
+              <span class="method-main">
+                <span class="method-name">Build a USB</span>
+                <span class="method-desc">Make a bootable stick that wipes, installs Windows and configures the Ally hands-off.</span>
+              </span>
+              <span class="method-meta"><span class="group-tag">zero-touch</span><span class="arrow" aria-hidden="true">→</span></span>
+            </button>
+
+            <button class="method-card" type="button" data-method="export" data-go="setup">
+              <span class="method-icon" aria-hidden="true">▦</span>
+              <span class="method-main">
+                <span class="method-name">Export the config</span>
+                <span class="method-desc">Save this setup to your bootible account and a local file to reuse any time.</span>
+              </span>
+              <span class="method-meta"><span class="group-tag">save</span><span class="arrow" aria-hidden="true">→</span></span>
+            </button>
+
+            <button class="method-card" type="button" data-method="device" data-go="setup">
+              <span class="method-icon" aria-hidden="true">▣</span>
+              <span class="method-main">
+                <span class="method-name">Run on this device</span>
+                <span class="method-desc">Apply the config now, on a Windows that's already installed — with restore points.</span>
+              </span>
+              <span class="method-meta"><span class="group-tag">on-device</span><span class="arrow" aria-hidden="true">→</span></span>
+            </button>
+          </div>
         </main>
 
         <!-- ───────────────────── SETUP ───────────────────── -->
