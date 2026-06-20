@@ -1,4 +1,10 @@
-import type { DeviceSummary, GroupSummary, ModuleStateReport, StepEvent } from "@bootible/core";
+import type {
+  DeviceSummary,
+  GroupSummary,
+  ModuleStateReport,
+  ProvisioningMethod,
+  StepEvent,
+} from "@bootible/core";
 import { contextBridge, ipcRenderer } from "electron";
 
 export interface ProvisionResult {
@@ -20,6 +26,7 @@ const api = {
   getDevice: (): Promise<DeviceSummary | null> => ipcRenderer.invoke("device:get"),
   getCatalog: (): Promise<GroupSummary[]> => ipcRenderer.invoke("catalog:get"),
   getState: (): Promise<ModuleStateReport[]> => ipcRenderer.invoke("device:state"),
+  getMethods: (): Promise<ProvisioningMethod[]> => ipcRenderer.invoke("methods:get"),
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),
   exportConfig: (groups: string[]): Promise<{ path: string } | null> =>
     ipcRenderer.invoke("config:export", groups),

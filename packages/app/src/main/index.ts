@@ -17,6 +17,8 @@ import {
   groupCatalog,
   loadRegistry,
   type ModuleStateReport,
+  type ProvisioningMethod,
+  provisioningMethods,
   type StepEvent,
   type SystemInfo,
   selectDevice,
@@ -92,6 +94,13 @@ function getDevice(): DeviceSummary | null {
 /** The device's module catalog, grouped for the setup screen. */
 function getCatalog(): GroupSummary[] {
   return groupCatalog(allyCatalog);
+}
+
+/** Provisioning methods for the target device — derived from its registry
+ *  provisioning_models, so the method screen supports any device type. */
+function getMethods(): ProvisioningMethod[] {
+  const device = targetDevice();
+  return device ? provisioningMethods(device) : [];
 }
 
 /** Probe current module state on the detected device (read-only). [] off-device. */
@@ -304,6 +313,7 @@ app.whenReady().then(() => {
   ipcMain.handle("device:get", () => getDevice());
   ipcMain.handle("device:state", () => getDeviceState());
   ipcMain.handle("catalog:get", () => getCatalog());
+  ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, groups: string[]) => {
     const win = BrowserWindow.fromWebContents(event.sender);

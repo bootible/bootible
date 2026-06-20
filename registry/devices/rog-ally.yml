@@ -2,6 +2,7 @@
 id: rog-ally
 name: ROG Ally / Ally X
 provisioning_models:
+  - host-media-prep
   - on-device
 os: windows
 # Hardware whitelist — auto-detected only on a real Ally. RC71L = ROG Ally,

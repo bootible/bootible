@@ -42,11 +42,19 @@ interface ModuleStateReport {
   state: "applied" | "pending" | "unknown";
 }
 
+interface ProvisioningMethod {
+  id: string;
+  label: string;
+  description: string;
+  tag: string;
+}
+
 interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
   getCatalog(): Promise<GroupSummary[]>;
   getState(): Promise<ModuleStateReport[]>;
+  getMethods(): Promise<ProvisioningMethod[]>;
   provision(): Promise<ProvisionResult>;
   onProvisionStep(cb: (event: StepEvent) => void): void;
   onProvisionDone(cb: (result: ProvisionResult) => void): void;
@@ -344,6 +352,57 @@ async function hydrateState(): Promise<void> {
 }
 
 void hydrateCatalog();
+
+// ── method selector (data-driven from the device's provisioning_models) ──────
+const METHOD_ICONS: Record<string, string> = {
+  usb: "▤",
+  export: "▦",
+  device: "▣",
+  android: "▥",
+  guided: "◆",
+};
+
+async function hydrateMethods(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getMethods) return; // browser: keep the static Ally cards
+
+  let methods: ProvisioningMethod[];
+  try {
+    methods = await api.getMethods();
+  } catch {
+    return;
+  }
+  const list = document.querySelector<HTMLElement>(".method-list");
+  if (!list || methods.length === 0) return;
+
+  list.replaceChildren(
+    ...methods.map((method) => {
+      const btn = el("button", "method-card") as HTMLButtonElement;
+      btn.type = "button";
+      btn.dataset.method = method.id;
+      btn.dataset.go = "setup";
+
+      const icon = el("span", "method-icon", METHOD_ICONS[method.id] ?? "▤");
+      icon.setAttribute("aria-hidden", "true");
+
+      const main = el("span", "method-main");
+      main.append(
+        el("span", "method-name", method.label),
+        el("span", "method-desc", method.description),
+      );
+
+      const meta = el("span", "method-meta");
+      const arrow = el("span", "arrow", "→");
+      arrow.setAttribute("aria-hidden", "true");
+      meta.append(el("span", "group-tag", method.tag), arrow);
+
+      btn.append(icon, main, meta);
+      return btn;
+    }),
+  );
+}
+
+void hydrateMethods();
 
 // ── provisioning (dry run) ─────────────────────────────────────────────────
 // Entering #provision streams real module step events from the executor into

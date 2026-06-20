@@ -47,6 +47,8 @@ export type {
 export { restore } from "./orchestrator";
 export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
+export type { ProvisioningMethod, ProvisioningMethodId } from "./provisioning";
+export { provisioningMethods } from "./provisioning";
 export type { Capabilities, DeviceEntry, ProvisioningModel } from "./registry";
 export { loadRegistry, parseDeviceEntry } from "./registry";
 export { getCheckpointCommand, getEnableRestoreCommands } from "./restore-points";
