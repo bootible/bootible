@@ -28,6 +28,8 @@ export type {
   StepStatus,
 } from "./modules";
 export { GROUP_META, groupCatalog } from "./modules";
+export type { OnboardOptions, OnboardReceipt } from "./onboard";
+export { FRESH_RESTORE_POINT, onboard, POST_CONFIG_RESTORE_POINT } from "./onboard";
 export { getServiceTrimCommands } from "./optimization";
 export type {
   ApplyContext,
@@ -41,6 +43,7 @@ export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
 export type { Capabilities, DeviceEntry, ProvisioningModel } from "./registry";
 export { loadRegistry, parseDeviceEntry } from "./registry";
+export { getCheckpointCommand, getEnableRestoreCommands } from "./restore-points";
 export { findSchemaUrl } from "./schema-header";
 export type { Exec, SecretProvider } from "./secrets";
 export {
