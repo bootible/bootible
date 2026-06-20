@@ -23,5 +23,8 @@ extraResources:
     to: prepare-usb.ps1
 win:
   target: portable
-  requestedExecutionLevel: requireAdministrator
+  # asInvoker: the app launches without a UAC prompt. The actions that need
+  # admin (Run-on-device apply, prepare-usb.ps1) self-elevate their own child
+  # process when run, so the app itself doesn't need elevation.
+  requestedExecutionLevel: asInvoker
   artifactName: ${productName}.${ext}
