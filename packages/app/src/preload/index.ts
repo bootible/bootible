@@ -25,6 +25,8 @@ const api = {
   buildUsb: (req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null> =>
     ipcRenderer.invoke("usb:build", req),
   openPath: (path: string): Promise<string> => ipcRenderer.invoke("shell:open", path),
+  applyDevice: (req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }> =>
+    ipcRenderer.invoke("device:apply", req),
   onProvisionStep: (cb: (event: StepEvent) => void): void => {
     ipcRenderer.on("provision:step", (_e, event: StepEvent) => cb(event));
   },

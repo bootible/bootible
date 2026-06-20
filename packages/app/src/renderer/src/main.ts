@@ -45,6 +45,7 @@ interface BootibleApi {
   exportConfig(groups: string[]): Promise<{ path: string } | null>;
   buildUsb(req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null>;
   openPath(path: string): Promise<string>;
+  applyDevice(req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }>;
 }
 
 declare global {
@@ -484,13 +485,49 @@ async function runBuildUsb(): Promise<void> {
   location.hash = "done";
 }
 
+async function runApplyDevice(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.applyDevice) {
+    location.hash = "provision"; // browser/no-preload: fall back to the dry-run preview
+    return;
+  }
+  const result = await api.applyDevice({ groups: selectedGroupIds(), account: { mode: "local" } });
+  if (result.status === "cancelled") return;
+
+  const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
+  if (result.status === "blocked") {
+    fill("done-eyebrow", "Blocked");
+    fill("done-title", "Not a recognised handheld");
+    fill(
+      "done-sub",
+      "Run on device only works on a whitelisted ROG Ally. From here you can still build a USB or export a config for one.",
+    );
+    receipt?.replaceChildren(receiptRow("apply", "hard-blocked — no Ally detected"));
+    location.hash = "done";
+    return;
+  }
+
+  fill("done-eyebrow", "Applying");
+  fill("done-title", "Configuring your Ally");
+  fill(
+    "done-sub",
+    "An elevated window is running the setup. Restore points are taken before and after — you can roll back any time.",
+  );
+  receipt?.replaceChildren(
+    receiptRow("device", deviceName),
+    receiptRow("restore", "fresh + post-config"),
+    receiptRow("log", "C:\\bootible\\bootstrap.log"),
+  );
+  location.hash = "done";
+}
+
 document.addEventListener("click", (event) => {
   const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-action="apply"]');
   if (!trigger) return;
   const method = document.body.dataset.method ?? "device";
   if (method === "export") void runExport();
   else if (method === "usb") void runBuildUsb();
-  else location.hash = "provision";
+  else void runApplyDevice();
 });
 
 // First render — run after all declarations so deep-linking #provision is safe.

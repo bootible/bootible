@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
@@ -12,6 +12,7 @@ import {
   deviceSummary,
   type Exec,
   type GroupSummary,
+  generateBootstrapScript,
   groupCatalog,
   loadRegistry,
   type StepEvent,
@@ -144,6 +145,56 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
   return { stagingPath, command };
 }
 
+/**
+ * Method C — apply the config live on THIS device. Hard-blocked unless the
+ * machine matches a device whitelist, then confirmed, then run as an elevated
+ * bootstrap (restore points + modules) in its own window. Never touches a
+ * machine that isn't a recognised handheld.
+ */
+async function applyDevice(
+  win: BrowserWindow,
+  req: UsbBuildRequest,
+): Promise<{ status: "blocked" | "cancelled" | "launched" }> {
+  const device = loadDeviceEntry();
+  if (!device) return { status: "blocked" };
+
+  const confirm = await dialog.showMessageBox(win, {
+    type: "warning",
+    buttons: ["Cancel", "Apply now"],
+    defaultId: 0,
+    cancelId: 0,
+    title: "Apply bootible config",
+    message: `Reconfigure this ${device.name}?`,
+    detail:
+      "bootible will take a 'Fresh Windows' restore point, then apply the selected modules (power, registry tweaks, services, app installs), then a 'configured' restore point. An elevated PowerShell window opens to run it.",
+  });
+  if (confirm.response !== 1) return { status: "cancelled" };
+
+  const config = buildConfig({
+    device: device.id,
+    groups: req.groups.length ? req.groups : undefined,
+    settings: RECOMMENDED_SETTINGS,
+  });
+  const script = generateBootstrapScript({ device, config, executorFactory: allyExecutor });
+  const dir = join(app.getPath("temp"), "bootible-apply");
+  mkdirSync(dir, { recursive: true });
+  const scriptPath = join(dir, "bootstrap.ps1");
+  writeFileSync(scriptPath, script, "utf8");
+
+  // Launch elevated (UAC) in its own window so the user sees the live work.
+  spawn(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-Command",
+      `Start-Process powershell -Verb RunAs -ArgumentList '-NoExit','-ExecutionPolicy','Bypass','-File','${scriptPath}'`,
+    ],
+    { detached: true, stdio: "ignore" },
+  ).unref();
+
+  return { status: "launched" };
+}
+
 // bootible's recommended Ally settings — what a default setup would apply.
 const RECOMMENDED_SETTINGS = {
   sleep_mode: "hibernate",
@@ -226,6 +277,10 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
   ipcMain.handle("shell:open", (_event, path: string) => shell.openPath(path));
+  ipcMain.handle("device:apply", (event, req: UsbBuildRequest) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? applyDevice(win, req) : { status: "blocked" };
+  });
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
