@@ -49,6 +49,18 @@ describe("allyExecutor", () => {
     expect(receipt.actions.length).toBeGreaterThan(0);
   });
 
+  it("runs only the selected groups when config.groups is set", () => {
+    const events: StepEvent[] = [];
+    allyExecutor(() => "").apply(
+      { device, config: { schema: 2, device: "rog-ally", groups: ["apps"] } },
+      (e) => events.push(e),
+    );
+    const groups = new Set(events.map((e) => e.group));
+    expect(groups).toEqual(new Set(["apps"]));
+    // a system module like power must not have run
+    expect(events.some((e) => e.moduleId === "power")).toBe(false);
+  });
+
   it("streams a running event then a terminal status for every module", () => {
     const events: StepEvent[] = [];
     allyExecutor(() => "").apply({ device, config: { schema: 2, device: "rog-ally" } }, (e) =>

@@ -18,7 +18,7 @@ export type {
   SyncTargetSpec,
   TargetsManifest,
 } from "./config";
-export { deepMerge, loadArtifact } from "./config";
+export { buildConfig, deepMerge, loadArtifact, serializeConfig } from "./config";
 export { getDisplayTweakCommands } from "./display";
 export type {
   BootibleModule,
@@ -29,7 +29,7 @@ export type {
   StepListener,
   StepStatus,
 } from "./modules";
-export { GROUP_META, groupCatalog } from "./modules";
+export { GROUP_META, groupCatalog, selectModules } from "./modules";
 export type { OnboardOptions, OnboardReceipt } from "./onboard";
 export { FRESH_RESTORE_POINT, onboard, POST_CONFIG_RESTORE_POINT } from "./onboard";
 export { getServiceTrimCommands } from "./optimization";

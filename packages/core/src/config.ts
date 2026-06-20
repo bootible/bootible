@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { stringify } from "yaml";
 import { parseValidatedYaml } from "./validate-schema";
 
 type Plain = Record<string, unknown>;
@@ -24,7 +25,35 @@ export function deepMerge<T extends object>(base: T, override: Partial<T>): T {
 export interface BootibleConfig {
   schema: number;
   device: string;
+  /** Selected module groups; absent = all groups. */
+  groups?: string[];
+  /** Device settings consumed by modules (e.g. power options). */
+  settings?: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+/**
+ * The shared, reusable config artifact — the keystone every method produces or
+ * consumes: "Export" saves it, "Build USB" bakes it in, "Run on device"
+ * applies it. Account mode and WiFi are install-time inputs (see UsbBuildSpec),
+ * not part of the saved config, so secrets never land in a reusable file.
+ */
+export function buildConfig(opts: {
+  device: string;
+  groups?: string[];
+  settings?: Record<string, unknown>;
+}): BootibleConfig {
+  return {
+    schema: 2,
+    device: opts.device,
+    ...(opts.groups ? { groups: opts.groups } : {}),
+    ...(opts.settings ? { settings: opts.settings } : {}),
+  };
+}
+
+/** Serialize a config to YAML for `.bootible/config.yml` (and account export). */
+export function serializeConfig(config: BootibleConfig): string {
+  return stringify(config);
 }
 
 export interface SyncTargetSpec {

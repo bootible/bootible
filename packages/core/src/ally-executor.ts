@@ -1,5 +1,5 @@
 import { allyCatalog } from "./ally-modules";
-import type { StepListener } from "./modules";
+import { type StepListener, selectModules } from "./modules";
 import type { ApplyContext, Executor, ExecutorReceipt } from "./orchestrator";
 import type { Exec } from "./secrets";
 
@@ -13,8 +13,9 @@ export function allyExecutor(exec: Exec): Executor {
   return {
     apply(ctx: ApplyContext, onStep?: StepListener): ExecutorReceipt {
       const actions: string[] = [];
+      const modules = selectModules(allyCatalog, ctx.config.groups);
 
-      for (const mod of allyCatalog) {
+      for (const mod of modules) {
         const base = { moduleId: mod.id, name: mod.name, group: mod.group };
         onStep?.({ ...base, status: "running" });
         try {

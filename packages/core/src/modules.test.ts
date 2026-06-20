@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BootibleModule } from "./modules";
-import { groupCatalog } from "./modules";
+import { groupCatalog, selectModules } from "./modules";
 
 const noop = () => ({ status: "skipped" as const });
 
@@ -29,5 +29,20 @@ describe("groupCatalog", () => {
   it("omits groups that have no modules", () => {
     const groups = groupCatalog(mods);
     expect(groups.some((g) => g.group === "library")).toBe(false);
+  });
+});
+
+describe("selectModules", () => {
+  it("returns everything when no groups are given", () => {
+    expect(selectModules(mods)).toHaveLength(mods.length);
+  });
+
+  it("keeps only modules in the selected groups", () => {
+    const picked = selectModules(mods, ["system"]);
+    expect(picked.map((m) => m.id)).toEqual(["power", "display"]);
+  });
+
+  it("returns nothing when no selected group matches", () => {
+    expect(selectModules(mods, ["library"])).toEqual([]);
   });
 });
