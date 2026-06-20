@@ -3,6 +3,13 @@ export { allyCatalog } from "./ally-modules";
 export type { DeviceSummary } from "./app-view";
 export { deviceSummary, prettyOs, selectDevice } from "./app-view";
 export type {
+  AccountMode,
+  AutounattendConfig,
+  LocalAccountMode,
+  MicrosoftAccountMode,
+} from "./autounattend";
+export { generateAutounattend, generateWifiProfileXml } from "./autounattend";
+export type {
   Artifact,
   ArtifactSchemas,
   BootibleConfig,
