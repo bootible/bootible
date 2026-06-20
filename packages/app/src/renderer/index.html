@@ -260,26 +260,29 @@
           </div>
         </main>
 
-        <!-- ───────────────────── EMPTY (no device) ───────────────────── -->
+        <!-- ───────────────────── EMPTY / HOST MODE (no device here) ───────────────────── -->
         <main class="view done" data-view="empty">
-          <div class="done-inner">
+          <div class="done-inner done-inner--wide">
             <span class="seek-badge" aria-hidden="true"></span>
-            <p class="eyebrow">No device found</p>
-            <h1 class="done-title">Plug in your handheld</h1>
+            <p class="eyebrow">No handheld here</p>
+            <h1 class="done-title">Set up a handheld from this PC</h1>
             <p class="done-sub">
-              Connect your ROG Ally or Steam Deck to this PC and bootible will
-              pick it up automatically.
+              This machine isn't a handheld, and bootible can't reach one over a
+              cable — it configures a device only when run on the device itself.
+              From here you can build a setup USB or export a config for your Ally.
             </p>
 
-            <aside class="readout" aria-label="Detection status">
-              <div class="rline"><span class="mark"></span><span class="rkey">scan</span><span class="rval">searching for devices<span class="cursor"></span></span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">usb</span><span class="rval muted">no handheld on the bus</span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">found</span><span class="rval muted">none yet</span></div>
+            <aside class="readout" aria-label="What you can do here">
+              <div class="rline"><span class="mark"></span><span class="rkey">build usb</span><span class="rval">wipe + install + configure, hands-off</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">export</span><span class="rval">save a config to reuse later</span></div>
+              <div class="rline"><span class="mark"></span><span class="rkey">on device</span><span class="rval muted">run bootible on the Ally to apply live</span></div>
             </aside>
 
             <div class="done-actions">
-              <button class="btn-primary" type="button" data-go="home">Scan again</button>
-              <button class="btn-ghost" type="button" data-go="setup">Choose manually</button>
+              <button class="btn-primary" type="button" data-method="usb" data-go="setup">
+                Build a USB <span class="arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="btn-ghost" type="button" data-method="export" data-go="setup">Export a config</button>
             </div>
           </div>
         </main>

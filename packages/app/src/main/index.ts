@@ -57,13 +57,25 @@ function getSystemInfo(): SystemInfo {
   };
 }
 
-/** Load the registry and the device whose hardware whitelist matches, or null. */
-function loadDeviceEntry(): DeviceEntry | null {
+/** Load + validate the device registry. */
+function loadRegistryEntries(): DeviceEntry[] {
   const deviceSchema = JSON.parse(
     readFileSync(join(dataRoot, "schemas/device.schema.json"), "utf8"),
   );
-  const registry = loadRegistry(join(dataRoot, "registry/devices"), deviceSchema);
-  return selectDevice(registry, getSystemInfo());
+  return loadRegistry(join(dataRoot, "registry/devices"), deviceSchema);
+}
+
+/** The device THIS machine is (hardware whitelist match), or null — used by
+ *  detection, on-device state, and the hard-blocked Run-on-device apply. */
+function loadDeviceEntry(): DeviceEntry | null {
+  return selectDevice(loadRegistryEntries(), getSystemInfo());
+}
+
+/** The device we build media / configs FOR (host-side). Defaults to the Ally;
+ *  this works from any PC, since you build a handheld's USB from your desktop. */
+function targetDevice(): DeviceEntry | null {
+  const registry = loadRegistryEntries();
+  return registry.find((d) => d.id === "rog-ally") ?? registry[0] ?? null;
 }
 
 /** Project the detected device for the renderer, or null if none matches. */
@@ -107,7 +119,7 @@ async function exportConfig(
   win: BrowserWindow,
   groups: string[],
 ): Promise<{ path: string } | null> {
-  const device = loadDeviceEntry();
+  const device = targetDevice();
   const config = buildConfig({
     device: device?.id ?? "rog-ally",
     groups: groups.length ? groups : undefined,
@@ -136,7 +148,7 @@ export interface UsbBuildRequest {
  * (The destructive, elevated, interactive USB write stays in the script.)
  */
 function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string } | null {
-  const device = loadDeviceEntry();
+  const device = targetDevice();
   if (!device) return null;
 
   const config = buildConfig({
