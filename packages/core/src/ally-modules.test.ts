@@ -110,6 +110,24 @@ describe("allyCatalog", () => {
     expect(calls.some((c) => c.includes("HwSchMode"))).toBe(true);
   });
 
+  it("power.check reads HibernateEnabled (applied when on, pending when off)", () => {
+    const power = allyCatalog.find((m) => m.id === "power");
+    const ctx = { device, config: { schema: 2 as const, device: "rog-ally" } };
+    const on = (cmd: string[]) =>
+      cmd.includes("HibernateEnabled") ? "    HibernateEnabled    REG_DWORD    0x1" : "";
+    const off = (cmd: string[]) =>
+      cmd.includes("HibernateEnabled") ? "    HibernateEnabled    REG_DWORD    0x0" : "";
+    expect(power?.check?.(ctx, on)).toBe("applied");
+    expect(power?.check?.(ctx, off)).toBe("pending");
+  });
+
+  it("steam.check reports applied only when winget lists the package", () => {
+    const steam = allyCatalog.find((m) => m.id === "steam");
+    const ctx = { device, config: { schema: 2 as const, device: "rog-ally" } };
+    expect(steam?.check?.(ctx, () => "Valve.Steam  Steam  1.0")).toBe("applied");
+    expect(steam?.check?.(ctx, () => "No installed package found")).toBe("pending");
+  });
+
   it("declares not-yet-ported modules as skipped without running anything", () => {
     const controller = allyCatalog.find((m) => m.id === "controller");
     expect(controller).toBeDefined();

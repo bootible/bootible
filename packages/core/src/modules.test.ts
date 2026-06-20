@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BootibleModule } from "./modules";
-import { groupCatalog, selectModules } from "./modules";
+import { checkModules, groupCatalog, selectModules } from "./modules";
+import type { ApplyContext } from "./orchestrator";
 
 const noop = () => ({ status: "skipped" as const });
 
@@ -29,6 +30,33 @@ describe("groupCatalog", () => {
   it("omits groups that have no modules", () => {
     const groups = groupCatalog(mods);
     expect(groups.some((g) => g.group === "library")).toBe(false);
+  });
+});
+
+describe("checkModules", () => {
+  const ctx: ApplyContext = {
+    device: { id: "x", name: "X", provisioning_models: ["on-device"] },
+    config: { schema: 2, device: "x" },
+  };
+
+  it("reports each module's probed state; no check or a throw → unknown", () => {
+    const probed: BootibleModule[] = [
+      { id: "a", name: "A", group: "system", summary: "", apply: noop, check: () => "applied" },
+      {
+        id: "b",
+        name: "B",
+        group: "system",
+        summary: "",
+        apply: noop,
+        check: () => {
+          throw new Error("probe failed");
+        },
+      },
+      { id: "c", name: "C", group: "apps", summary: "", apply: noop },
+    ];
+    const report = checkModules(probed, ctx, () => "");
+    expect(report.map((r) => r.state)).toEqual(["applied", "unknown", "unknown"]);
+    expect(report[0]).toMatchObject({ id: "a", group: "system" });
   });
 });
 

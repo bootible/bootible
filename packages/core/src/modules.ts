@@ -13,6 +13,9 @@ export interface ModuleResult {
   actions?: string[];
 }
 
+/** Whether a module's effect is already present on the running device. */
+export type ModuleState = "applied" | "pending" | "unknown";
+
 /** A single unit of device setup, grouped for presentation. */
 export interface BootibleModule {
   id: string;
@@ -20,6 +23,38 @@ export interface BootibleModule {
   group: ModuleGroup;
   summary: string;
   apply(ctx: ApplyContext, exec: Exec): ModuleResult;
+  /**
+   * Read-only probe of current state — runs no-change commands (reg query,
+   * sc qc, winget list, powercfg) so the UI can show "already set" vs "will
+   * change" before applying. Omitted on planned modules.
+   */
+  check?(ctx: ApplyContext, exec: Exec): ModuleState;
+}
+
+export interface ModuleStateReport {
+  id: string;
+  name: string;
+  group: ModuleGroup;
+  state: ModuleState;
+}
+
+/** Probe each module's current state (read-only). Errors map to "unknown". */
+export function checkModules(
+  modules: BootibleModule[],
+  ctx: ApplyContext,
+  exec: Exec,
+): ModuleStateReport[] {
+  return modules.map((module) => {
+    let state: ModuleState = "unknown";
+    if (module.check) {
+      try {
+        state = module.check(ctx, exec);
+      } catch {
+        state = "unknown";
+      }
+    }
+    return { id: module.id, name: module.name, group: module.group, state };
+  });
 }
 
 export type StepStatus = "running" | "applied" | "skipped" | "failed";

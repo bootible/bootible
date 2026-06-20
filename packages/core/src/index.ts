@@ -27,11 +27,13 @@ export type {
   GroupSummary,
   ModuleGroup,
   ModuleResult,
+  ModuleState,
+  ModuleStateReport,
   StepEvent,
   StepListener,
   StepStatus,
 } from "./modules";
-export { GROUP_META, groupCatalog, selectModules } from "./modules";
+export { checkModules, GROUP_META, groupCatalog, selectModules } from "./modules";
 export type { OnboardOptions, OnboardReceipt } from "./onboard";
 export { FRESH_RESTORE_POINT, onboard, POST_CONFIG_RESTORE_POINT } from "./onboard";
 export { getServiceTrimCommands } from "./optimization";

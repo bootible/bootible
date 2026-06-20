@@ -1,9 +1,22 @@
 import { getDisplayTweakCommands } from "./display";
-import type { BootibleModule, ModuleGroup } from "./modules";
+import type { BootibleModule, ModuleGroup, ModuleState } from "./modules";
 import { getServiceTrimCommands } from "./optimization";
 import { getPowerConfigCommands } from "./power";
+import type { Exec } from "./secrets";
 import { getWindowsDefaultsCommands } from "./windows-defaults";
 import { getWingetInstallCommands } from "./winget";
+
+/** Read a REG_DWORD value via `reg query`, or null if absent/unreadable. */
+function regDword(exec: Exec, path: string, name: string): number | null {
+  const out = exec(["reg", "query", path, "/v", name]);
+  const match = out.match(/REG_DWORD\s+0x([0-9a-fA-F]+)/);
+  return match ? Number.parseInt(match[1] ?? "", 16) : null;
+}
+
+/** "applied" when a registry DWORD already equals the wanted value. */
+function regState(exec: Exec, path: string, name: string, want: number): ModuleState {
+  return regDword(exec, path, name) === want ? "applied" : "pending";
+}
 
 /** Power & thermals — the first module ported from v1 (config/rog-ally). */
 const power: BootibleModule = {
@@ -28,6 +41,9 @@ const power: BootibleModule = {
       actions.push(`powercfg ${args.join(" ")}`);
     }
     return { status: "applied", actions };
+  },
+  check(_ctx, exec) {
+    return regState(exec, "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power", "HibernateEnabled", 1);
   },
 };
 
@@ -78,6 +94,10 @@ function appInstall(
       }
       return { status: "applied", actions: runCommands(exec, commands) };
     },
+    check(_ctx, exec) {
+      const installed = packageIds.every((id) => exec(["winget", "list", "--id", id]).includes(id));
+      return installed ? "applied" : "pending";
+    },
   };
 }
 
@@ -90,6 +110,14 @@ const windowsDefaults: BootibleModule = {
   apply(_ctx, exec) {
     return { status: "applied", actions: runCommands(exec, getWindowsDefaultsCommands()) };
   },
+  check(_ctx, exec) {
+    return regState(
+      exec,
+      "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+      "AllowTelemetry",
+      0,
+    );
+  },
 };
 
 /** Display & GPU — HAGS on, AMD Vari-Bright off (ported from v1). */
@@ -101,6 +129,14 @@ const display: BootibleModule = {
   apply(_ctx, exec) {
     return { status: "applied", actions: runCommands(exec, getDisplayTweakCommands()) };
   },
+  check(_ctx, exec) {
+    return regState(
+      exec,
+      "HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers",
+      "HwSchMode",
+      2,
+    );
+  },
 };
 
 /** Background trim — set non-essential services to manual (ported from v1). */
@@ -111,6 +147,10 @@ const backgroundTrim: BootibleModule = {
   summary: "Set non-essential services (telemetry, maps, remote registry) to manual.",
   apply(_ctx, exec) {
     return { status: "applied", actions: runCommands(exec, getServiceTrimCommands()) };
+  },
+  check(_ctx, exec) {
+    // DiagTrack as the representative service: manual start = DEMAND_START.
+    return /DEMAND_START/.test(exec(["sc", "qc", "DiagTrack"])) ? "applied" : "pending";
   },
 };
 
