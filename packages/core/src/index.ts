@@ -9,6 +9,8 @@ export type {
   MicrosoftAccountMode,
 } from "./autounattend";
 export { generateAutounattend, generateWifiProfileXml } from "./autounattend";
+export type { BootstrapOptions } from "./bootstrap";
+export { generateBootstrapScript } from "./bootstrap";
 export type {
   Artifact,
   ArtifactSchemas,
