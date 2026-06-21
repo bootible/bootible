@@ -128,11 +128,11 @@ describe("allyCatalog", () => {
     expect(steam?.check?.(ctx, () => "No installed package found")).toBe("pending");
   });
 
-  it("declares not-yet-ported modules as skipped without running anything", () => {
-    const controller = allyCatalog.find((m) => m.id === "controller");
-    expect(controller).toBeDefined();
+  it("declares still-planned modules (sync-target) as skipped without running anything", () => {
+    const syncTarget = allyCatalog.find((m) => m.id === "sync-target");
+    expect(syncTarget?.planned).toBe(true);
     const calls: string[][] = [];
-    const result = controller?.apply(
+    const result = syncTarget?.apply(
       { device, config: { schema: 2, device: "rog-ally" } },
       (cmd) => {
         calls.push(cmd);
@@ -141,5 +141,74 @@ describe("allyCatalog", () => {
     );
     expect(result?.status).toBe("skipped");
     expect(calls).toEqual([]);
+  });
+});
+
+describe("newly-real modules", () => {
+  it("leaves only sync-target planned", () => {
+    expect(allyCatalog.filter((m) => m.planned).map((m) => m.id)).toEqual(["sync-target"]);
+  });
+
+  it("controller installs the controller tools (system group)", () => {
+    const controller = allyCatalog.find((m) => m.id === "controller");
+    expect(controller?.group).toBe("system");
+    expect(controller?.planned).toBeFalsy();
+    const calls: string[][] = [];
+    controller?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    const ids = calls.map((c) => c[3]);
+    expect(ids).toEqual(["BenjaminLSR.HandheldCompanion", "Nefarius.HidHide"]);
+  });
+
+  it("emudeck installs its prerequisites; streaming installs the clients", () => {
+    const emudeck = allyCatalog.find((m) => m.id === "emudeck");
+    const streaming = allyCatalog.find((m) => m.id === "streaming");
+    const grab = (m?: (typeof allyCatalog)[number]) => {
+      const calls: string[][] = [];
+      m?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+        calls.push(cmd);
+        return "";
+      });
+      return calls.map((c) => c[3]);
+    };
+    expect(grab(emudeck)).toEqual(["Git.Git", "Python.Python.3.12"]);
+    expect(grab(streaming)).toEqual([
+      "MoonlightGameStreamingProject.Moonlight",
+      "Streetpea.Chiaki-ng",
+    ]);
+  });
+
+  it("every module carries a description", () => {
+    for (const module of allyCatalog) expect(module.description.length).toBeGreaterThan(0);
+  });
+});
+
+describe("health module", () => {
+  const ctx = { device, config: { schema: 2 as const, device: "rog-ally" } };
+  const health = () => {
+    const m = allyCatalog.find((mod) => mod.id === "health");
+    if (!m) throw new Error("health missing");
+    return m;
+  };
+
+  it("reports all good when every probe matches (read-only — no commands change state)", () => {
+    const result = health().apply(ctx, (cmd) => {
+      const s = cmd.join(" ");
+      if (s.includes("HibernateEnabled")) return "REG_DWORD 0x1";
+      if (s.includes("HwSchMode")) return "REG_DWORD 0x2";
+      if (s.includes("AllowTelemetry")) return "REG_DWORD 0x0";
+      if (s.includes("DiagTrack")) return "START_TYPE : 3 DEMAND_START";
+      return "";
+    });
+    expect(result.status).toBe("applied");
+    expect(result.detail).toContain("all good");
+  });
+
+  it("lists what isn't set when probes miss", () => {
+    const result = health().apply(ctx, () => "");
+    expect(result.detail).toContain("not set");
+    expect(result.detail).toContain("gpu scheduling");
   });
 });

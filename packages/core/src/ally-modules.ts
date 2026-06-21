@@ -89,11 +89,12 @@ function appInstall(
   name: string,
   description: string,
   packageIds: string[],
+  group: ModuleGroup = "apps",
 ): BootibleModule {
   return {
     id,
     name,
-    group: "apps",
+    group,
     description,
     changes: `${packageIds.length} package${packageIds.length === 1 ? "" : "s"} (winget)`,
     apply(_ctx, exec) {
@@ -167,35 +168,93 @@ const backgroundTrim: BootibleModule = {
   },
 };
 
+/**
+ * System health check — read-only verification that the other modules' tweaks
+ * took. Reports how many checks passed (never changes the device), so it runs
+ * last as an honest "did it work" pass.
+ */
+const health: BootibleModule = {
+  id: "health",
+  name: "System health check",
+  group: "performance",
+  description:
+    "Verify the key tweaks took — power, GPU scheduling, telemetry and background services.",
+  changes: "read-only checks",
+  apply(_ctx, exec) {
+    const checks: [string, boolean][] = [
+      [
+        "hibernate",
+        regDword(exec, "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power", "HibernateEnabled") === 1,
+      ],
+      [
+        "gpu scheduling",
+        regDword(exec, "HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "HwSchMode") ===
+          2,
+      ],
+      [
+        "telemetry off",
+        regDword(
+          exec,
+          "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+          "AllowTelemetry",
+        ) === 0,
+      ],
+      ["background trim", /DEMAND_START/.test(exec(["sc", "qc", "DiagTrack"]))],
+    ];
+    const passed = checks.filter(([, ok]) => ok).length;
+    const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
+    const actions = checks.map(([name, ok]) => `check ${name}: ${ok ? "ok" : "not set"}`);
+    const detail = failed.length
+      ? `verified ${passed}/${checks.length} — not set: ${failed.join(", ")}`
+      : `verified ${passed}/${checks.length} — all good`;
+    return { status: "applied", detail, actions };
+  },
+  check(_ctx, exec) {
+    return regDword(
+      exec,
+      "HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers",
+      "HwSchMode",
+    ) === 2
+      ? "applied"
+      : "pending";
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
-  planned(
+  appInstall(
     "controller",
     "Controller & input",
+    "Install Handheld Companion + HidHide so you can remap buttons (HidHide is a driver — needs a reboot). Map them in Handheld Companion after.",
+    ["BenjaminLSR.HandheldCompanion", "Nefarius.HidHide"],
     "system",
-    "Map buttons, enable gyro and trigger ranges.",
   ),
   display,
   windowsDefaults,
   backgroundTrim,
-  planned(
-    "health",
-    "System health check",
-    "performance",
-    "Driver, storage and firmware sanity checks.",
-  ),
   appInstall(
     "utilities",
     "Desktop utilities",
     "Install PowerToys, 7-Zip, Everything and Windows Terminal.",
     ["Microsoft.PowerToys", "7zip.7zip", "voidtools.Everything", "Microsoft.WindowsTerminal"],
   ),
-  planned("emudeck", "EmuDeck", "apps", "Emulation frontend — kept current, never frozen."),
+  appInstall(
+    "emudeck",
+    "EmuDeck",
+    "Install Git + Python so EmuDeck's setup is quick — run the EmuDeck app after to pick emulators.",
+    ["Git.Git", "Python.Python.3.12"],
+  ),
   appInstall("steam", "Steam", "Install Steam and boot it straight into Big Picture.", [
     "Valve.Steam",
   ]),
-  planned("streaming", "Game streaming", "apps", "Moonlight / Chiaki streaming clients."),
+  appInstall(
+    "streaming",
+    "Game streaming",
+    "Install Moonlight + Chiaki-ng to stream from your gaming PC or PlayStation.",
+    ["MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
+  ),
+  health,
   planned(
     "sync-target",
     "Sync target & saves",
