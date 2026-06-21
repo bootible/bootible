@@ -13,7 +13,7 @@ export interface ProvisionResult {
 }
 
 export interface UsbBuildRequest {
-  groups: string[];
+  modules: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
 }
@@ -28,8 +28,8 @@ const api = {
   getState: (): Promise<ModuleStateReport[]> => ipcRenderer.invoke("device:state"),
   getMethods: (): Promise<ProvisioningMethod[]> => ipcRenderer.invoke("methods:get"),
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),
-  exportConfig: (groups: string[]): Promise<{ path: string } | null> =>
-    ipcRenderer.invoke("config:export", groups),
+  exportConfig: (modules: string[]): Promise<{ path: string } | null> =>
+    ipcRenderer.invoke("config:export", modules),
   buildUsb: (req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null> =>
     ipcRenderer.invoke("usb:build", req),
   openPath: (path: string): Promise<string> => ipcRenderer.invoke("shell:open", path),

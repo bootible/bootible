@@ -61,16 +61,16 @@ describe("checkModules", () => {
 });
 
 describe("selectModules", () => {
-  it("returns everything when no groups are given", () => {
+  it("returns everything when no ids are given", () => {
     expect(selectModules(mods)).toHaveLength(mods.length);
   });
 
-  it("keeps only modules in the selected groups", () => {
-    const picked = selectModules(mods, ["system"]);
-    expect(picked.map((m) => m.id)).toEqual(["power", "display"]);
+  it("keeps only the selected module ids", () => {
+    const picked = selectModules(mods, ["power", "steam"]);
+    expect(picked.map((m) => m.id)).toEqual(["power", "steam"]);
   });
 
-  it("returns nothing when no selected group matches", () => {
-    expect(selectModules(mods, ["library"])).toEqual([]);
+  it("returns nothing for an empty selection", () => {
+    expect(selectModules(mods, [])).toEqual([]);
   });
 });

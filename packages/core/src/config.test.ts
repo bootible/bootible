@@ -3,28 +3,28 @@ import { parse } from "yaml";
 import { buildConfig, deepMerge, serializeConfig } from "./config";
 
 describe("buildConfig", () => {
-  it("builds a schema-2 config with device, groups and settings", () => {
+  it("builds a schema-2 config with device, modules and settings", () => {
     const config = buildConfig({
       device: "rog-ally",
-      groups: ["system", "apps"],
+      modules: ["power", "steam"],
       settings: { sleep_mode: "hibernate" },
     });
     expect(config).toEqual({
       schema: 2,
       device: "rog-ally",
-      groups: ["system", "apps"],
+      modules: ["power", "steam"],
       settings: { sleep_mode: "hibernate" },
     });
   });
 
-  it("omits groups and settings when not given", () => {
+  it("omits modules and settings when not given", () => {
     expect(buildConfig({ device: "rog-ally" })).toEqual({ schema: 2, device: "rog-ally" });
   });
 });
 
 describe("serializeConfig", () => {
   it("round-trips through YAML", () => {
-    const config = buildConfig({ device: "rog-ally", groups: ["system"] });
+    const config = buildConfig({ device: "rog-ally", modules: ["power"] });
     expect(parse(serializeConfig(config))).toEqual(config);
   });
 });

@@ -126,12 +126,12 @@ function getDeviceState(): ModuleStateReport[] {
  */
 async function exportConfig(
   win: BrowserWindow,
-  groups: string[],
+  modules: string[],
 ): Promise<{ path: string } | null> {
   const device = targetDevice();
   const config = buildConfig({
     device: device?.id ?? "rog-ally",
-    groups: groups.length ? groups : undefined,
+    modules: modules.length ? modules : undefined,
   });
 
   const result = await dialog.showSaveDialog(win, {
@@ -146,7 +146,7 @@ async function exportConfig(
 }
 
 export interface UsbBuildRequest {
-  groups: string[];
+  modules: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
 }
@@ -162,7 +162,7 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
 
   const config = buildConfig({
     device: device.id,
-    groups: req.groups.length ? req.groups : undefined,
+    modules: req.modules.length ? req.modules : undefined,
     settings: RECOMMENDED_SETTINGS,
   });
   const account: AccountMode =
@@ -214,7 +214,7 @@ async function applyDevice(
 
   const config = buildConfig({
     device: device.id,
-    groups: req.groups.length ? req.groups : undefined,
+    modules: req.modules.length ? req.modules : undefined,
     settings: RECOMMENDED_SETTINGS,
   });
   const script = generateBootstrapScript({ device, config, executorFactory: allyExecutor });
@@ -315,9 +315,9 @@ app.whenReady().then(() => {
   ipcMain.handle("catalog:get", () => getCatalog());
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
-  ipcMain.handle("config:export", (event, groups: string[]) => {
+  ipcMain.handle("config:export", (event, modules: string[]) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    return win ? exportConfig(win, groups ?? []) : null;
+    return win ? exportConfig(win, modules ?? []) : null;
   });
   ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
   ipcMain.handle("shell:open", (_event, path: string) => shell.openPath(path));

@@ -13,7 +13,7 @@ export function allyExecutor(exec: Exec): Executor {
   return {
     apply(ctx: ApplyContext, onStep?: StepListener): ExecutorReceipt {
       const actions: string[] = [];
-      const modules = selectModules(allyCatalog, ctx.config.groups);
+      const modules = selectModules(allyCatalog, ctx.config.modules);
 
       for (const mod of modules) {
         const base = { moduleId: mod.id, name: mod.name, group: mod.group };

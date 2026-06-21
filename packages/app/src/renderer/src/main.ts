@@ -30,7 +30,7 @@ interface ProvisionResult {
 }
 
 interface UsbBuildRequest {
-  groups: string[];
+  modules: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
 }
@@ -58,7 +58,7 @@ interface BootibleApi {
   provision(): Promise<ProvisionResult>;
   onProvisionStep(cb: (event: StepEvent) => void): void;
   onProvisionDone(cb: (result: ProvisionResult) => void): void;
-  exportConfig(groups: string[]): Promise<{ path: string } | null>;
+  exportConfig(modules: string[]): Promise<{ path: string } | null>;
   buildUsb(req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null>;
   openPath(path: string): Promise<string>;
   applyDevice(req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }>;
@@ -112,7 +112,10 @@ function setApplyLabel(): void {
 function syncFromHash(): void {
   const view = location.hash.replace(/^#/, "") || "home";
   show(view);
-  if (view === "review") setApplyLabel();
+  if (view === "review") {
+    setApplyLabel();
+    renderReviewPlan();
+  }
   if (view === "provision") startProvision();
 }
 
@@ -129,14 +132,31 @@ document.addEventListener("click", (event) => {
   if (target) location.hash = target;
 });
 
-// Group toggles on the setup screen flip their own pressed state and update
-// the live plan summary.
+// Setup selection: a module row toggles itself; a group head toggles all of
+// its modules. Both refresh the summary + head states.
 document.addEventListener("click", (event) => {
-  const group = (event.target as HTMLElement).closest<HTMLElement>(".group");
-  if (!group) return;
-  const on = group.classList.toggle("is-on");
-  group.setAttribute("aria-pressed", String(on));
-  updateSetupSummary();
+  const target = event.target as HTMLElement;
+
+  const row = target.closest<HTMLElement>(".module-row");
+  if (row) {
+    const on = row.classList.toggle("is-on");
+    row.setAttribute("aria-pressed", String(on));
+    updateSetupSummary();
+    return;
+  }
+
+  const head = target.closest<HTMLElement>(".group-head");
+  if (head) {
+    const rows = [
+      ...(head.closest(".group-block")?.querySelectorAll<HTMLElement>(".module-row") ?? []),
+    ];
+    const allOn = rows.every((r) => r.classList.contains("is-on"));
+    for (const r of rows) {
+      r.classList.toggle("is-on", !allOn);
+      r.setAttribute("aria-pressed", String(!allOn));
+    }
+    updateSetupSummary();
+  }
 });
 
 // Snapshot / account / target cards are single-select (radio behaviour).
@@ -227,51 +247,86 @@ function steps(n: number): string {
   return `${n} step${n === 1 ? "" : "s"}`;
 }
 
-/** Render the setup screen's toggleable group cards from the catalog. */
+/** Render the setup screen: per group, a toggle-all header + per-module rows. */
 function renderGroups(): void {
   const container = document.querySelector<HTMLElement>(".groups");
   if (!container) return;
 
   container.replaceChildren(
     ...catalog.map((group) => {
-      const btn = el("button", "group is-on") as HTMLButtonElement;
-      btn.type = "button";
-      btn.setAttribute("aria-pressed", "true");
+      const block = el("div", "group-block");
 
+      const head = el("button", "group group-head is-on") as HTMLButtonElement;
+      head.type = "button";
+      head.dataset.group = group.group;
+      head.setAttribute("aria-pressed", "true");
       const toggle = el("span", "group-toggle");
       toggle.setAttribute("aria-hidden", "true");
-
       const main = el("span", "group-main");
       main.append(
         el("span", "group-name", group.label),
         el("span", "group-desc", group.description),
       );
-
       const meta = el("span", "group-meta");
       meta.append(
         el("span", "group-tag", GROUP_TAGS[group.group] ?? ""),
         el("span", "group-count", steps(group.moduleCount)),
         el("span", "group-state", ""),
       );
+      head.append(toggle, main, meta);
 
-      btn.append(toggle, main, meta);
-      return btn;
+      const rows = el("div", "module-rows");
+      rows.append(
+        ...group.modules.map((module) => {
+          const row = el("button", "module-row is-on") as HTMLButtonElement;
+          row.type = "button";
+          row.dataset.module = module.id;
+          row.setAttribute("aria-pressed", "true");
+          const mt = el("span", "module-toggle");
+          mt.setAttribute("aria-hidden", "true");
+          row.append(mt, el("span", "module-name", module.name));
+          return row;
+        }),
+      );
+
+      block.append(head, rows);
+      return block;
     }),
   );
 }
 
-/** Render the review screen's WILL RUN rows from the catalog. */
+/** Selected module ids, from the toggled-on module rows. */
+function selectedModuleIds(): string[] {
+  return [...document.querySelectorAll<HTMLElement>(".module-row.is-on")]
+    .map((row) => row.dataset.module ?? "")
+    .filter(Boolean);
+}
+
+/** Group heads reflect all/some/none of their modules being selected. */
+function updateGroupHeads(): void {
+  for (const head of document.querySelectorAll<HTMLElement>(".group-head")) {
+    const rows = [...(head.closest(".group-block")?.querySelectorAll(".module-row") ?? [])];
+    const on = rows.filter((r) => r.classList.contains("is-on")).length;
+    head.classList.toggle("is-on", on === rows.length && rows.length > 0);
+    head.classList.toggle("is-partial", on > 0 && on < rows.length);
+    head.setAttribute("aria-pressed", String(on === rows.length));
+  }
+}
+
+/** Render the review screen's WILL RUN rows: per-group selected counts. */
 function renderReviewPlan(): void {
   const plan = document.querySelector<HTMLElement>(".review-plan");
   if (!plan) return;
 
+  const selected = new Set(selectedModuleIds());
   const foot = plan.querySelector(".readout-foot");
   const rows = catalog.map((group) => {
+    const picked = group.modules.filter((m) => selected.has(m.id)).length;
     const row = el("div", "plan-row");
     row.append(
       el("span", "mark"),
       el("span", "plan-name", group.label),
-      el("span", "plan-n", steps(group.moduleCount)),
+      el("span", picked === 0 ? "plan-n muted" : "plan-n", `${picked} of ${group.moduleCount}`),
     );
     return row;
   });
@@ -280,19 +335,22 @@ function renderReviewPlan(): void {
   if (foot) plan.append(foot);
 }
 
-/** Reflect which groups are toggled on in the setup summary rail. */
+/** Reflect the per-module selection in the setup summary rail. */
 function updateSetupSummary(): void {
-  const cards = [...document.querySelectorAll<HTMLElement>(".groups .group")];
-  let stepsOn = 0;
-  let groupsOn = 0;
-  cards.forEach((card, i) => {
-    if (card.classList.contains("is-on")) {
-      groupsOn += 1;
-      stepsOn += catalog[i]?.moduleCount ?? 0;
-    }
-  });
-  fill("groups-summary", `${groupsOn} of ${catalog.length} on`);
-  fill("steps-summary", `${stepsOn} to run`);
+  const selected = selectedModuleIds();
+  const groupsOn = new Set(
+    [...document.querySelectorAll<HTMLElement>(".module-row.is-on")].map(
+      (r) =>
+        r
+          .closest<HTMLElement>(".group-head, .group-block")
+          ?.querySelector(".group-head")
+          ?.getAttribute("data-group") ?? "",
+    ),
+  );
+  groupsOn.delete("");
+  fill("groups-summary", `${groupsOn.size} of ${catalog.length} on`);
+  fill("steps-summary", `${selected.length} to run`);
+  updateGroupHeads();
 }
 
 async function hydrateCatalog(): Promise<void> {
@@ -337,18 +395,18 @@ async function hydrateState(): Promise<void> {
     byGroup.set(report.group, tally);
   }
 
-  const cards = [...document.querySelectorAll<HTMLElement>(".groups .group")];
-  cards.forEach((card, i) => {
-    const tally = catalog[i] ? byGroup.get(catalog[i].group) : undefined;
-    const slot = card.querySelector(".group-state");
-    if (!tally || tally.total === 0 || !slot) return;
+  for (const head of document.querySelectorAll<HTMLElement>(".group-head")) {
+    const group = head.dataset.group;
+    const tally = group ? byGroup.get(group) : undefined;
+    const slot = head.querySelector(".group-state");
+    if (!tally || tally.total === 0 || !slot) continue;
     if (tally.applied === tally.total) {
       slot.textContent = "✓ set";
-      card.classList.add("is-applied");
+      head.classList.add("is-applied");
     } else if (tally.applied > 0) {
       slot.textContent = `${tally.applied}/${tally.total} set`;
     }
-  });
+  }
 }
 
 void hydrateCatalog();
@@ -514,25 +572,23 @@ window.bootible?.onProvisionDone?.(onProvisionDone);
 // The review screen's primary button is method-aware: "export" saves a config
 // file; "run on device" (and, for now, "build USB") enters the provision flow.
 
-/** Group ids of the currently toggled-on setup cards (empty = all). */
-function selectedGroupIds(): string[] {
-  const cards = [...document.querySelectorAll<HTMLElement>(".groups .group")];
-  return catalog.filter((_g, i) => cards[i]?.classList.contains("is-on")).map((g) => g.group);
-}
-
 function receiptRow(key: string, value: string): HTMLElement {
   const row = el("div", "rline");
   row.append(el("span", "mark"), el("span", "rkey", key), el("span", "rval", value));
   return row;
 }
 
+// The artifact "View full receipt" / "Open folder" opens (set per flow).
+let lastArtifactPath = "";
+
 async function runExport(): Promise<void> {
   const api = window.bootible;
   if (!api?.exportConfig) return;
-  const result = await api.exportConfig(selectedGroupIds());
+  const modules = selectedModuleIds();
+  const result = await api.exportConfig(modules);
   if (!result) return; // cancelled
 
-  const groups = selectedGroupIds();
+  lastArtifactPath = result.path;
   fill("done-eyebrow", "Exported");
   fill("done-title", "Config exported");
   fill("done-sub", "Saved to your machine. Re-apply it any time — or build a USB from it.");
@@ -541,7 +597,7 @@ async function runExport(): Promise<void> {
   if (receipt) {
     receipt.replaceChildren(
       receiptRow("device", deviceName),
-      receiptRow("groups", groups.length ? groups.join(" · ") : "all"),
+      receiptRow("modules", `${modules.length} selected`),
       receiptRow("format", "config.yml"),
       receiptRow("saved", result.path),
     );
@@ -559,7 +615,7 @@ function gatherUsbRequest(): UsbBuildRequest {
       : { mode };
   const ssid = val("#wifi-ssid");
   const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
-  return { groups: selectedGroupIds(), account, wifi };
+  return { modules: selectedModuleIds(), account, wifi };
 }
 
 async function runBuildUsb(): Promise<void> {
@@ -568,6 +624,7 @@ async function runBuildUsb(): Promise<void> {
   const result = await api.buildUsb(gatherUsbRequest());
   if (!result) return;
 
+  lastArtifactPath = result.stagingPath;
   const account = document.body.dataset.account === "microsoft" ? "Microsoft" : "local";
   const ssid = document.querySelector<HTMLInputElement>("#wifi-ssid")?.value.trim();
   fill("done-eyebrow", "USB bundle ready");
@@ -596,7 +653,10 @@ async function runApplyDevice(): Promise<void> {
     location.hash = "provision"; // browser/no-preload: fall back to the dry-run preview
     return;
   }
-  const result = await api.applyDevice({ groups: selectedGroupIds(), account: { mode: "local" } });
+  const result = await api.applyDevice({
+    modules: selectedModuleIds(),
+    account: { mode: "local" },
+  });
   if (result.status === "cancelled") return;
 
   const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
@@ -633,6 +693,19 @@ document.addEventListener("click", (event) => {
   if (method === "export") void runExport();
   else if (method === "usb") void runBuildUsb();
   else void runApplyDevice();
+});
+
+// "View full receipt" opens the artifact this run produced (folder / file).
+document.addEventListener("click", (event) => {
+  const trigger = (event.target as HTMLElement).closest<HTMLElement>(
+    '[data-action="open-artifact"]',
+  );
+  if (!trigger) return;
+  if (lastArtifactPath && window.bootible?.openPath) {
+    void window.bootible.openPath(lastArtifactPath);
+  } else {
+    location.hash = "home";
+  }
 });
 
 // First render — run after all declarations so deep-linking #provision is safe.

@@ -101,14 +101,15 @@ export const GROUP_META: Record<ModuleGroup, { label: string; description: strin
 const GROUP_ORDER: ModuleGroup[] = ["system", "performance", "apps", "library"];
 
 /**
- * Filter a catalog to the selected groups. `undefined` selects everything (the
- * default), an explicit list runs only those groups — this is what makes the
- * setup-screen toggles actually gate what provisioning does.
+ * Filter a catalog to the selected module ids. `undefined` selects everything
+ * (the default); an explicit list runs only those modules — this is what makes
+ * the setup-screen per-module toggles gate what provisioning does. An empty
+ * list selects nothing.
  */
-export function selectModules(modules: BootibleModule[], groups?: string[]): BootibleModule[] {
-  if (!groups) return modules;
-  const selected = new Set(groups);
-  return modules.filter((module) => selected.has(module.group));
+export function selectModules(modules: BootibleModule[], ids?: string[]): BootibleModule[] {
+  if (!ids) return modules;
+  const selected = new Set(ids);
+  return modules.filter((module) => selected.has(module.id));
 }
 
 /** Group a flat module list into ordered group summaries for the setup screen. */

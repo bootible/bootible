@@ -25,8 +25,8 @@ export function deepMerge<T extends object>(base: T, override: Partial<T>): T {
 export interface BootibleConfig {
   schema: number;
   device: string;
-  /** Selected module groups; absent = all groups. */
-  groups?: string[];
+  /** Selected module ids; absent = all modules. */
+  modules?: string[];
   /** Device settings consumed by modules (e.g. power options). */
   settings?: Record<string, unknown>;
   [key: string]: unknown;
@@ -40,13 +40,13 @@ export interface BootibleConfig {
  */
 export function buildConfig(opts: {
   device: string;
-  groups?: string[];
+  modules?: string[];
   settings?: Record<string, unknown>;
 }): BootibleConfig {
   return {
     schema: 2,
     device: opts.device,
-    ...(opts.groups ? { groups: opts.groups } : {}),
+    ...(opts.modules ? { modules: opts.modules } : {}),
     ...(opts.settings ? { settings: opts.settings } : {}),
   };
 }
