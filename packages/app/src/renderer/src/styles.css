@@ -225,6 +225,13 @@ body[data-view="connect"] .view[data-view="connect"] {
     0 18px 38px -14px var(--signal);
 }
 
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .btn-primary .arrow {
   transition: transform 0.12s ease;
 }
@@ -753,6 +760,11 @@ body[data-view="connect"] .view[data-view="connect"] {
 .uw-section {
   display: grid;
   gap: 12px;
+}
+
+/* let the hidden attribute win over .uw-section's display:grid */
+.usbwrite-body [hidden] {
+  display: none;
 }
 
 .uw-label {
