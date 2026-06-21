@@ -1,3 +1,4 @@
+import type { Bundle } from "./bundles";
 import { getDisplayTweakCommands } from "./display";
 import type { BootibleModule, ModuleGroup, ModuleState } from "./modules";
 import { getServiceTrimCommands } from "./optimization";
@@ -53,7 +54,12 @@ const power: BootibleModule = {
  * ported yet. It appears in the plan and reports honestly as planned, so the
  * step counts and the live log never overstate what bootible actually does.
  */
-function planned(id: string, name: string, group: ModuleGroup, description: string): BootibleModule {
+function planned(
+  id: string,
+  name: string,
+  group: ModuleGroup,
+  description: string,
+): BootibleModule {
   return {
     id,
     name,
@@ -196,4 +202,34 @@ export const allyCatalog: BootibleModule[] = [
     "library",
     "Connect a target so saves and BIOS follow you.",
   ),
+];
+
+/** Recommended bundles for the Ally — outcome-described "set it up for me"
+ *  presets. Module ids reference real (implemented) modules only. */
+export const allyBundles: Bundle[] = [
+  {
+    id: "full",
+    name: "The full setup",
+    description:
+      "Your Ally the way most people want it — runs games smoothly, doesn't drain in your bag, Windows junk trimmed, and Steam + handy tools installed.",
+    tag: "recommended",
+    recommended: true,
+    moduleIds: ["power", "display", "windows-defaults", "optimization", "steam", "utilities"],
+  },
+  {
+    id: "lean",
+    name: "Lean & clean",
+    description:
+      "Just the system tuning — power, display, sensible Windows defaults and less background junk. No apps installed.",
+    tag: "minimal",
+    moduleIds: ["power", "display", "windows-defaults", "optimization"],
+  },
+  {
+    id: "games",
+    name: "Just the games",
+    description:
+      "Install Steam + tools and the gaming tweaks, skip the Windows cleanup. For a machine you've already set up how you like.",
+    tag: "apps",
+    moduleIds: ["power", "display", "steam", "utilities"],
+  },
 ];

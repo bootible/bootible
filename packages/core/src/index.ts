@@ -1,5 +1,5 @@
 export { allyExecutor } from "./ally-executor";
-export { allyCatalog } from "./ally-modules";
+export { allyBundles, allyCatalog } from "./ally-modules";
 export type { DeviceSummary, SystemInfo } from "./app-view";
 export { deviceSummary, prettyOs, selectDevice } from "./app-view";
 export type {
@@ -13,6 +13,8 @@ export type { BootstrapOptions } from "./bootstrap";
 export { generateBootstrapScript } from "./bootstrap";
 export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle } from "./bundle";
+export type { Bundle } from "./bundles";
+export { bundleModules } from "./bundles";
 export type {
   Artifact,
   ArtifactSchemas,
@@ -48,6 +50,8 @@ export type {
 export { restore } from "./orchestrator";
 export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
+export type { DeviceProfile } from "./profiles";
+export { deviceProfile } from "./profiles";
 export type { ProvisioningMethod, ProvisioningMethodId } from "./provisioning";
 export { provisioningMethods } from "./provisioning";
 export type { Capabilities, DeviceEntry, ProvisioningModel } from "./registry";
