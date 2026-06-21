@@ -165,12 +165,9 @@ export interface UsbBuildRequest {
   wifi?: { ssid: string; password: string };
 }
 
-/**
- * Method A — assemble the USB bundle and write it to a staging folder, then
- * return the path + the prepare-usb.ps1 command that turns it into a stick.
- * (The destructive, elevated, interactive USB write stays in the script.)
- */
-function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string } | null {
+/** Assemble the USB bundle (autounattend + bootstrap + config + wifi) into a
+ *  staging folder. Returns the path, or null if there's no device profile. */
+function stageUsbBundle(req: UsbBuildRequest): string | null {
   const device = targetDevice();
   const profile = profileFor(device);
   if (!device || !profile) return null;
@@ -193,13 +190,116 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
     mkdirSync(dirname(dest), { recursive: true });
     writeFileSync(dest, file.content, "utf8");
   }
+  return stagingPath;
+}
 
-  // Drop the builder script beside the bundle so it runs in place (its
-  // -BundleDir defaults to its own folder).
+/**
+ * Method A (manual fallback) — stage the bundle + drop prepare-usb.ps1 beside it
+ * so the user can run it themselves. The in-app writer below is the main path.
+ */
+function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string } | null {
+  const stagingPath = stageUsbBundle(req);
+  if (!stagingPath) return null;
   copyFileSync(prepareUsbScript, join(stagingPath, "prepare-usb.ps1"));
+  return {
+    stagingPath,
+    command: "Right-click prepare-usb.ps1 in this folder → Run as administrator.",
+  };
+}
 
-  const command = "Right-click prepare-usb.ps1 in this folder → Run as administrator.";
-  return { stagingPath, command };
+export interface UsbWriteRequest extends UsbBuildRequest {
+  diskNumber: number;
+  /** A local ISO path (browse), or... */
+  isoPath?: string;
+  /** ...a catalog id to download via Fido. */
+  isoId?: string;
+}
+
+/** Tail the writer's NDJSON progress file and stream each line to the renderer. */
+function tailUsbProgress(sender: WebContents, file: string): void {
+  let offset = 0;
+  const timer = setInterval(() => {
+    let content: string;
+    try {
+      content = readFileSync(file, "utf8");
+    } catch {
+      return;
+    }
+    if (content.length <= offset) return;
+    const fresh = content.slice(offset);
+    offset = content.length;
+    for (const line of fresh.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const event = JSON.parse(trimmed) as { pct: number; message: string; status: string };
+        if (!sender.isDestroyed()) sender.send("usb:progress", event);
+        if (event.status === "done" || event.status === "error") clearInterval(timer);
+      } catch {
+        // partial / non-JSON line; ignore
+      }
+    }
+  }, 500);
+  setTimeout(() => clearInterval(timer), 30 * 60 * 1000); // safety stop
+}
+
+/**
+ * The in-app USB write: stage the bundle, then launch prepare-usb.ps1 elevated
+ * (one UAC) and hidden, feeding a progress file the app tails. The disk + ISO
+ * are chosen in-app and passed as args, so the writer never prompts.
+ */
+function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean } {
+  const stagingPath = stageUsbBundle(req);
+  if (!stagingPath) {
+    sender.send("usb:progress", { pct: 0, status: "error", message: "No device to build for." });
+    return { started: false };
+  }
+
+  const progressFile = join(app.getPath("temp"), "bootible-usb-progress.ndjson");
+  writeFileSync(progressFile, "");
+
+  const args = [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    prepareUsbScript,
+    "-BundleDir",
+    stagingPath,
+    "-DiskNumber",
+    String(req.diskNumber),
+    "-Force",
+    "-ProgressFile",
+    progressFile,
+  ];
+  if (req.isoPath) {
+    args.push("-IsoPath", req.isoPath);
+  } else if (req.isoId) {
+    const option = ISO_CATALOG.find((c) => c.id === req.isoId);
+    if (option) {
+      args.push(
+        "-IsoRel",
+        option.rel,
+        "-IsoEd",
+        option.ed,
+        "-IsoLang",
+        option.lang,
+        "-IsoArch",
+        option.arch,
+      );
+    }
+  }
+
+  // Launch elevated + hidden; progress flows through the file, not stdout (a
+  // non-elevated parent can't read an elevated child's stdout).
+  const quoted = args.map((a) => `'${a.replace(/'/g, "''")}'`).join(",");
+  const launcher = `Start-Process -FilePath 'powershell' -Verb RunAs -WindowStyle Hidden -ArgumentList @(${quoted})`;
+  spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", launcher], {
+    windowsHide: true,
+  });
+
+  tailUsbProgress(sender, progressFile);
+  return { started: true };
 }
 
 // ── in-app USB writer: disks + ISO source ───────────────────────────────────
@@ -426,6 +526,7 @@ app.whenReady().then(() => {
     return win ? exportConfig(win, modules ?? []) : null;
   });
   ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
+  ipcMain.handle("usb:write", (event, req: UsbWriteRequest) => writeUsb(event.sender, req));
   ipcMain.handle("usb:disks", () => listUsbDisks());
   ipcMain.handle("iso:catalog", () => getIsoCatalog());
   ipcMain.handle("iso:browse", (event) => {

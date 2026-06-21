@@ -49,6 +49,10 @@ param(
     [int]$DiskNumber = -1,
     [string]$DriverQuery = "MediaTek Wi-Fi 6E MT7922",
     [string]$ProgressFile,
+    [string]$IsoRel = "24H2",
+    [string]$IsoEd = "Home/Pro",
+    [string]$IsoLang = "English International",
+    [string]$IsoArch = "x64",
     [switch]$Force
 )
 
@@ -77,11 +81,11 @@ function Resolve-WindowsIso {
         Write-Step "Using provided ISO: $IsoPath"
         return (Resolve-Path $IsoPath).Path
     }
-    Write-Step "Downloading a Windows 11 ISO from Microsoft (Fido)..."
+    Write-Step "Downloading a Windows 11 ISO from Microsoft (Fido): $IsoRel $IsoEd $IsoLang $IsoArch"
     $fido = Join-Path $env:TEMP "Fido.ps1"
     Invoke-WebRequest "https://github.com/pbatard/Fido/raw/master/Fido.ps1" -OutFile $fido
     # Fido prints a genuine microsoft.com download URL for the chosen edition.
-    $url = & $fido -Win "11" -Ed "Home/Pro" -Lang "English International" -Arch "x64" -GetUrl
+    $url = & $fido -Win "11" -Rel $IsoRel -Ed $IsoEd -Lang $IsoLang -Arch $IsoArch -GetUrl
     if (-not $url) { throw "Fido did not return a download URL. Re-run with -IsoPath pointing at an ISO you downloaded yourself." }
     $iso = Join-Path $env:TEMP "Win11.iso"
     Write-Step "Fetching ISO (this is several GB)..."

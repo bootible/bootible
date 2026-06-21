@@ -30,6 +30,18 @@ export interface IsoOption {
   label: string;
 }
 
+export interface UsbWriteRequest extends UsbBuildRequest {
+  diskNumber: number;
+  isoPath?: string;
+  isoId?: string;
+}
+
+export interface UsbProgress {
+  pct: number;
+  message: string;
+  status: "running" | "done" | "error";
+}
+
 // The renderer surface. Each call forwards to a main-process IPC handler that
 // drives @bootible/core. Provisioning streams step events back over the
 // provision:step / provision:done channels.
@@ -48,6 +60,11 @@ const api = {
   getUsbDisks: (): Promise<UsbDisk[]> => ipcRenderer.invoke("usb:disks"),
   getIsoCatalog: (): Promise<IsoOption[]> => ipcRenderer.invoke("iso:catalog"),
   browseIso: (): Promise<string | null> => ipcRenderer.invoke("iso:browse"),
+  writeUsb: (req: UsbWriteRequest): Promise<{ started: boolean }> =>
+    ipcRenderer.invoke("usb:write", req),
+  onUsbProgress: (cb: (event: UsbProgress) => void): void => {
+    ipcRenderer.on("usb:progress", (_e, event: UsbProgress) => cb(event));
+  },
   openPath: (path: string): Promise<string> => ipcRenderer.invoke("shell:open", path),
   applyDevice: (req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }> =>
     ipcRenderer.invoke("device:apply", req),
