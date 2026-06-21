@@ -33,6 +33,11 @@
 .PARAMETER DiskNumber
     Target USB disk number. If omitted, you're shown the list and prompted.
 
+.PARAMETER ProgressFile
+    When set, append one NDJSON progress object per step ({pct,message,status})
+    so the bootible app can render a live progress bar while this runs hidden
+    and elevated. Without it, the script just prints to the console.
+
 .EXAMPLE
     .\prepare-usb.ps1 -BundleDir C:\temp\bundle -IsoPath D:\Win11.iso
 #>
@@ -43,6 +48,7 @@ param(
     [string]$DriverPath,
     [int]$DiskNumber = -1,
     [string]$DriverQuery = "MediaTek Wi-Fi 6E MT7922",
+    [string]$ProgressFile,
     [switch]$Force
 )
 
@@ -53,6 +59,17 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 function Write-Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Warn($msg) { Write-Host "  ! $msg" -ForegroundColor Yellow }
+
+# Emit a progress line the app tails (when -ProgressFile is set) and echo to the
+# console. status is "running" | "done" | "error".
+function Send-Progress {
+    param([int]$Pct, [string]$Message, [string]$Status = "running")
+    Write-Step $Message
+    if ($ProgressFile) {
+        $line = @{ pct = $Pct; message = $Message; status = $Status } | ConvertTo-Json -Compress
+        Add-Content -LiteralPath $ProgressFile -Value $line -Encoding utf8
+    }
+}
 
 # --- 1. Windows ISO -------------------------------------------------------
 function Resolve-WindowsIso {
@@ -172,15 +189,27 @@ function Copy-Bundle($usb) {
 # --- main ------------------------------------------------------------------
 if (-not (Test-Path $BundleDir)) { throw "BundleDir not found: $BundleDir" }
 
-$iso = Resolve-WindowsIso
-$driver = Resolve-Driver
-$disk = Select-UsbDisk
-$usb = Format-UsbDisk $disk
-if (-not $usb) { Write-Warn "WhatIf: stopping before any writes."; return }
+try {
+    Send-Progress 2 "Resolving the Windows 11 ISO..."
+    $iso = Resolve-WindowsIso
+    Send-Progress 12 "Resolving the WiFi driver..."
+    $driver = Resolve-Driver
+    Send-Progress 20 "Selecting the USB disk..."
+    $disk = Select-UsbDisk
+    Send-Progress 28 "Erasing and formatting the USB..."
+    $usb = Format-UsbDisk $disk
+    if (-not $usb) { Write-Warn "WhatIf: stopping before any writes."; return }
 
-Copy-WindowsMedia $iso $usb
-Copy-Driver $driver $usb
-Copy-Bundle $usb
+    Send-Progress 45 "Copying Windows media (this takes a few minutes)..."
+    Copy-WindowsMedia $iso $usb
+    Send-Progress 88 "Staging the WiFi driver..."
+    Copy-Driver $driver $usb
+    Send-Progress 95 "Copying the bootible bundle..."
+    Copy-Bundle $usb
 
-Write-Host ""
-Write-Step "Done. Boot the Ally from $usb to wipe, install and configure it."
+    Write-Host ""
+    Send-Progress 100 "Done. Boot the Ally from $usb to wipe, install and configure it." "done"
+} catch {
+    Send-Progress 0 $_.Exception.Message "error"
+    throw
+}
