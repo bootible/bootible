@@ -27,7 +27,7 @@
             <p class="device-sub">Windows 11 handheld — detected on this machine.</p>
 
             <div class="actions">
-              <button class="btn-primary" type="button" data-go="method">
+              <button class="btn-primary" type="button" data-go="persona">
                 Set up this device <span class="arrow" aria-hidden="true">→</span>
               </button>
               <button class="btn-ghost" type="button" data-go="restore">Restore a backup</button>
@@ -44,16 +44,61 @@
           </aside>
         </main>
 
-        <!-- ───────────────────── METHOD ───────────────────── -->
+        <!-- ───────────────────── PERSONA (who are you) ───────────────────── -->
+        <main class="view setup" data-view="persona">
+          <div class="setup-head">
+            <p class="eyebrow" data-field="persona-eyebrow">Your ROG Ally X</p>
+            <h1 class="setup-title">How do you want to do this?</h1>
+            <p class="setup-sub">Same end result — pick how involved you want to be.</p>
+          </div>
+
+          <div class="method-list">
+            <button class="method-card" type="button" data-go="bundles">
+              <span class="method-icon" aria-hidden="true">✦</span>
+              <span class="method-main">
+                <span class="method-name">Set it up for me</span>
+                <span class="method-desc">Pick a recommended setup — described in plain English by what you get, not a list of switches.</span>
+              </span>
+              <span class="method-meta"><span class="group-tag">recommended</span><span class="arrow" aria-hidden="true">→</span></span>
+            </button>
+
+            <button class="method-card" type="button" data-go="setup">
+              <span class="method-icon" aria-hidden="true">⚙</span>
+              <span class="method-main">
+                <span class="method-name">Let me choose</span>
+                <span class="method-desc">See every step, grouped and explained, and toggle exactly what runs. For people who like to tinker.</span>
+              </span>
+              <span class="method-meta"><span class="group-tag">advanced</span><span class="arrow" aria-hidden="true">→</span></span>
+            </button>
+          </div>
+        </main>
+
+        <!-- ───────────────────── BUNDLES (set it up for me) ───────────────────── -->
+        <main class="view setup" data-view="bundles">
+          <div class="setup-head">
+            <p class="eyebrow">Recommended</p>
+            <h1 class="setup-title">Pick a setup</h1>
+            <p class="setup-sub">Each is described by what you get. Open one to see exactly what it does.</p>
+          </div>
+
+          <!-- bundle cards are rendered from the device profile -->
+          <div class="bundle-list"></div>
+
+          <div class="bundle-back">
+            <button class="btn-ghost" type="button" data-go="persona">Back</button>
+          </div>
+        </main>
+
+        <!-- ───────────────────── METHOD (how to apply) ───────────────────── -->
         <main class="view setup" data-view="method">
           <div class="setup-head">
             <p class="eyebrow">Choose a method</p>
-            <h1 class="setup-title">How should we set up your Ally?</h1>
+            <h1 class="setup-title">How should we apply it?</h1>
             <p class="setup-sub">Same config, three ways to apply it — pick what fits.</p>
           </div>
 
           <div class="method-list">
-            <button class="method-card" type="button" data-method="usb" data-go="setup">
+            <button class="method-card" type="button" data-method="usb" data-go="account">
               <span class="method-icon" aria-hidden="true">▤</span>
               <span class="method-main">
                 <span class="method-name">Build a USB</span>
@@ -62,7 +107,7 @@
               <span class="method-meta"><span class="group-tag">zero-touch</span><span class="arrow" aria-hidden="true">→</span></span>
             </button>
 
-            <button class="method-card" type="button" data-method="export" data-go="setup">
+            <button class="method-card" type="button" data-method="export" data-go="review">
               <span class="method-icon" aria-hidden="true">▦</span>
               <span class="method-main">
                 <span class="method-name">Export the config</span>
@@ -71,7 +116,7 @@
               <span class="method-meta"><span class="group-tag">save</span><span class="arrow" aria-hidden="true">→</span></span>
             </button>
 
-            <button class="method-card" type="button" data-method="device" data-go="setup">
+            <button class="method-card" type="button" data-method="device" data-go="review">
               <span class="method-icon" aria-hidden="true">▣</span>
               <span class="method-main">
                 <span class="method-name">Run on this device</span>
@@ -80,16 +125,19 @@
               <span class="method-meta"><span class="group-tag">on-device</span><span class="arrow" aria-hidden="true">→</span></span>
             </button>
           </div>
+
+          <div class="bundle-back">
+            <button class="btn-ghost" type="button" data-go="persona">Back</button>
+          </div>
         </main>
 
-        <!-- ───────────────────── SETUP ───────────────────── -->
+        <!-- ───────────────────── SETUP / TINKER (let me choose) ───────────────────── -->
         <main class="view setup" data-view="setup">
           <div class="setup-head">
-            <p class="eyebrow">Setup plan</p>
-            <h1 class="setup-title">Here's the plan for your Ally</h1>
+            <p class="eyebrow">Customise</p>
+            <h1 class="setup-title">Choose what runs</h1>
             <p class="setup-sub">
-              Four groups, set up in order. Leave it as-is for the recommended
-              setup, or switch off anything you'd rather skip.
+              Every step, grouped and explained. Toggle off anything you don't want.
             </p>
           </div>
 
@@ -139,10 +187,10 @@
               <div class="rline"><span class="mark"></span><span class="rkey">est.</span><span class="rval">~8 min<span class="cursor"></span></span></div>
 
               <div class="summary-actions">
-                <button class="btn-primary" type="button" data-action="config-next">
+                <button class="btn-primary" type="button" data-go="method">
                   Continue <span class="arrow" aria-hidden="true">→</span>
                 </button>
-                <button class="btn-ghost" type="button" data-go="method">Back</button>
+                <button class="btn-ghost" type="button" data-go="persona">Back</button>
               </div>
               <p class="readout-foot">You'll get a chance to review before anything is written.</p>
             </aside>
@@ -364,7 +412,7 @@
                 <button class="btn-primary" type="button" data-go="wifi">
                   Continue <span class="arrow" aria-hidden="true">→</span>
                 </button>
-                <button class="btn-ghost" type="button" data-go="setup">Back</button>
+                <button class="btn-ghost" type="button" data-go="method">Back</button>
               </div>
               <p class="readout-foot">Stored only in the answer file on your USB.</p>
             </aside>

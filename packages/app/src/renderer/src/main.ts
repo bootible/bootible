@@ -8,12 +8,29 @@ interface DeviceSummary {
   emulationCount: number;
 }
 
+interface ModuleSummary {
+  id: string;
+  name: string;
+  description: string;
+  changes?: string;
+  planned: boolean;
+}
+
 interface GroupSummary {
   group: string;
   label: string;
   description: string;
   moduleCount: number;
-  modules: { id: string; name: string }[];
+  modules: ModuleSummary[];
+}
+
+interface Bundle {
+  id: string;
+  name: string;
+  description: string;
+  tag: string;
+  recommended?: boolean;
+  moduleIds: string[];
 }
 
 interface StepEvent {
@@ -53,6 +70,7 @@ interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
   getCatalog(): Promise<GroupSummary[]>;
+  getBundles(): Promise<Bundle[]>;
   getState(): Promise<ModuleStateReport[]>;
   getMethods(): Promise<ProvisioningMethod[]>;
   provision(): Promise<ProvisionResult>;
@@ -72,6 +90,8 @@ declare global {
 
 const VIEWS = [
   "home",
+  "persona",
+  "bundles",
   "method",
   "setup",
   "account",
@@ -172,14 +192,6 @@ document.addEventListener("click", (event) => {
   if (snap.dataset.account) document.body.dataset.account = snap.dataset.account;
 });
 
-// After picking the config, the USB method needs account + WiFi steps first;
-// the other methods go straight to review.
-document.addEventListener("click", (event) => {
-  const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-action="config-next"]');
-  if (!trigger) return;
-  location.hash = document.body.dataset.method === "usb" ? "account" : "review";
-});
-
 window.addEventListener("hashchange", syncFromHash);
 
 /** Write a value into every [data-field="<field>"] element. */
@@ -276,18 +288,7 @@ function renderGroups(): void {
       head.append(toggle, main, meta);
 
       const rows = el("div", "module-rows");
-      rows.append(
-        ...group.modules.map((module) => {
-          const row = el("button", "module-row is-on") as HTMLButtonElement;
-          row.type = "button";
-          row.dataset.module = module.id;
-          row.setAttribute("aria-pressed", "true");
-          const mt = el("span", "module-toggle");
-          mt.setAttribute("aria-hidden", "true");
-          row.append(mt, el("span", "module-name", module.name));
-          return row;
-        }),
-      );
+      rows.append(...group.modules.map(moduleRow));
 
       block.append(head, rows);
       return block;
@@ -295,9 +296,43 @@ function renderGroups(): void {
   );
 }
 
-/** Selected module ids, from the toggled-on module rows. */
+/** A single module row — a real toggle, or a dimmed "coming soon" entry that
+ *  can't be selected. */
+function moduleRow(module: ModuleSummary): HTMLElement {
+  const text = el("span", "module-text");
+  const name = el("span", "module-name", module.name);
+  if (module.planned) name.append(el("span", "module-badge", "coming soon"));
+  text.append(name, el("span", "module-desc", module.description));
+
+  const toggle = el("span", "module-toggle");
+  toggle.setAttribute("aria-hidden", "true");
+
+  if (module.planned) {
+    const row = el("div", "module-soon");
+    row.append(toggle, text);
+    return row;
+  }
+
+  if (module.changes) text.append(el("span", "module-changes", `changes: ${module.changes}`));
+  const row = el("button", "module-row is-on") as HTMLButtonElement;
+  row.type = "button";
+  row.dataset.module = module.id;
+  row.setAttribute("aria-pressed", "true");
+  row.append(toggle, text);
+  return row;
+}
+
+// Source of truth for the chosen modules — set by a bundle pick (player path)
+// or synced from the tinker toggles. The review/build/export all read this.
+let selectedModules: string[] = [];
+
 function selectedModuleIds(): string[] {
-  return [...document.querySelectorAll<HTMLElement>(".module-row.is-on")]
+  return selectedModules;
+}
+
+/** Recompute the selection from the tinker screen's toggled-on rows. */
+function syncSelectionFromTinker(): void {
+  selectedModules = [...document.querySelectorAll<HTMLElement>(".module-row.is-on")]
     .map((row) => row.dataset.module ?? "")
     .filter(Boolean);
 }
@@ -337,6 +372,7 @@ function renderReviewPlan(): void {
 
 /** Reflect the per-module selection in the setup summary rail. */
 function updateSetupSummary(): void {
+  syncSelectionFromTinker();
   const selected = selectedModuleIds();
   const groupsOn = new Set(
     [...document.querySelectorAll<HTMLElement>(".module-row.is-on")].map(
@@ -370,8 +406,103 @@ async function hydrateCatalog(): Promise<void> {
   renderGroups();
   renderReviewPlan();
   updateSetupSummary();
+  void hydrateBundles();
   void hydrateState();
 }
+
+// ── bundles (the "set it up for me" path) ───────────────────────────────────
+let bundles: Bundle[] = [];
+
+/** Fetch the device's bundles and render their cards. */
+async function hydrateBundles(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getBundles) return;
+  try {
+    bundles = await api.getBundles();
+  } catch {
+    return;
+  }
+  renderBundles();
+}
+
+/** Look up each module's summary by id, across all groups. */
+function moduleIndex(): Map<string, ModuleSummary> {
+  const index = new Map<string, ModuleSummary>();
+  for (const group of catalog) for (const module of group.modules) index.set(module.id, module);
+  return index;
+}
+
+/** Render the bundle cards from the device profile's bundles. */
+function renderBundles(): void {
+  const list = document.querySelector<HTMLElement>(".bundle-list");
+  if (!list || bundles.length === 0) return;
+  const index = moduleIndex();
+  list.replaceChildren(...bundles.map((bundle) => bundleCard(bundle, index)));
+}
+
+function bundleCard(bundle: Bundle, index: Map<string, ModuleSummary>): HTMLElement {
+  const card = el("div", "bundle");
+  card.dataset.bundle = bundle.id;
+  if (bundle.recommended) card.classList.add("is-open");
+
+  const head = el("div", "bundle-head");
+  const main = el("span", "bundle-main");
+  main.append(
+    el("span", "bundle-name", bundle.name),
+    el("span", "bundle-desc", bundle.description),
+  );
+  const meta = el("span", "bundle-meta");
+  meta.append(el("span", "group-tag", bundle.tag));
+  head.append(main, meta);
+
+  const contents = el("div", "bundle-contents");
+  for (const id of bundle.moduleIds) {
+    const module = index.get(id);
+    if (!module) continue;
+    const text = el("span", "bc-text");
+    text.append(el("span", "bc-name", module.name), el("span", "bc-desc", module.description));
+    const row = el("div", "bc-row");
+    row.append(el("span", "bc-dot"), text);
+    contents.append(row);
+  }
+
+  const actions = el("div", "bundle-actions");
+  const use = el("button", "btn-primary", "Use this setup →") as HTMLButtonElement;
+  use.type = "button";
+  use.dataset.pick = bundle.id;
+  const expand = el(
+    "button",
+    "linkbtn bundle-expand",
+    bundle.recommended ? "hide what's inside" : "show what's inside",
+  ) as HTMLButtonElement;
+  expand.type = "button";
+  actions.append(use, expand);
+
+  card.append(head, contents, actions);
+  return card;
+}
+
+// Pick a bundle → record its modules as the selection and move to the method
+// screen. Expand → reveal what's inside.
+document.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+
+  const pick = target.closest<HTMLElement>("[data-pick]");
+  if (pick) {
+    const bundle = bundles.find((b) => b.id === pick.dataset.pick);
+    if (bundle) {
+      selectedModules = [...bundle.moduleIds];
+      location.hash = "method";
+    }
+    return;
+  }
+
+  const expand = target.closest<HTMLElement>(".bundle-expand");
+  if (expand) {
+    const open = expand.closest(".bundle")?.classList.toggle("is-open");
+    expand.textContent = open ? "hide what's inside" : "show what's inside";
+  }
+});
 
 /** Annotate the group cards with current on-device state ("✓ set" / "N/M set"). */
 async function hydrateState(): Promise<void> {
@@ -430,7 +561,7 @@ async function hydrateMethods(): Promise<void> {
   } catch {
     return;
   }
-  const list = document.querySelector<HTMLElement>(".method-list");
+  const list = document.querySelector<HTMLElement>('.view[data-view="method"] .method-list');
   if (!list || methods.length === 0) return;
 
   list.replaceChildren(
@@ -438,7 +569,8 @@ async function hydrateMethods(): Promise<void> {
       const btn = el("button", "method-card") as HTMLButtonElement;
       btn.type = "button";
       btn.dataset.method = method.id;
-      btn.dataset.go = "setup";
+      // USB needs the account + WiFi steps first; the rest go straight to review.
+      btn.dataset.go = method.id === "usb" ? "account" : "review";
 
       const icon = el("span", "method-icon", METHOD_ICONS[method.id] ?? "▤");
       icon.setAttribute("aria-hidden", "true");
