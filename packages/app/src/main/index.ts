@@ -202,6 +202,94 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
   return { stagingPath, command };
 }
 
+// ── in-app USB writer: disks + ISO source ───────────────────────────────────
+
+export interface UsbDisk {
+  number: number;
+  name: string;
+  sizeGb: number;
+}
+
+export interface IsoOption {
+  id: string;
+  label: string;
+}
+
+/** Run a PowerShell snippet and return stdout (non-elevated, no window). */
+function runPwsh(script: string): string {
+  return execFileSync(
+    "powershell",
+    ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
+    { encoding: "utf8", windowsHide: true },
+  );
+}
+
+/** Removable USB disks the user can write to (listing needs no admin). */
+function listUsbDisks(): UsbDisk[] {
+  try {
+    const out = runPwsh(
+      "Get-Disk | Where-Object BusType -eq 'USB' | Select-Object Number,FriendlyName,Size | ConvertTo-Json -Compress",
+    ).trim();
+    if (!out) return [];
+    const parsed = JSON.parse(out);
+    const rows: Array<{ Number: number; FriendlyName?: string; Size: number }> = Array.isArray(
+      parsed,
+    )
+      ? parsed
+      : [parsed];
+    return rows.map((r) => ({
+      number: r.Number,
+      name: r.FriendlyName ?? "USB disk",
+      sizeGb: Math.round((r.Size / 1024 ** 3) * 10) / 10,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// Known Windows 11 images for the Rufus-style dropdown. Fido resolves the real
+// Microsoft download URL from these (rel/ed/lang/arch) at download time.
+const ISO_CATALOG = [
+  {
+    id: "win11-24h2-intl",
+    label: "Windows 11 24H2 — English International (x64)",
+    rel: "24H2",
+    ed: "Home/Pro",
+    lang: "English International",
+    arch: "x64",
+  },
+  {
+    id: "win11-24h2-us",
+    label: "Windows 11 24H2 — English (United States) (x64)",
+    rel: "24H2",
+    ed: "Home/Pro",
+    lang: "English",
+    arch: "x64",
+  },
+  {
+    id: "win11-23h2-intl",
+    label: "Windows 11 23H2 — English International (x64)",
+    rel: "23H2",
+    ed: "Home/Pro",
+    lang: "English International",
+    arch: "x64",
+  },
+] as const;
+
+function getIsoCatalog(): IsoOption[] {
+  return ISO_CATALOG.map((o) => ({ id: o.id, label: o.label }));
+}
+
+/** Let the user pick a local Windows ISO. Returns the path, or null. */
+async function browseIso(win: BrowserWindow): Promise<string | null> {
+  const result = await dialog.showOpenDialog(win, {
+    title: "Choose a Windows 11 ISO",
+    properties: ["openFile"],
+    filters: [{ name: "ISO", extensions: ["iso"] }],
+  });
+  return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
+}
+
 /**
  * Method C — apply the config live on THIS device. Hard-blocked unless the
  * machine matches a device whitelist, then confirmed, then run as an elevated
@@ -338,6 +426,12 @@ app.whenReady().then(() => {
     return win ? exportConfig(win, modules ?? []) : null;
   });
   ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
+  ipcMain.handle("usb:disks", () => listUsbDisks());
+  ipcMain.handle("iso:catalog", () => getIsoCatalog());
+  ipcMain.handle("iso:browse", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? browseIso(win) : null;
+  });
   ipcMain.handle("shell:open", (_event, path: string) => shell.openPath(path));
   ipcMain.handle("device:apply", (event, req: UsbBuildRequest) => {
     const win = BrowserWindow.fromWebContents(event.sender);
