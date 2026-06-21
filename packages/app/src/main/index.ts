@@ -248,6 +248,11 @@ function tailUsbProgress(sender: WebContents, file: string): void {
  * (one UAC) and hidden, feeding a progress file the app tails. The disk + ISO
  * are chosen in-app and passed as args, so the writer never prompts.
  */
+/** Single-quote a value for embedding in a PowerShell script literal. */
+function psQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean } {
   const stagingPath = stageUsbBundle(req);
   if (!stagingPath) {
@@ -258,42 +263,50 @@ function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean
   const progressFile = join(app.getPath("temp"), "bootible-usb-progress.ndjson");
   writeFileSync(progressFile, "");
 
-  const args = [
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    prepareUsbScript,
-    "-BundleDir",
-    stagingPath,
-    "-DiskNumber",
-    String(req.diskNumber),
+  // Build the writer call with values BAKED IN (PowerShell-quoted). Passing args
+  // through `Start-Process -Verb RunAs -ArgumentList @(...)` flattens the array
+  // with spaces and drops quoting — so a path or value with a space (e.g.
+  // "English International") silently breaks parameter binding. A generated
+  // runner script sidesteps that entirely: the only arg to the elevated shell is
+  // a -File path (no spaces), and a try/catch writes any failure to the progress
+  // file so a write never hangs silently.
+  const callParts = [
+    psQuote(prepareUsbScript),
+    `-BundleDir ${psQuote(stagingPath)}`,
+    `-DiskNumber ${req.diskNumber}`,
     "-Force",
-    "-ProgressFile",
-    progressFile,
+    // The UI already took an explicit erase confirmation; skip the script's
+    // ShouldProcess prompt (ConfirmImpact=High) so the hidden process doesn't
+    // hang waiting for a "yes" it can never receive.
+    "-Confirm:$false",
+    `-ProgressFile ${psQuote(progressFile)}`,
   ];
   if (req.isoPath) {
-    args.push("-IsoPath", req.isoPath);
+    callParts.push(`-IsoPath ${psQuote(req.isoPath)}`);
   } else if (req.isoId) {
     const option = ISO_CATALOG.find((c) => c.id === req.isoId);
     if (option) {
-      args.push(
-        "-IsoRel",
-        option.rel,
-        "-IsoEd",
-        option.ed,
-        "-IsoLang",
-        option.lang,
-        "-IsoArch",
-        option.arch,
+      callParts.push(
+        `-IsoRel ${psQuote(option.rel)} -IsoEd ${psQuote(option.ed)} -IsoLang ${psQuote(option.lang)} -IsoArch ${psQuote(option.arch)}`,
       );
     }
   }
 
-  // Launch elevated + hidden; progress flows through the file, not stdout (a
-  // non-elevated parent can't read an elevated child's stdout).
-  const quoted = args.map((a) => `'${a.replace(/'/g, "''")}'`).join(",");
-  const launcher = `Start-Process -FilePath 'powershell' -Verb RunAs -WindowStyle Hidden -ArgumentList @(${quoted})`;
+  const runner = [
+    "$ErrorActionPreference = 'Stop'",
+    "try {",
+    `  & ${callParts.join(" ")}`,
+    "} catch {",
+    "  $msg = @{ pct = 0; message = $_.Exception.Message; status = 'error' } | ConvertTo-Json -Compress",
+    `  [System.IO.File]::AppendAllText(${psQuote(progressFile)}, $msg + [Environment]::NewLine)`,
+    "}",
+  ].join("\r\n");
+  const runnerPath = join(app.getPath("temp"), "bootible-usb-run.ps1");
+  writeFileSync(runnerPath, runner, "utf8");
+
+  // Launch the runner elevated (one UAC) + hidden. Only one arg crosses the
+  // RunAs boundary — a -File path in %TEMP% (no spaces).
+  const launcher = `Start-Process -FilePath 'powershell' -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File "${runnerPath}"'`;
   spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", launcher], {
     windowsHide: true,
   });

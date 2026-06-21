@@ -71,7 +71,10 @@ function Send-Progress {
     Write-Step $Message
     if ($ProgressFile) {
         $line = @{ pct = $Pct; message = $Message; status = $Status } | ConvertTo-Json -Compress
-        Add-Content -LiteralPath $ProgressFile -Value $line -Encoding utf8
+        # AppendAllText writes UTF-8 with NO BOM on every PowerShell version — so
+        # the app never sees a BOM-corrupted first line (Win PowerShell 5.1's
+        # Add-Content -Encoding utf8 prepends one).
+        [System.IO.File]::AppendAllText($ProgressFile, $line + [Environment]::NewLine)
     }
 }
 
