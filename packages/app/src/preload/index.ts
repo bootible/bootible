@@ -1,4 +1,5 @@
 import type {
+  Bundle,
   DeviceSummary,
   GroupSummary,
   ModuleStateReport,
@@ -25,6 +26,7 @@ const api = {
   version: "v2 (dev)",
   getDevice: (): Promise<DeviceSummary | null> => ipcRenderer.invoke("device:get"),
   getCatalog: (): Promise<GroupSummary[]> => ipcRenderer.invoke("catalog:get"),
+  getBundles: (): Promise<Bundle[]> => ipcRenderer.invoke("bundles:get"),
   getState: (): Promise<ModuleStateReport[]> => ipcRenderer.invoke("device:state"),
   getMethods: (): Promise<ProvisioningMethod[]> => ipcRenderer.invoke("methods:get"),
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),

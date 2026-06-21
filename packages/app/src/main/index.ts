@@ -3,13 +3,14 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "no
 import { dirname, join } from "node:path";
 import {
   type AccountMode,
-  allyCatalog,
-  allyExecutor,
+  type Bundle,
   buildConfig,
   buildUsbBundle,
   checkModules,
   type DeviceEntry,
+  type DeviceProfile,
   type DeviceSummary,
+  deviceProfile,
   deviceSummary,
   type Exec,
   type GroupSummary,
@@ -80,6 +81,11 @@ function targetDevice(): DeviceEntry | null {
   return registry.find((d) => d.id === "rog-ally") ?? registry[0] ?? null;
 }
 
+/** The provisioning profile (catalog + bundles + executor) for a device. */
+function profileFor(device: DeviceEntry | null): DeviceProfile | null {
+  return device ? deviceProfile(device.id) : null;
+}
+
 /** Project the detected device for the renderer, or null if none matches. */
 function getDevice(): DeviceSummary | null {
   try {
@@ -91,9 +97,15 @@ function getDevice(): DeviceSummary | null {
   }
 }
 
-/** The device's module catalog, grouped for the setup screen. */
+/** The target device's module catalog, grouped for the setup screen. */
 function getCatalog(): GroupSummary[] {
-  return groupCatalog(allyCatalog);
+  const profile = profileFor(targetDevice());
+  return profile ? groupCatalog(profile.catalog) : [];
+}
+
+/** The target device's recommended bundles (the "set it up for me" path). */
+function getBundles(): Bundle[] {
+  return profileFor(targetDevice())?.bundles ?? [];
 }
 
 /** Provisioning methods for the target device — derived from its registry
@@ -106,7 +118,8 @@ function getMethods(): ProvisioningMethod[] {
 /** Probe current module state on the detected device (read-only). [] off-device. */
 function getDeviceState(): ModuleStateReport[] {
   const device = loadDeviceEntry();
-  if (!device) return [];
+  const profile = profileFor(device);
+  if (!device || !profile) return [];
   const readExec: Exec = (cmd) => {
     const [file, ...args] = cmd;
     try {
@@ -116,7 +129,7 @@ function getDeviceState(): ModuleStateReport[] {
     }
   };
   const config = buildConfig({ device: device.id, settings: RECOMMENDED_SETTINGS });
-  return checkModules(allyCatalog, { device, config }, readExec);
+  return checkModules(profile.catalog, { device, config }, readExec);
 }
 
 /**
@@ -158,7 +171,8 @@ export interface UsbBuildRequest {
  */
 function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string } | null {
   const device = targetDevice();
-  if (!device) return null;
+  const profile = profileFor(device);
+  if (!device || !profile) return null;
 
   const config = buildConfig({
     device: device.id,
@@ -173,7 +187,7 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
 
   const stagingPath = join(app.getPath("temp"), "bootible-usb-bundle");
   rmSync(stagingPath, { recursive: true, force: true });
-  for (const file of buildUsbBundle(spec, allyExecutor)) {
+  for (const file of buildUsbBundle(spec, profile.executor)) {
     const dest = join(stagingPath, file.path);
     mkdirSync(dirname(dest), { recursive: true });
     writeFileSync(dest, file.content, "utf8");
@@ -198,7 +212,8 @@ async function applyDevice(
   req: UsbBuildRequest,
 ): Promise<{ status: "blocked" | "cancelled" | "launched" }> {
   const device = loadDeviceEntry();
-  if (!device) return { status: "blocked" };
+  const profile = profileFor(device);
+  if (!device || !profile) return { status: "blocked" };
 
   const confirm = await dialog.showMessageBox(win, {
     type: "warning",
@@ -217,7 +232,7 @@ async function applyDevice(
     modules: req.modules.length ? req.modules : undefined,
     settings: RECOMMENDED_SETTINGS,
   });
-  const script = generateBootstrapScript({ device, config, executorFactory: allyExecutor });
+  const script = generateBootstrapScript({ device, config, executorFactory: profile.executor });
   const dir = join(app.getPath("temp"), "bootible-apply");
   mkdirSync(dir, { recursive: true });
   const scriptPath = join(dir, "bootstrap.ps1");
@@ -255,7 +270,8 @@ const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
  */
 async function provision(sender: WebContents): Promise<{ applied: number; skipped: number }> {
   const device = loadDeviceEntry();
-  if (!device) {
+  const profile = profileFor(device);
+  if (!device || !profile) {
     sender.send("provision:done", { applied: 0, skipped: 0 });
     return { applied: 0, skipped: 0 };
   }
@@ -264,7 +280,7 @@ async function provision(sender: WebContents): Promise<{ applied: number; skippe
   const dryRun: Exec = () => ""; // record nothing, execute nothing
 
   const queue: StepEvent[] = [];
-  allyExecutor(dryRun).apply({ device, config }, (event) => queue.push(event));
+  profile.executor(dryRun).apply({ device, config }, (event) => queue.push(event));
 
   let applied = 0;
   let skipped = 0;
@@ -313,6 +329,7 @@ app.whenReady().then(() => {
   ipcMain.handle("device:get", () => getDevice());
   ipcMain.handle("device:state", () => getDeviceState());
   ipcMain.handle("catalog:get", () => getCatalog());
+  ipcMain.handle("bundles:get", () => getBundles());
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, modules: string[]) => {
