@@ -88,8 +88,14 @@ function Resolve-WindowsIso {
     $fido = Join-Path $env:TEMP "Fido.ps1"
     Invoke-WebRequest "https://github.com/pbatard/Fido/raw/master/Fido.ps1" -OutFile $fido
     # Fido prints a genuine microsoft.com download URL for the chosen edition.
-    $url = & $fido -Win "11" -Rel $IsoRel -Ed $IsoEd -Lang $IsoLang -Arch $IsoArch -GetUrl
-    if (-not $url) { throw "Fido did not return a download URL. Re-run with -IsoPath pointing at an ISO you downloaded yourself." }
+    # Capture everything so we can surface Fido's real reason on failure.
+    $fidoOut = & $fido -Win "11" -Rel $IsoRel -Ed $IsoEd -Lang $IsoLang -Arch $IsoArch -GetUrl 2>&1
+    $url = $fidoOut | Where-Object { "$_" -match "^https" } | Select-Object -First 1
+    if (-not $url) {
+        $reason = ($fidoOut | Out-String).Trim()
+        throw "Microsoft blocked the automated download (their anti-bot rejects scripted requests, especially after a few attempts). Download a Windows 11 ISO yourself from microsoft.com, then use 'Browse for a local ISO'. [$reason]"
+    }
+    $url = "$url"
     $iso = Join-Path $env:TEMP "Win11.iso"
 
     # Download asynchronously so we can report live progress (BytesTransferred /
