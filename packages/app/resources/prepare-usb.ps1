@@ -14,11 +14,11 @@
     -WhatIf to print the plan without touching anything.
 
     HARDWARE-GATED: this performs real disk + media operations that can only be
-    validated by building a stick and booting an Ally — it is not unit-tested.
+    validated by building a stick and booting an Ally -- it is not unit-tested.
 
     KNOWN FOLLOW-UP: Windows 11 25H2's "ConX" setup path can drop oobeSystem
     passes from answer files. If you hit that, build with Rufus 4.14 (handles it)
-    or inject winpeshl.ini into boot.wim — not yet automated here.
+    or inject winpeshl.ini into boot.wim -- not yet automated here.
 
 .PARAMETER BundleDir
     Folder the app wrote the bundle into (autounattend.xml + sources/$OEM$/...).
@@ -71,7 +71,7 @@ function Send-Progress {
     Write-Step $Message
     if ($ProgressFile) {
         $line = @{ pct = $Pct; message = $Message; status = $Status } | ConvertTo-Json -Compress
-        # AppendAllText writes UTF-8 with NO BOM on every PowerShell version — so
+        # AppendAllText writes UTF-8 with NO BOM on every PowerShell version -- so
         # the app never sees a BOM-corrupted first line (Win PowerShell 5.1's
         # Add-Content -Encoding utf8 prepends one).
         [System.IO.File]::AppendAllText($ProgressFile, $line + [Environment]::NewLine)
@@ -135,7 +135,7 @@ function Select-UsbDisk {
 
     if ($DiskNumber -lt 0) { $DiskNumber = [int](Read-Host "Enter the USB disk Number to ERASE") }
     $disk = $disks | Where-Object Number -EQ $DiskNumber
-    if (-not $disk) { throw "Disk $DiskNumber is not in the removable-USB list above — refusing to touch it." }
+    if (-not $disk) { throw "Disk $DiskNumber is not in the removable-USB list above -- refusing to touch it." }
 
     $label = "disk $DiskNumber ($($disk.FriendlyName), $([math]::Round($disk.Size / 1GB, 1)) GB)"
     if (-not $Force) {

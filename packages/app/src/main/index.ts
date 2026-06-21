@@ -188,7 +188,10 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
   for (const file of buildUsbBundle(spec, profile.executor)) {
     const dest = join(stagingPath, file.path);
     mkdirSync(dirname(dest), { recursive: true });
-    writeFileSync(dest, file.content, "utf8");
+    // .ps1 files get a UTF-8 BOM so the Ally's Windows PowerShell 5.1 reads any
+    // non-ASCII (em-dashes in copy) correctly instead of as ANSI mojibake.
+    const content = dest.endsWith(".ps1") ? "\uFEFF" + file.content : file.content;
+    writeFileSync(dest, content, "utf8");
   }
   return stagingPath;
 }
@@ -302,7 +305,7 @@ function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean
     "}",
   ].join("\r\n");
   const runnerPath = join(app.getPath("temp"), "bootible-usb-run.ps1");
-  writeFileSync(runnerPath, runner, "utf8");
+  writeFileSync(runnerPath, `\uFEFF${runner}`, "utf8");
 
   // Launch the runner elevated (one UAC) + hidden. Only one arg crosses the
   // RunAs boundary — a -File path in %TEMP% (no spaces).
