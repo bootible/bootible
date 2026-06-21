@@ -371,29 +371,24 @@ function listUsbDisks(): UsbDisk[] {
 
 // Known Windows 11 images for the Rufus-style dropdown. Fido resolves the real
 // Microsoft download URL from these (rel/ed/lang/arch) at download time.
+// Fido only serves the release Microsoft currently offers, via -Rel "Latest"
+// (specific older versions like 24H2 are rejected). So the dropdown is the
+// latest Win 11 by language/edition; for a specific version, use a local ISO.
 const ISO_CATALOG = [
   {
-    id: "win11-24h2-intl",
-    label: "Windows 11 24H2 — English International (x64)",
-    rel: "24H2",
+    id: "win11-latest-intl",
+    label: "Windows 11 (latest) — English International (x64)",
+    rel: "Latest",
     ed: "Home/Pro",
     lang: "English International",
     arch: "x64",
   },
   {
-    id: "win11-24h2-us",
-    label: "Windows 11 24H2 — English (United States) (x64)",
-    rel: "24H2",
+    id: "win11-latest-us",
+    label: "Windows 11 (latest) — English (United States) (x64)",
+    rel: "Latest",
     ed: "Home/Pro",
     lang: "English",
-    arch: "x64",
-  },
-  {
-    id: "win11-23h2-intl",
-    label: "Windows 11 23H2 — English International (x64)",
-    rel: "23H2",
-    ed: "Home/Pro",
-    lang: "English International",
     arch: "x64",
   },
 ] as const;

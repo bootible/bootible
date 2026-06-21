@@ -49,7 +49,7 @@ param(
     [int]$DiskNumber = -1,
     [string]$DriverQuery = "MediaTek Wi-Fi 6E MT7922",
     [string]$ProgressFile,
-    [string]$IsoRel = "24H2",
+    [string]$IsoRel = "Latest",
     [string]$IsoEd = "Home/Pro",
     [string]$IsoLang = "English International",
     [string]$IsoArch = "x64",
