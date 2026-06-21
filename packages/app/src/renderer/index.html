@@ -477,6 +477,50 @@
           </div>
         </main>
 
+        <!-- ───────────────────── USB WRITE (in-app build) ───────────────────── -->
+        <main class="view setup" data-view="usbwrite">
+          <div class="setup-head">
+            <p class="eyebrow">Build a USB</p>
+            <h1 class="setup-title">Write the install stick</h1>
+            <p class="setup-sub">Pick a Windows image and the USB to erase — bootible writes it for you.</p>
+          </div>
+
+          <div class="usbwrite-body">
+            <section class="uw-section">
+              <p class="uw-label">Windows image</p>
+              <select class="uw-select" id="iso-select" aria-label="Windows image"></select>
+              <div class="uw-row">
+                <button class="linkbtn" type="button" id="iso-browse">Browse for a local ISO…</button>
+                <span class="uw-iso-path muted" id="iso-path"></span>
+              </div>
+            </section>
+
+            <section class="uw-section">
+              <p class="uw-label">USB drive <button class="linkbtn" type="button" id="disk-refresh">refresh</button></p>
+              <div class="uw-disks" id="disk-list"><p class="muted">Scanning for removable drives…</p></div>
+            </section>
+
+            <section class="uw-section uw-go">
+              <label class="uw-confirm">
+                <input type="checkbox" id="erase-confirm" />
+                <span>I understand this <strong>erases</strong> the selected drive</span>
+              </label>
+              <div class="done-actions">
+                <button class="btn-primary" type="button" id="usb-write-btn" disabled>
+                  Write USB <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <button class="btn-ghost" type="button" data-go="review">Back</button>
+              </div>
+            </section>
+
+            <section class="uw-section uw-progress" hidden>
+              <p class="provision-now" id="uw-msg">Starting…</p>
+              <div class="progress"><div class="progress-fill" id="uw-fill" style="width: 0%"></div></div>
+              <p class="progress-meta" id="uw-pct">Working… keep the app open.</p>
+            </section>
+          </div>
+        </main>
+
         <!-- ───────────────────── CONNECT (pick a sync target) ───────────────────── -->
         <main class="view setup" data-view="connect">
           <div class="setup-head">

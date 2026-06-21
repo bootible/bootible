@@ -102,6 +102,10 @@ body[data-view="review"] .view[data-view="review"] {
   display: flex;
 }
 
+body[data-view="usbwrite"] .view[data-view="usbwrite"] {
+  display: flex;
+}
+
 body[data-view="connect"] .view[data-view="connect"] {
   display: flex;
 }
@@ -736,6 +740,114 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 .bundle-back {
   margin-top: 20px;
+}
+
+/* in-app USB writer */
+.usbwrite-body {
+  display: grid;
+  gap: 26px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.uw-section {
+  display: grid;
+  gap: 12px;
+}
+
+.uw-label {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.uw-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.uw-select {
+  appearance: none;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  width: 100%;
+}
+
+.uw-iso-path {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.uw-disks {
+  display: grid;
+  gap: 8px;
+}
+
+.uw-disk {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  font-family: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.uw-disk:hover {
+  border-color: var(--dim);
+}
+
+.uw-disk.is-sel {
+  border-color: var(--signal);
+  box-shadow: inset 0 0 0 1px var(--signal);
+}
+
+.uw-disk-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.uw-disk-size {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.uw-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.uw-confirm input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--signal);
+}
+
+.uw-progress {
+  gap: 14px;
 }
 
 /* summary rail — shares the readout's panel language */

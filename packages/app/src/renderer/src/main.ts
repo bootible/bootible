@@ -66,6 +66,29 @@ interface ProvisioningMethod {
   tag: string;
 }
 
+interface UsbDisk {
+  number: number;
+  name: string;
+  sizeGb: number;
+}
+
+interface IsoOption {
+  id: string;
+  label: string;
+}
+
+interface UsbProgress {
+  pct: number;
+  message: string;
+  status: "running" | "done" | "error";
+}
+
+interface UsbWriteReq extends UsbBuildRequest {
+  diskNumber: number;
+  isoPath?: string;
+  isoId?: string;
+}
+
 interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
@@ -80,6 +103,11 @@ interface BootibleApi {
   buildUsb(req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null>;
   openPath(path: string): Promise<string>;
   applyDevice(req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }>;
+  getUsbDisks(): Promise<UsbDisk[]>;
+  getIsoCatalog(): Promise<IsoOption[]>;
+  browseIso(): Promise<string | null>;
+  writeUsb(req: UsbWriteReq): Promise<{ started: boolean }>;
+  onUsbProgress(cb: (event: UsbProgress) => void): void;
 }
 
 declare global {
@@ -97,6 +125,7 @@ const VIEWS = [
   "account",
   "wifi",
   "review",
+  "usbwrite",
   "connect",
   "provision",
   "done",
@@ -136,6 +165,7 @@ function syncFromHash(): void {
     setApplyLabel();
     renderReviewPlan();
   }
+  if (view === "usbwrite") void hydrateUsbWrite();
   if (view === "provision") startProvision();
 }
 
@@ -750,34 +780,153 @@ function gatherUsbRequest(): UsbBuildRequest {
   return { modules: selectedModuleIds(), account, wifi };
 }
 
-async function runBuildUsb(): Promise<void> {
+// ── in-app USB writer screen ────────────────────────────────────────────────
+const usbState: { isoId: string; isoPath: string; disk: number } = {
+  isoId: "",
+  isoPath: "",
+  disk: -1,
+};
+
+/** Populate the ISO dropdown + disk list when the writer screen opens. */
+async function hydrateUsbWrite(): Promise<void> {
   const api = window.bootible;
-  if (!api?.buildUsb) return;
-  const result = await api.buildUsb(gatherUsbRequest());
-  if (!result) return;
+  if (!api?.getIsoCatalog) return;
 
-  lastArtifactPath = result.stagingPath;
-  const account = document.body.dataset.account === "microsoft" ? "Microsoft" : "local";
-  const ssid = document.querySelector<HTMLInputElement>("#wifi-ssid")?.value.trim();
-  fill("done-eyebrow", "USB bundle ready");
-  fill("done-title", "Bundle staged for your USB");
-  fill(
-    "done-sub",
-    "The folder's open. Run prepare-usb.ps1 in it as administrator to write the stick — it fetches Windows + the WiFi driver, then asks which drive to erase.",
-  );
-
-  const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
-  if (receipt) {
-    receipt.replaceChildren(
-      receiptRow("device", deviceName),
-      receiptRow("account", account),
-      receiptRow("wifi", ssid ? ssid : "none"),
-      receiptRow("staged", result.stagingPath),
+  const select = document.querySelector<HTMLSelectElement>("#iso-select");
+  if (select && select.options.length === 0) {
+    let catalog: IsoOption[] = [];
+    try {
+      catalog = await api.getIsoCatalog();
+    } catch {}
+    select.replaceChildren(
+      ...catalog.map((option) => {
+        const opt = document.createElement("option");
+        opt.value = option.id;
+        opt.textContent = option.label;
+        return opt;
+      }),
     );
+    if (catalog[0]) {
+      usbState.isoId = catalog[0].id;
+      usbState.isoPath = "";
+    }
   }
-  void api.openPath?.(result.stagingPath);
-  location.hash = "done";
+  await refreshDisks();
+  updateWriteButton();
 }
+
+async function refreshDisks(): Promise<void> {
+  const api = window.bootible;
+  const list = document.querySelector<HTMLElement>("#disk-list");
+  if (!api?.getUsbDisks || !list) return;
+  let disks: UsbDisk[] = [];
+  try {
+    disks = await api.getUsbDisks();
+  } catch {}
+  if (disks.length === 0) {
+    list.replaceChildren(
+      el("p", "muted", "No removable USB drives found. Plug one in, then Refresh."),
+    );
+    return;
+  }
+  list.replaceChildren(
+    ...disks.map((disk) => {
+      const btn = el("button", "uw-disk") as HTMLButtonElement;
+      btn.type = "button";
+      btn.dataset.disk = String(disk.number);
+      if (disk.number === usbState.disk) btn.classList.add("is-sel");
+      btn.append(
+        el("span", "uw-disk-name", disk.name),
+        el("span", "uw-disk-size", `${disk.sizeGb} GB · disk ${disk.number}`),
+      );
+      return btn;
+    }),
+  );
+}
+
+function updateWriteButton(): void {
+  const btn = document.querySelector<HTMLButtonElement>("#usb-write-btn");
+  const confirmed = document.querySelector<HTMLInputElement>("#erase-confirm")?.checked ?? false;
+  const hasIso = Boolean(usbState.isoId || usbState.isoPath);
+  if (btn) btn.disabled = !(confirmed && hasIso && usbState.disk >= 0);
+}
+
+async function startUsbWrite(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.writeUsb) return;
+  document.querySelector(".uw-go")?.setAttribute("hidden", "");
+  document.querySelector(".uw-progress")?.removeAttribute("hidden");
+  await api.writeUsb({
+    ...gatherUsbRequest(),
+    diskNumber: usbState.disk,
+    isoPath: usbState.isoPath || undefined,
+    isoId: usbState.isoId || undefined,
+  });
+}
+
+function onUsbProgress(event: UsbProgress): void {
+  const msg = document.querySelector("#uw-msg");
+  const fill = document.querySelector<HTMLElement>("#uw-fill");
+  const pct = document.querySelector("#uw-pct");
+  if (msg) msg.textContent = event.message;
+  if (fill) fill.style.width = `${event.pct}%`;
+  if (pct) {
+    pct.textContent =
+      event.status === "error"
+        ? "Failed — see the message above."
+        : event.status === "done"
+          ? "Done — boot the Ally from the stick."
+          : `${event.pct}% — keep the app open.`;
+  }
+}
+
+window.bootible?.onUsbProgress?.(onUsbProgress);
+
+// Writer-screen interactions (ISO source, disk pick, confirm, write).
+document.addEventListener("change", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.id === "iso-select") {
+    usbState.isoId = (target as HTMLSelectElement).value;
+    usbState.isoPath = "";
+    const path = document.querySelector("#iso-path");
+    if (path) path.textContent = "";
+  }
+  if (target.id === "iso-select" || target.id === "erase-confirm") updateWriteButton();
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+
+  if (target.closest("#iso-browse")) {
+    void (async () => {
+      const picked = await window.bootible?.browseIso?.();
+      if (!picked) return;
+      usbState.isoPath = picked;
+      usbState.isoId = "";
+      const path = document.querySelector("#iso-path");
+      if (path) path.textContent = picked;
+      const select = document.querySelector<HTMLSelectElement>("#iso-select");
+      if (select) select.value = "";
+      updateWriteButton();
+    })();
+    return;
+  }
+
+  if (target.closest("#disk-refresh")) {
+    void refreshDisks();
+    return;
+  }
+
+  const disk = target.closest<HTMLElement>(".uw-disk");
+  if (disk) {
+    usbState.disk = Number(disk.dataset.disk);
+    for (const d of document.querySelectorAll(".uw-disk")) d.classList.toggle("is-sel", d === disk);
+    updateWriteButton();
+    return;
+  }
+
+  if (target.closest("#usb-write-btn")) void startUsbWrite();
+});
 
 async function runApplyDevice(): Promise<void> {
   const api = window.bootible;
@@ -823,7 +972,7 @@ document.addEventListener("click", (event) => {
   if (!trigger) return;
   const method = document.body.dataset.method ?? "device";
   if (method === "export") void runExport();
-  else if (method === "usb") void runBuildUsb();
+  else if (method === "usb") location.hash = "usbwrite";
   else void runApplyDevice();
 });
 
