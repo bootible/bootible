@@ -43,6 +43,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto; /* the content region scrolls; sysbar + baseline stay pinned */
 }
 
 .view {
@@ -359,13 +360,13 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 /* ───────────────────── setup screen ───────────────────── */
 .setup {
-  flex: 1;
+  flex: 1 0 auto;
   width: 100%;
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0 64px;
+  padding: 40px 64px;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center;
   gap: 40px;
 }
 
@@ -918,11 +919,11 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 /* ───────────────────── done screen ───────────────────── */
 .done {
-  flex: 1;
+  flex: 1 0 auto;
   width: 100%;
   align-items: center;
-  justify-content: center;
-  padding: 0 64px;
+  justify-content: safe center;
+  padding: 40px 64px;
 }
 
 .done-inner {
