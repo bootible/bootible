@@ -23,6 +23,8 @@ export interface UsbDisk {
   number: number;
   name: string;
   sizeGb: number;
+  letters: string;
+  label: string;
 }
 
 export interface IsoOption {

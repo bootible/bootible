@@ -46,6 +46,25 @@ body {
   overflow-y: auto; /* the content region scrolls; sysbar + baseline stay pinned */
 }
 
+/* a slim, themed scrollbar — only shows when content actually overflows */
+.views::-webkit-scrollbar {
+  width: 10px;
+}
+
+.views::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.views::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 6px;
+  border: 3px solid var(--bg);
+}
+
+.views::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
 .view {
   display: none;
 }

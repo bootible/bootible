@@ -308,6 +308,8 @@ export interface UsbDisk {
   number: number;
   name: string;
   sizeGb: number;
+  letters: string;
+  label: string;
 }
 
 export interface IsoOption {
@@ -324,23 +326,27 @@ function runPwsh(script: string): string {
   );
 }
 
-/** Removable USB disks the user can write to (listing needs no admin). */
+/** Removable USB disks with their drive letters + volume label, so the picker
+ *  matches what the user sees in Explorer (listing needs no admin). */
 function listUsbDisks(): UsbDisk[] {
   try {
-    const out = runPwsh(
-      "Get-Disk | Where-Object BusType -eq 'USB' | Select-Object Number,FriendlyName,Size | ConvertTo-Json -Compress",
-    ).trim();
+    const script = `Get-Disk | Where-Object BusType -eq 'USB' | ForEach-Object { $d = $_; $vols = Get-Partition -DiskNumber $d.Number -ErrorAction SilentlyContinue | Get-Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveLetter }; [pscustomobject]@{ Number = $d.Number; Model = $d.FriendlyName; Size = $d.Size; Letters = (($vols | ForEach-Object { "$($_.DriveLetter):" }) -join ' '); Label = (($vols | Where-Object { $_.FileSystemLabel } | Select-Object -First 1).FileSystemLabel) } } | ConvertTo-Json -Compress`;
+    const out = runPwsh(script).trim();
     if (!out) return [];
     const parsed = JSON.parse(out);
-    const rows: Array<{ Number: number; FriendlyName?: string; Size: number }> = Array.isArray(
-      parsed,
-    )
-      ? parsed
-      : [parsed];
+    const rows: Array<{
+      Number: number;
+      Model?: string;
+      Size: number;
+      Letters?: string;
+      Label?: string;
+    }> = Array.isArray(parsed) ? parsed : [parsed];
     return rows.map((r) => ({
       number: r.Number,
-      name: r.FriendlyName ?? "USB disk",
+      name: (r.Model ?? "USB disk").trim(),
       sizeGb: Math.round((r.Size / 1024 ** 3) * 10) / 10,
+      letters: r.Letters ?? "",
+      label: r.Label ?? "",
     }));
   } catch {
     return [];

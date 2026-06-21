@@ -70,6 +70,8 @@ interface UsbDisk {
   number: number;
   name: string;
   sizeGb: number;
+  letters: string;
+  label: string;
 }
 
 interface IsoOption {
@@ -835,10 +837,15 @@ async function refreshDisks(): Promise<void> {
       btn.type = "button";
       btn.dataset.disk = String(disk.number);
       if (disk.number === usbState.disk) btn.classList.add("is-sel");
-      btn.append(
-        el("span", "uw-disk-name", disk.name),
-        el("span", "uw-disk-size", `${disk.sizeGb} GB · disk ${disk.number}`),
-      );
+      // Match how Explorer names it: "GK-Two (I:)". Fall back to letter, then model.
+      const title =
+        disk.label && disk.letters
+          ? `${disk.label} (${disk.letters})`
+          : disk.letters || disk.label || disk.name;
+      const detail = [disk.name, `${disk.sizeGb} GB`, `disk ${disk.number}`]
+        .filter(Boolean)
+        .join(" · ");
+      btn.append(el("span", "uw-disk-name", title), el("span", "uw-disk-size", detail));
       return btn;
     }),
   );
@@ -856,12 +863,25 @@ async function startUsbWrite(): Promise<void> {
   if (!api?.writeUsb) return;
   document.querySelector(".uw-go")?.setAttribute("hidden", "");
   document.querySelector(".uw-progress")?.removeAttribute("hidden");
-  await api.writeUsb({
+  // Immediate feedback before the elevated writer emits its first line.
+  onUsbProgress({
+    pct: 1,
+    message: "Preparing — accept the Windows admin (UAC) prompt…",
+    status: "running",
+  });
+  const result = await api.writeUsb({
     ...gatherUsbRequest(),
     diskNumber: usbState.disk,
     isoPath: usbState.isoPath || undefined,
     isoId: usbState.isoId || undefined,
   });
+  if (result && !result.started) {
+    onUsbProgress({
+      pct: 0,
+      message: "Couldn't start the write — no device to build for.",
+      status: "error",
+    });
+  }
 }
 
 function onUsbProgress(event: UsbProgress): void {
