@@ -76,7 +76,7 @@ interface BootibleApi {
   provision(): Promise<ProvisionResult>;
   onProvisionStep(cb: (event: StepEvent) => void): void;
   onProvisionDone(cb: (result: ProvisionResult) => void): void;
-  exportConfig(modules: string[]): Promise<{ path: string } | null>;
+  exportConfig(modules: string[]): Promise<{ path: string; folder: string } | null>;
   buildUsb(req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null>;
   openPath(path: string): Promise<string>;
   applyDevice(req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }>;
@@ -718,12 +718,15 @@ async function runExport(): Promise<void> {
   if (!api?.exportConfig) return;
   const modules = selectedModuleIds();
   const result = await api.exportConfig(modules);
-  if (!result) return; // cancelled
+  if (!result) return;
 
-  lastArtifactPath = result.path;
+  lastArtifactPath = result.folder;
   fill("done-eyebrow", "Exported");
   fill("done-title", "Config exported");
-  fill("done-sub", "Saved to your machine. Re-apply it any time — or build a USB from it.");
+  fill(
+    "done-sub",
+    "Saved to a Bootible folder on your Desktop. Re-apply it any time — or build a USB from it.",
+  );
 
   const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
   if (receipt) {

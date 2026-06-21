@@ -133,29 +133,22 @@ function getDeviceState(): ModuleStateReport[] {
 }
 
 /**
- * Method B — serialize the chosen config and let the user save it (a save
- * dialog; the account sync is a later, separate path). Returns the written
- * path, or null if cancelled.
+ * Method B — serialize the chosen config to a findable spot: a "Bootible"
+ * folder on the Desktop, one file per device. Returns the written file and its
+ * folder (the account sync is a later, separate path).
  */
-async function exportConfig(
-  win: BrowserWindow,
-  modules: string[],
-): Promise<{ path: string } | null> {
+function exportConfig(modules: string[]): { path: string; folder: string } {
   const device = targetDevice();
   const config = buildConfig({
     device: device?.id ?? "rog-ally",
     modules: modules.length ? modules : undefined,
   });
 
-  const result = await dialog.showSaveDialog(win, {
-    title: "Export bootible config",
-    defaultPath: "config.yml",
-    filters: [{ name: "YAML", extensions: ["yml", "yaml"] }],
-  });
-  if (result.canceled || !result.filePath) return null;
-
-  writeFileSync(result.filePath, serializeConfig(config), "utf8");
-  return { path: result.filePath };
+  const folder = join(app.getPath("desktop"), "Bootible");
+  mkdirSync(folder, { recursive: true });
+  const file = join(folder, `${device?.id ?? "config"}-config.yml`);
+  writeFileSync(file, serializeConfig(config), "utf8");
+  return { path: file, folder };
 }
 
 export interface UsbBuildRequest {
@@ -332,10 +325,7 @@ app.whenReady().then(() => {
   ipcMain.handle("bundles:get", () => getBundles());
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
-  ipcMain.handle("config:export", (event, modules: string[]) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    return win ? exportConfig(win, modules ?? []) : null;
-  });
+  ipcMain.handle("config:export", (_event, modules: string[]) => exportConfig(modules ?? []));
   ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
   ipcMain.handle("shell:open", (_event, path: string) => shell.openPath(path));
   ipcMain.handle("device:apply", (event, req: UsbBuildRequest) => {

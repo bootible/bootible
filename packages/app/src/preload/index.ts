@@ -30,7 +30,7 @@ const api = {
   getState: (): Promise<ModuleStateReport[]> => ipcRenderer.invoke("device:state"),
   getMethods: (): Promise<ProvisioningMethod[]> => ipcRenderer.invoke("methods:get"),
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),
-  exportConfig: (modules: string[]): Promise<{ path: string } | null> =>
+  exportConfig: (modules: string[]): Promise<{ path: string; folder: string } | null> =>
     ipcRenderer.invoke("config:export", modules),
   buildUsb: (req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null> =>
     ipcRenderer.invoke("usb:build", req),
