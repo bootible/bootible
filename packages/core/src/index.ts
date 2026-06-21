@@ -29,6 +29,7 @@ export type {
   ModuleResult,
   ModuleState,
   ModuleStateReport,
+  ModuleSummary,
   StepEvent,
   StepListener,
   StepStatus,

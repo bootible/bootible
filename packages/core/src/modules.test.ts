@@ -6,10 +6,10 @@ import type { ApplyContext } from "./orchestrator";
 const noop = () => ({ status: "skipped" as const });
 
 const mods: BootibleModule[] = [
-  { id: "power", name: "Power", group: "system", summary: "", apply: noop },
-  { id: "display", name: "Display", group: "system", summary: "", apply: noop },
-  { id: "trim", name: "Trim", group: "performance", summary: "", apply: noop },
-  { id: "steam", name: "Steam", group: "apps", summary: "", apply: noop },
+  { id: "power", name: "Power", group: "system", description: "", apply: noop },
+  { id: "display", name: "Display", group: "system", description: "", apply: noop },
+  { id: "trim", name: "Trim", group: "performance", description: "", apply: noop },
+  { id: "steam", name: "Steam", group: "apps", description: "", apply: noop },
 ];
 
 describe("groupCatalog", () => {
@@ -22,8 +22,8 @@ describe("groupCatalog", () => {
       moduleCount: 2,
     });
     expect(groups[0]?.modules).toEqual([
-      { id: "power", name: "Power" },
-      { id: "display", name: "Display" },
+      { id: "power", name: "Power", description: "", changes: undefined, planned: false },
+      { id: "display", name: "Display", description: "", changes: undefined, planned: false },
     ]);
   });
 
@@ -41,18 +41,18 @@ describe("checkModules", () => {
 
   it("reports each module's probed state; no check or a throw → unknown", () => {
     const probed: BootibleModule[] = [
-      { id: "a", name: "A", group: "system", summary: "", apply: noop, check: () => "applied" },
+      { id: "a", name: "A", group: "system", description: "", apply: noop, check: () => "applied" },
       {
         id: "b",
         name: "B",
         group: "system",
-        summary: "",
+        description: "",
         apply: noop,
         check: () => {
           throw new Error("probe failed");
         },
       },
-      { id: "c", name: "C", group: "apps", summary: "", apply: noop },
+      { id: "c", name: "C", group: "apps", description: "", apply: noop },
     ];
     const report = checkModules(probed, ctx, () => "");
     expect(report.map((r) => r.state)).toEqual(["applied", "unknown", "unknown"]);

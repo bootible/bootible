@@ -23,7 +23,8 @@ const power: BootibleModule = {
   id: "power",
   name: "Power & thermals",
   group: "system",
-  summary: "Balanced power profile, sleep and hibernate behaviour.",
+  description: "Hibernate instead of sleep, with standby tuning — so it doesn't drain in your bag.",
+  changes: "powercfg: hibernate + standby timeouts",
   apply(ctx, exec) {
     const settings = (ctx.config.settings ?? {}) as Record<string, unknown>;
     const commands = getPowerConfigCommands({
@@ -52,12 +53,13 @@ const power: BootibleModule = {
  * ported yet. It appears in the plan and reports honestly as planned, so the
  * step counts and the live log never overstate what bootible actually does.
  */
-function planned(id: string, name: string, group: ModuleGroup, summary: string): BootibleModule {
+function planned(id: string, name: string, group: ModuleGroup, description: string): BootibleModule {
   return {
     id,
     name,
     group,
-    summary,
+    description,
+    planned: true,
     apply: () => ({ status: "skipped", detail: "planned — not yet ported from v1" }),
   };
 }
@@ -79,14 +81,15 @@ function runCommands(exec: (cmd: string[]) => string, commands: string[][]): str
 function appInstall(
   id: string,
   name: string,
-  summary: string,
+  description: string,
   packageIds: string[],
 ): BootibleModule {
   return {
     id,
     name,
     group: "apps",
-    summary,
+    description,
+    changes: `${packageIds.length} package${packageIds.length === 1 ? "" : "s"} (winget)`,
     apply(_ctx, exec) {
       const commands = getWingetInstallCommands(packageIds);
       if (commands.length === 0) {
@@ -106,7 +109,8 @@ const windowsDefaults: BootibleModule = {
   id: "windows-defaults",
   name: "Windows defaults",
   group: "system",
-  summary: "Disable telemetry, Copilot & Bing search; show file extensions.",
+  description: "Turn off telemetry, Copilot and Bing search; show file extensions.",
+  changes: "6 registry values",
   apply(_ctx, exec) {
     return { status: "applied", actions: runCommands(exec, getWindowsDefaultsCommands()) };
   },
@@ -125,7 +129,9 @@ const display: BootibleModule = {
   id: "display",
   name: "Display & GPU",
   group: "system",
-  summary: "Enable GPU scheduling (HAGS) and disable AMD Vari-Bright.",
+  description:
+    "Turn on hardware GPU scheduling (needed for AMD frame-gen) and stop the screen dimming on battery.",
+  changes: "HwSchMode + AMD Vari-Bright (registry)",
   apply(_ctx, exec) {
     return { status: "applied", actions: runCommands(exec, getDisplayTweakCommands()) };
   },
@@ -144,7 +150,8 @@ const backgroundTrim: BootibleModule = {
   id: "optimization",
   name: "Background trim",
   group: "performance",
-  summary: "Set non-essential services (telemetry, maps, remote registry) to manual.",
+  description: "Set telemetry, maps & remote-registry services to manual — more left for games.",
+  changes: "sc config on non-essential services",
   apply(_ctx, exec) {
     return { status: "applied", actions: runCommands(exec, getServiceTrimCommands()) };
   },
@@ -175,11 +182,13 @@ export const allyCatalog: BootibleModule[] = [
   appInstall(
     "utilities",
     "Desktop utilities",
-    "PowerToys, 7-Zip, Everything and Windows Terminal.",
+    "Install PowerToys, 7-Zip, Everything and Windows Terminal.",
     ["Microsoft.PowerToys", "7zip.7zip", "voidtools.Everything", "Microsoft.WindowsTerminal"],
   ),
   planned("emudeck", "EmuDeck", "apps", "Emulation frontend — kept current, never frozen."),
-  appInstall("steam", "Steam", "Steam and Big Picture mode.", ["Valve.Steam"]),
+  appInstall("steam", "Steam", "Install Steam and boot it straight into Big Picture.", [
+    "Valve.Steam",
+  ]),
   planned("streaming", "Game streaming", "apps", "Moonlight / Chiaki streaming clients."),
   planned(
     "sync-target",

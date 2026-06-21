@@ -21,7 +21,14 @@ export interface BootibleModule {
   id: string;
   name: string;
   group: ModuleGroup;
-  summary: string;
+  /** Plain-language "what this does", shown to the user. */
+  description: string;
+  /** One-line transparency note of what it actually touches (e.g. "6 registry
+   *  values", "Valve.Steam (winget)"). Shown in the advanced view. */
+  changes?: string;
+  /** True for modules declared but not yet implemented — shown as "coming
+   *  soon", never selectable. */
+  planned?: boolean;
   apply(ctx: ApplyContext, exec: Exec): ModuleResult;
   /**
    * Read-only probe of current state — runs no-change commands (reg query,
@@ -70,13 +77,22 @@ export interface StepEvent {
 
 export type StepListener = (event: StepEvent) => void;
 
+/** A module projected for the setup screen. */
+export interface ModuleSummary {
+  id: string;
+  name: string;
+  description: string;
+  changes?: string;
+  planned: boolean;
+}
+
 /** A group projected for the setup screen. */
 export interface GroupSummary {
   group: ModuleGroup;
   label: string;
   description: string;
   moduleCount: number;
-  modules: { id: string; name: string }[];
+  modules: ModuleSummary[];
 }
 
 export const GROUP_META: Record<ModuleGroup, { label: string; description: string }> = {
@@ -121,7 +137,13 @@ export function groupCatalog(modules: BootibleModule[]): GroupSummary[] {
       label: GROUP_META[group].label,
       description: GROUP_META[group].description,
       moduleCount: inGroup.length,
-      modules: inGroup.map((m) => ({ id: m.id, name: m.name })),
+      modules: inGroup.map((m) => ({
+        id: m.id,
+        name: m.name,
+        description: m.description,
+        changes: m.changes,
+        planned: m.planned ?? false,
+      })),
     };
   }).filter((g) => g.moduleCount > 0);
 }
