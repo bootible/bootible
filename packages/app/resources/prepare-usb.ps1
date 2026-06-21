@@ -84,15 +84,38 @@ function Resolve-WindowsIso {
         Write-Step "Using provided ISO: $IsoPath"
         return (Resolve-Path $IsoPath).Path
     }
-    Write-Step "Downloading a Windows 11 ISO from Microsoft (Fido): $IsoRel $IsoEd $IsoLang $IsoArch"
+    Send-Progress 3 "Asking Microsoft for a download link (Fido): $IsoRel $IsoEd $IsoLang $IsoArch"
     $fido = Join-Path $env:TEMP "Fido.ps1"
     Invoke-WebRequest "https://github.com/pbatard/Fido/raw/master/Fido.ps1" -OutFile $fido
     # Fido prints a genuine microsoft.com download URL for the chosen edition.
     $url = & $fido -Win "11" -Rel $IsoRel -Ed $IsoEd -Lang $IsoLang -Arch $IsoArch -GetUrl
     if (-not $url) { throw "Fido did not return a download URL. Re-run with -IsoPath pointing at an ISO you downloaded yourself." }
     $iso = Join-Path $env:TEMP "Win11.iso"
-    Write-Step "Fetching ISO (this is several GB)..."
-    Start-BitsTransfer -Source $url -Destination $iso
+
+    # Download asynchronously so we can report live progress (BytesTransferred /
+    # BytesTotal) as it runs, mapped onto the 4..40 band of the overall bar.
+    Send-Progress 4 "Downloading the Windows 11 ISO (several GB)..."
+    $job = Start-BitsTransfer -Source $url -Destination $iso -Asynchronous -DisplayName "bootible-iso"
+    try {
+        while ($job.JobState -eq "Connecting" -or $job.JobState -eq "Transferring") {
+            $total = [double]$job.BytesTotal
+            if ($total -gt 0) {
+                $done = [double]$job.BytesTransferred
+                $pct = [int](4 + ($done / $total) * 36)
+                $gb = [math]::Round($done / 1GB, 1)
+                $tgb = [math]::Round($total / 1GB, 1)
+                Send-Progress $pct "Downloading Windows 11 ISO -- $gb / $tgb GB"
+            }
+            Start-Sleep -Seconds 2
+        }
+        if ($job.JobState -ne "Transferred") {
+            throw "ISO download did not complete (state: $($job.JobState); $($job.ErrorDescription))."
+        }
+        Complete-BitsTransfer -BitsJob $job
+    } catch {
+        Remove-BitsTransfer -BitsJob $job -ErrorAction SilentlyContinue
+        throw
+    }
     return $iso
 }
 
@@ -199,15 +222,15 @@ if (-not (Test-Path $BundleDir)) { throw "BundleDir not found: $BundleDir" }
 try {
     Send-Progress 2 "Resolving the Windows 11 ISO..."
     $iso = Resolve-WindowsIso
-    Send-Progress 12 "Resolving the WiFi driver..."
+    Send-Progress 42 "Resolving the WiFi driver..."
     $driver = Resolve-Driver
-    Send-Progress 20 "Selecting the USB disk..."
+    Send-Progress 46 "Selecting the USB disk..."
     $disk = Select-UsbDisk
-    Send-Progress 28 "Erasing and formatting the USB..."
+    Send-Progress 50 "Erasing and formatting the USB..."
     $usb = Format-UsbDisk $disk
     if (-not $usb) { Write-Warn "WhatIf: stopping before any writes."; return }
 
-    Send-Progress 45 "Copying Windows media (this takes a few minutes)..."
+    Send-Progress 55 "Copying Windows media (this takes a few minutes)..."
     Copy-WindowsMedia $iso $usb
     Send-Progress 88 "Staging the WiFi driver..."
     Copy-Driver $driver $usb
