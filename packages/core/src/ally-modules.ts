@@ -220,6 +220,51 @@ const health: BootibleModule = {
   },
 };
 
+/**
+ * Xbox full-screen experience — set the Xbox app as Windows' gaming home app,
+ * which enables Xbox mode (the console-style full-screen shell). The home-app
+ * value is the Xbox app's AUMID, written under GamingConfiguration. Verified
+ * against Microsoft's Full Screen Experience docs (KB 5070297) / the elevenforum
+ * tutorial — not a guessed key. HKCU, applied as the auto-logon user at first
+ * logon (the bootstrap's context). The Xbox app is inbox on Win11 24H2+, so no
+ * install is needed; if a future image lacks it, add a Store install here. The
+ * separate "enter on startup" toggle is captured on real hardware before it's
+ * added (the design's known gap) rather than guessed.
+ */
+const XBOX_HOME_APP = "Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.App";
+const GAMING_CONFIG_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GamingConfiguration";
+
+const xboxFullscreen: BootibleModule = {
+  id: "xbox-fullscreen",
+  name: "Xbox full-screen experience",
+  group: "system",
+  description:
+    "Boot into the Xbox console-style full-screen experience instead of the Windows desktop.",
+  changes: "GamingHomeApp = Xbox (registry)",
+  apply(_ctx, exec) {
+    exec([
+      "reg",
+      "add",
+      GAMING_CONFIG_KEY,
+      "/v",
+      "GamingHomeApp",
+      "/t",
+      "REG_SZ",
+      "/d",
+      XBOX_HOME_APP,
+      "/f",
+    ]);
+    return { status: "applied", actions: [`set GamingHomeApp = ${XBOX_HOME_APP}`] };
+  },
+  check(_ctx, exec) {
+    return exec(["reg", "query", GAMING_CONFIG_KEY, "/v", "GamingHomeApp"]).includes(
+      "Microsoft.Xbox.App",
+    )
+      ? "applied"
+      : "pending";
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -254,6 +299,7 @@ export const allyCatalog: BootibleModule[] = [
     "Install Moonlight + Chiaki-ng to stream from your gaming PC or PlayStation.",
     ["MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
   ),
+  xboxFullscreen,
   health,
   planned(
     "sync-target",

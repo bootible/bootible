@@ -98,6 +98,36 @@ describe("allyCatalog", () => {
     expect(calls).toContainEqual(["sc.exe", "config", "DiagTrack", "start=", "demand"]);
   });
 
+  it("xbox-fullscreen sets the Xbox app as the gaming home app (enables Xbox mode)", () => {
+    const xbox = allyCatalog.find((m) => m.id === "xbox-fullscreen");
+    expect(xbox).toBeDefined();
+    expect(xbox?.planned).toBeFalsy();
+    const calls: string[][] = [];
+    const result = xbox?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    expect(result?.status).toBe("applied");
+    const regAdd = calls.find(
+      (c) => c[0] === "reg" && c[1] === "add" && c.includes("GamingHomeApp"),
+    );
+    expect(regAdd).toBeDefined();
+    // writes the Xbox app's AUMID as the home app
+    expect(regAdd?.some((a) => a.includes("Microsoft.Xbox.App"))).toBe(true);
+  });
+
+  it("xbox-fullscreen.check reports applied only when the Xbox home app is set", () => {
+    const xbox = allyCatalog.find((m) => m.id === "xbox-fullscreen");
+    const ctx = { device, config: { schema: 2 as const, device: "rog-ally" } };
+    expect(
+      xbox?.check?.(
+        ctx,
+        () => "    GamingHomeApp    REG_SZ    Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.App",
+      ),
+    ).toBe("applied");
+    expect(xbox?.check?.(ctx, () => "")).toBe("pending");
+  });
+
   it("applies display/GPU tweaks via reg add", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();
