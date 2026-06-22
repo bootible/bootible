@@ -9,6 +9,8 @@ export type {
   MicrosoftAccountMode,
 } from "./autounattend";
 export { generateAutounattend, generateWifiProfileXml } from "./autounattend";
+export type { Base } from "./bases";
+export { BASES, baseById, baseModuleIds, UNIVERSAL_FLOOR } from "./bases";
 export type { BootstrapOptions } from "./bootstrap";
 export { generateBootstrapScript } from "./bootstrap";
 export type { BundleFile, UsbBuildSpec } from "./bundle";

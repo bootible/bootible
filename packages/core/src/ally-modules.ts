@@ -313,6 +313,44 @@ const sshKey: BootibleModule = {
   },
 };
 
+/**
+ * Steam Big Picture shell — launch Steam straight into Big Picture on login, so
+ * the device boots into a controller-friendly UI instead of the desktop. Adds a
+ * per-user Run entry invoking Steam with the documented steam://open/bigpicture
+ * protocol. Assumes Steam's default install path (where the steam module puts
+ * it); confirmed on hardware (Phase C) if a non-default path is ever used.
+ */
+const STEAM_DEFAULT_EXE = "C:\\Program Files (x86)\\Steam\\steam.exe";
+const RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+
+const steamBigPicture: BootibleModule = {
+  id: "steam-bigpicture",
+  name: "Steam Big Picture shell",
+  group: "system",
+  description: "Boot straight into Steam Big Picture instead of the Windows desktop.",
+  changes: "Run entry launching Steam Big Picture",
+  apply(_ctx, exec) {
+    exec([
+      "reg",
+      "add",
+      RUN_KEY,
+      "/v",
+      "BootibleSteamBigPicture",
+      "/t",
+      "REG_SZ",
+      "/d",
+      `"${STEAM_DEFAULT_EXE}" -start steam://open/bigpicture`,
+      "/f",
+    ]);
+    return { status: "applied", actions: ["set Steam Big Picture to launch on login"] };
+  },
+  check(_ctx, exec) {
+    return exec(["reg", "query", RUN_KEY, "/v", "BootibleSteamBigPicture"]).includes("bigpicture")
+      ? "applied"
+      : "pending";
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -348,6 +386,7 @@ export const allyCatalog: BootibleModule[] = [
     ["MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
   ),
   sshKey,
+  steamBigPicture,
   xboxFullscreen,
   health,
   planned(
