@@ -21,6 +21,13 @@ out/
 coverage/
 *.tsbuildinfo
 
+# Editor / tool atomic-write temp files (e.g. foo.ts.tmp.<pid>.<hash>)
+*.tmp.*
+
+# electron-vite / vite transpiled config temp files
+electron.vite.config.*.mjs
+*.timestamp-*.mjs
+
 # Python
 __pycache__/
 *.py[cod]
