@@ -22,9 +22,11 @@ export interface Base {
 }
 
 /**
- * Applied to every base: debloat + tuning. asus-drivers joins this once driver
- * staging exists (Phase B5) so all hardware works on all four bases — until then
- * bases run on the Wi-Fi driver floor.
+ * Applied to every base: debloat + tuning. Drivers are NOT in this list — a clean
+ * bootible install gets the full driver stack (incl. ASUS System Control Interface
+ * and the AMD GPU) from Windows Update automatically, confirmed on real hardware
+ * (see findings-base-layer.md). The MT7922 Wi-Fi driver is staged separately
+ * during install (before WU can run).
  */
 export const UNIVERSAL_FLOOR = ["power", "display", "windows-defaults", "optimization"];
 

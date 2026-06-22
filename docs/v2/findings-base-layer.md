@@ -102,11 +102,22 @@ So for **Full ROG** (the only base wanting Armoury Crate), the robust path is to
 - ✅ **ASUS driver set** — only the System Control Interface is ASUS-specific; the rest is Windows Update / Adrenalin. No static URLs (API-gated).
 - ✅ **Armoury Crate silent install** — none reliable; use the OS auto-prompt / staged-installer first-run for Full ROG.
 
-### Still open (verify on the Phase C hardware run)
+### Hardware-confirmed (on a real clean bootible install)
 
-- **Does Windows Update deliver the ASUS System Control Interface** automatically on a clean Ally X install, or must it be staged? Determines whether B5 stages one driver or zero.
-- **Xbox "enter on startup"** registry key — capture by toggling the Settings switch and reading the resulting value on-device.
-- **Driver reboot needs** at first logon (the SCI driver may want a reboot, like HidHide already does).
+Read-only checks on a clean bootible install of a **ROG Xbox Ally X (RC73XA, Ryzen Z2 Extreme / Radeon 890M)** running Win11 25H2 Home (build 26200) settle the open driver question decisively:
+
+- **Zero devices without a working driver.** `Get-PnpDevice` filtered to non-OK present devices returned **nothing**. Windows Update delivered the complete driver stack.
+- **ASUS System Control Interface v3 = OK**, plus ASUS Component Firmware Update = OK and the ROG Xbox Ally X system device = OK — **Windows Update delivers the ASUS-specific drivers** (back/Option + Command Center buttons), with no staging by bootible. 📄 Observed on-device.
+- **AMD Radeon 890M = OK** — proper GPU driver via Windows Update (no AMD Adrenalin app needed for the driver itself).
+- **So `asus-drivers` staging (Phase B5) is essentially unnecessary.** "All hardware works" is met by Windows Update out of the box. B5 reduces to at most *ensuring a WU driver scan has run* (automatic with network) — not staging a driver set. The MT7922 Wi-Fi driver staging stays (it's needed during install, before WU can run).
+- **Armoury Crate did NOT auto-install** (no ASUS/AMD apps in the uninstall list). The first-boot auto-prompt didn't fire here — so **Full ROG must install Armoury Crate explicitly** (staged `SetupROGLSLService.exe` first-run), not rely on the prompt.
+- **`xbox-fullscreen` validated:** the Xbox app (`Microsoft.GamingApp`) is inbox/present, and `GamingHomeApp` is **unset** on a clean install — so the module's reg-write to set it is exactly what's needed. The Xbox Ally ships with Xbox mode, but a clean bootible install resets it.
+- **`steam-bigpicture` path validated:** `C:\Program Files (x86)\Steam\steam.exe` exists where the module expects.
+- **Edition is Home** (the "Windows 10 Home" ProductName is the known stale-registry quirk; build 26200/25H2 = Win11 Home). RDP host is unavailable on Home, as expected.
+
+### Still open (one item, for the next hardware touch)
+
+- **Xbox "enter on startup"** registry key — not captured yet (`GamingHomeApp` wasn't even set, so Xbox mode was off). Capture by enabling Xbox mode + toggling the startup switch and reading the resulting value.
 
 ---
 

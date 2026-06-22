@@ -88,13 +88,9 @@ Four modules, each fitting the existing `BootibleModule` contract (`apply(ctx, e
 Installs the Xbox home app (`Microsoft.GamingApp` ▶ Rec via winget) and enables Xbox mode with enter-on-startup via registry. **Contained complexity:** exact keys are isolated in this one module; the rest of the system only sees "a module."
 **Gap:** registry keys to confirm on-device (`findings-base-layer.md` stub).
 
-### `asus-drivers` (medium — smaller than first thought) — **universal floor**
-A4 research reframed this. Windows Update already covers AMD GPU, MediaTek Wi-Fi (staged) + Bluetooth, audio, chipset on a clean install — the validated run proved it. The **only** ASUS-specific, clean-install-missing driver is the **ASUS System Control Interface** (back/Option buttons, Command Center button, ACPI/brightness). And ASUS publishes **no static driver URLs** (API-gated).
-So this module is:
-1. **Trigger a Windows Update driver scan** at first logon (network is up) to pull the bulk.
-2. **Ensure the System Control Interface** — if Windows Update doesn't deliver it, stage that *one* driver (resolved from the ASUS API at build time, or captured once + version-checked).
-**Applied to every base** so all hardware works on all four.
-**Open:** whether Windows Update delivers the SCI driver itself (Phase C) — decides one-driver vs zero. Reboot may be needed (like HidHide).
+### ~~`asus-drivers`~~ — **not needed (hardware-confirmed)**
+On-device checks (a clean bootible install of a ROG Xbox Ally X) showed **zero devices without a working driver**: Windows Update delivers the *complete* stack, including the **ASUS System Control Interface v3** (buttons), ASUS firmware, and the AMD Radeon GPU driver. So "all hardware works" is met by Windows Update out of the box — there is **no asus-drivers module to build**. The driver "universal floor" is Windows Update itself (the MT7922 Wi-Fi staging stays, since it's needed *during* install before WU can run).
+**Optional safety net (only if a future device shows gaps):** a tiny step that triggers/waits for a WU driver scan at first logon. Not building it unless a device needs it.
 
 ### `armoury-crate` (medium — vendor installer, Full ROG only)
 A4 research resolved the silent-install question: **there isn't a reliable one** — the installer is GUI (`SetupROGLSLService.exe`) and known to hang. But Windows **auto-prompts** to install Armoury Crate on first boot once the ASUS components are present. So for Full ROG, **lean on the OS auto-prompt** (or stage `SetupROGLSLService.exe` and first-run it), not a forced silent install. Only the Full ROG base includes this.
@@ -174,7 +170,7 @@ flowchart LR
 1. **`xbox-fullscreen` + `shell` applier** — fully automatable, validates the shell dimension end-to-end on the next Ally run. Lowest risk, highest signal.
 2. **`ssh-key`** — small, independent, high user value.
 3. **Base catalog + config fields + renderer base selector** — wires the model together; bases selectable, shells working, on the existing Wi-Fi-only driver floor.
-4. **`asus-drivers` staging (the full set)** — the hard part, and now **foundational**: it's what makes "all hardware works" true for *every* base. Capture the RC72LA driver set first (close the findings stubs), then extend `prepare-usb.ps1` staging to the list.
-5. **`armoury-crate`** — last, pending the silent-install verification.
+4. ~~**`asus-drivers` staging**~~ — **removed.** Hardware checks proved Windows Update delivers the full driver stack (incl. ASUS System Control Interface + AMD GPU) on a clean install. "All hardware works" needs no module.
+5. **`armoury-crate`** (Full ROG only) — install Armoury Crate SE (staged `SetupROGLSLService.exe` first-run; the OS auto-prompt doesn't reliably fire).
 
-Steps 1–3 ship the model and the shells on the current Wi-Fi driver floor (a device that boots right but isn't yet fully hardware-complete). Step 4 is the upgrade that delivers the "all hardware works" promise across all four bases — higher priority than a per-base toggle would have been, since now every base depends on it. Keeping it after 1–3 still lets the model prove out while the driver set is captured, so a snag in staging doesn't block the shells.
+Steps 1–3 ship the model and the shells; the driver floor is Windows Update itself (the MT7922 staging already handles install-time Wi-Fi). That removes the one piece that looked hard — there's no driver-staging engine to build.
