@@ -20,7 +20,7 @@ const deck: DeviceEntry = {
 
 describe("prettyOs", () => {
   it("maps known os ids to display names", () => {
-    expect(prettyOs("windows")).toBe("Windows");
+    expect(prettyOs("windows")).toBe("Windows 11");
     expect(prettyOs("linux")).toBe("Linux");
     expect(prettyOs("steamos")).toBe("SteamOS");
   });
@@ -35,7 +35,7 @@ describe("deviceSummary", () => {
     expect(deviceSummary(ally)).toEqual({
       id: "rog-ally",
       name: "ROG Ally / Ally X",
-      system: "Windows",
+      system: "Windows 11",
       provisioning: "on-device",
       emulationCount: 3,
     });

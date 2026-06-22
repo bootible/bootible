@@ -589,7 +589,6 @@ async function hydrateCatalog(): Promise<void> {
   if (catalog.length === 0) return;
 
   const total = catalog.reduce((sum, group) => sum + group.moduleCount, 0);
-  fill("module-total", String(total));
   fill("modules-ready", `${total} modules ready`);
   renderGroups();
   renderReviewPlan();

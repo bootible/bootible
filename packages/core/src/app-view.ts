@@ -13,7 +13,7 @@ export interface DeviceSummary {
 }
 
 const OS_NAMES: Record<string, string> = {
-  windows: "Windows",
+  windows: "Windows 11",
   linux: "Linux",
   steamos: "SteamOS",
   macos: "macOS",
