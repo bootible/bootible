@@ -94,8 +94,8 @@ describe("allyCatalog", () => {
       return "";
     });
     expect(result?.status).toBe("applied");
-    expect(calls.every((c) => c[0] === "sc" && c[1] === "config")).toBe(true);
-    expect(calls).toContainEqual(["sc", "config", "DiagTrack", "start=", "demand"]);
+    expect(calls.every((c) => c[0] === "sc.exe" && c[1] === "config")).toBe(true);
+    expect(calls).toContainEqual(["sc.exe", "config", "DiagTrack", "start=", "demand"]);
   });
 
   it("applies display/GPU tweaks via reg add", () => {

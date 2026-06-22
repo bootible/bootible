@@ -65,6 +65,20 @@ $BootibleLog = "$BootibleRoot\\bootstrap.log"
 New-Item -ItemType Directory -Force -Path $BootibleRoot | Out-Null
 function Write-Bootible($m) { "[$(Get-Date -Format o)] $m" | Tee-Object -FilePath $BootibleLog -Append }
 
+# winget's WindowsApps PATH alias isn't ready at first logon and the App
+# Installer package can take a minute to register, so add its folder to PATH and
+# wait for it before the module commands run. Without this every install fails
+# with "'winget' is not recognized".
+$env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;$env:PATH"
+$wingetExe = $null
+foreach ($i in 1..24) {
+  $c = Get-Command winget.exe -ErrorAction SilentlyContinue
+  if ($c) { $wingetExe = $c.Source; break }
+  Start-Sleep -Seconds 5
+}
+if ($wingetExe) { Set-Alias -Name winget -Value $wingetExe -Scope Global; Write-Bootible "winget ready: $wingetExe" }
+else { Write-Bootible 'winget did not become available; app installs may fail' }
+
 Write-Bootible 'bootible onboard starting'
 
 ${steps}

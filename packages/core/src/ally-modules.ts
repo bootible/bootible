@@ -164,7 +164,7 @@ const backgroundTrim: BootibleModule = {
   },
   check(_ctx, exec) {
     // DiagTrack as the representative service: manual start = DEMAND_START.
-    return /DEMAND_START/.test(exec(["sc", "qc", "DiagTrack"])) ? "applied" : "pending";
+    return /DEMAND_START/.test(exec(["sc.exe", "qc", "DiagTrack"])) ? "applied" : "pending";
   },
 };
 
@@ -199,7 +199,7 @@ const health: BootibleModule = {
           "AllowTelemetry",
         ) === 0,
       ],
-      ["background trim", /DEMAND_START/.test(exec(["sc", "qc", "DiagTrack"]))],
+      ["background trim", /DEMAND_START/.test(exec(["sc.exe", "qc", "DiagTrack"]))],
     ];
     const passed = checks.filter(([, ok]) => ok).length;
     const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);

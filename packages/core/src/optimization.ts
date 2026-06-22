@@ -15,5 +15,7 @@ const TRIM_SERVICES = [
  * services to manual start. The executor's runner decides whether they run.
  */
 export function getServiceTrimCommands(): string[][] {
-  return TRIM_SERVICES.map((service) => ["sc", "config", service, "start=", "demand"]);
+  // sc.exe, not "sc": in PowerShell `sc` is an alias for Set-Content, so the
+  // generated on-device bootstrap must call the real service-control exe.
+  return TRIM_SERVICES.map((service) => ["sc.exe", "config", service, "start=", "demand"]);
 }

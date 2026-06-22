@@ -6,7 +6,7 @@ describe("getServiceTrimCommands", () => {
     const cmds = getServiceTrimCommands();
     expect(cmds.length).toBeGreaterThan(0);
     for (const cmd of cmds) {
-      expect(cmd[0]).toBe("sc");
+      expect(cmd[0]).toBe("sc.exe");
       expect(cmd[1]).toBe("config");
       expect(cmd.slice(-2)).toEqual(["start=", "demand"]);
     }
@@ -14,7 +14,7 @@ describe("getServiceTrimCommands", () => {
 
   it("trims the telemetry service DiagTrack", () => {
     expect(getServiceTrimCommands()).toContainEqual([
-      "sc",
+      "sc.exe",
       "config",
       "DiagTrack",
       "start=",
