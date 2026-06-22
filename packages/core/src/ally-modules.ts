@@ -265,6 +265,54 @@ const xboxFullscreen: BootibleModule = {
   },
 };
 
+/**
+ * SSH access — enable the OpenSSH server and authorise the user's public key so
+ * they can SSH into the device later. The key is plain config data (public keys
+ * aren't secrets), read from settings.ssh_public_key; skips cleanly when none is
+ * given. For an admin account, Windows OpenSSH reads
+ * %ProgramData%\ssh\administrators_authorized_keys (not the user's ~/.ssh) and
+ * requires the file's ACL be restricted to Administrators + SYSTEM — handled
+ * here, the documented Windows OpenSSH gotcha.
+ */
+const sshKey: BootibleModule = {
+  id: "ssh-key",
+  name: "SSH access",
+  group: "system",
+  description:
+    "Turn on the OpenSSH server and authorise your public key, so you can SSH into the device later.",
+  changes: "OpenSSH Server + authorized key",
+  apply(ctx, exec) {
+    const settings = (ctx.config.settings ?? {}) as Record<string, unknown>;
+    const key = typeof settings.ssh_public_key === "string" ? settings.ssh_public_key.trim() : "";
+    if (!key) {
+      return { status: "skipped", detail: "no SSH public key provided" };
+    }
+    const actions: string[] = [];
+    // Install the OpenSSH server (Feature on Demand — pulls from Windows Update).
+    exec(["dism.exe", "/Online", "/Add-Capability", "/CapabilityName:OpenSSH.Server~~~~0.0.1.0"]);
+    actions.push("install OpenSSH.Server");
+    // Auto-start and start the service.
+    exec(["sc.exe", "config", "sshd", "start=", "auto"]);
+    exec(["net", "start", "sshd"]);
+    actions.push("enable + start sshd");
+    // Authorise the key for admin SSH: write administrators_authorized_keys and
+    // lock its ACL to Administrators + SYSTEM (required, or sshd ignores it).
+    const escaped = key.replace(/'/g, "''");
+    exec([
+      "powershell",
+      "-Command",
+      `$f="$env:ProgramData\\ssh\\administrators_authorized_keys"; ` +
+        `Set-Content -Path $f -Value '${escaped}' -Encoding ascii; ` +
+        `icacls $f /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F'`,
+    ]);
+    actions.push("authorise public key");
+    return { status: "applied", actions };
+  },
+  check(_ctx, exec) {
+    return /RUNNING/.test(exec(["sc.exe", "query", "sshd"])) ? "applied" : "pending";
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -299,6 +347,7 @@ export const allyCatalog: BootibleModule[] = [
     "Install Moonlight + Chiaki-ng to stream from your gaming PC or PlayStation.",
     ["MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
   ),
+  sshKey,
   xboxFullscreen,
   health,
   planned(

@@ -128,6 +128,49 @@ describe("allyCatalog", () => {
     expect(xbox?.check?.(ctx, () => "")).toBe("pending");
   });
 
+  it("ssh-key skips cleanly when no public key is provided", () => {
+    const ssh = allyCatalog.find((m) => m.id === "ssh-key");
+    expect(ssh).toBeDefined();
+    const calls: string[][] = [];
+    const result = ssh?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    expect(result?.status).toBe("skipped");
+    expect(calls).toEqual([]);
+  });
+
+  it("ssh-key installs OpenSSH and authorises the key when one is given", () => {
+    const ssh = allyCatalog.find((m) => m.id === "ssh-key");
+    const calls: string[][] = [];
+    const result = ssh?.apply(
+      {
+        device,
+        config: {
+          schema: 2,
+          device: "rog-ally",
+          settings: { ssh_public_key: "ssh-ed25519 AAAAC3Nz gavin@nerdz" },
+        },
+      },
+      (cmd) => {
+        calls.push(cmd);
+        return "";
+      },
+    );
+    expect(result?.status).toBe("applied");
+    // installs the OpenSSH server capability
+    expect(calls.some((c) => c[0] === "dism.exe" && c.join(" ").includes("OpenSSH.Server"))).toBe(
+      true,
+    );
+    // enables the service via sc.exe (not the sc=Set-Content alias)
+    expect(calls).toContainEqual(["sc.exe", "config", "sshd", "start=", "auto"]);
+    // writes the key into administrators_authorized_keys with a locked ACL
+    const keyWrite = calls.find((c) => c[0] === "powershell");
+    expect(keyWrite?.join(" ")).toContain("administrators_authorized_keys");
+    expect(keyWrite?.join(" ")).toContain("ssh-ed25519 AAAAC3Nz gavin@nerdz");
+    expect(keyWrite?.join(" ")).toContain("icacls");
+  });
+
   it("applies display/GPU tweaks via reg add", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();
