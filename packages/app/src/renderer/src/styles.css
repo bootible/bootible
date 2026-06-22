@@ -77,6 +77,14 @@ body[data-view="setup"] .view[data-view="setup"] {
   display: flex;
 }
 
+body[data-view="platform"] .view[data-view="platform"] {
+  display: flex;
+}
+
+body[data-view="devices"] .view[data-view="devices"] {
+  display: flex;
+}
+
 body[data-view="persona"] .view[data-view="persona"] {
   display: flex;
 }
@@ -1220,6 +1228,16 @@ body[data-view="account"] .summary::before {
   transition:
     border-color 0.12s ease,
     transform 0.12s ease;
+}
+
+.method-card.is-soon {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.uw-hint {
+  font-size: 13px;
+  margin-top: 8px;
 }
 
 .method-card:hover {

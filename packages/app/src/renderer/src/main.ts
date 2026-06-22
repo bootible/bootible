@@ -50,6 +50,8 @@ interface UsbBuildRequest {
   modules: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
+  isoId?: string;
+  regionId?: string;
 }
 
 interface ModuleStateReport {
@@ -91,9 +93,35 @@ interface UsbWriteReq extends UsbBuildRequest {
   isoId?: string;
 }
 
+interface PlatformOption {
+  id: string;
+  label: string;
+  blurb: string;
+  status: "ready" | "coming-soon";
+}
+interface DeviceOption {
+  id: string;
+  name: string;
+  status: "ready" | "coming-soon";
+}
+interface LanguageOption {
+  id: string;
+  label: string;
+  isoId: string;
+}
+interface RegionOption {
+  id: string;
+  label: string;
+}
+
 interface BootibleApi {
   version: string;
   getDevice(): Promise<DeviceSummary | null>;
+  getPlatforms(): Promise<PlatformOption[]>;
+  getDevices(platformId: string): Promise<DeviceOption[]>;
+  selectDevice(id: string): Promise<DeviceSummary | null>;
+  getLanguages(): Promise<LanguageOption[]>;
+  getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
   getBundles(): Promise<Bundle[]>;
   getState(): Promise<ModuleStateReport[]>;
@@ -119,6 +147,8 @@ declare global {
 }
 
 const VIEWS = [
+  "platform",
+  "devices",
   "home",
   "persona",
   "bundles",
@@ -161,8 +191,9 @@ function setApplyLabel(): void {
 
 /** Drive the active view from the URL hash so screens are deep-linkable. */
 function syncFromHash(): void {
-  const view = location.hash.replace(/^#/, "") || "home";
+  const view = location.hash.replace(/^#/, "") || "platform";
   show(view);
+  if (view === "platform") void hydratePlatforms();
   if (view === "review") {
     setApplyLabel();
     renderReviewPlan();
@@ -173,7 +204,14 @@ function syncFromHash(): void {
 
 // Navigation: any [data-go] control sets the hash, which drives the view. A
 // [data-method] control also records which provisioning method was chosen.
+// A [data-back] control pops real history, so Back always returns to the screen
+// you actually came from regardless of which flow led here.
 document.addEventListener("click", (event) => {
+  const back = (event.target as HTMLElement).closest<HTMLElement>("[data-back]");
+  if (back) {
+    history.back();
+    return;
+  }
   const trigger = (event.target as HTMLElement).closest<HTMLElement>("[data-go]");
   if (!trigger) return;
   const method = trigger.dataset.method;
@@ -239,31 +277,98 @@ if (statusText && window.bootible?.version) {
   statusText.textContent = `${window.bootible.version} · local`;
 }
 
-// Hydrate the home screen from the real device the main process detects. In a
-// plain browser (no preload) window.bootible is undefined and the mock markup
-// stands, which keeps the screens screenshot-able outside Electron.
-async function hydrateDevice(): Promise<void> {
-  const api = window.bootible;
-  if (!api?.getDevice) return;
+// ── device picker (page 1 platform → page 2 device → summary) ───────────────
+// A platform/device card, styled like the persona method-cards. Ready cards are
+// clickable (data-pick); coming-soon cards are dimmed and inert.
+function pickCard(
+  kind: "platform" | "device",
+  id: string,
+  title: string,
+  desc: string,
+  status: string,
+): HTMLElement {
+  const ready = status === "ready";
+  const card = el("button", `method-card${ready ? "" : " is-soon"}`) as HTMLButtonElement;
+  card.type = "button";
+  if (ready) {
+    card.dataset.pick = kind;
+    card.dataset.id = id;
+  } else {
+    card.disabled = true;
+  }
+  // Placeholder glyphs (proper icons later): platform vs specific device.
+  const icon = el("span", "method-icon", kind === "platform" ? "❖" : "◈");
+  icon.setAttribute("aria-hidden", "true");
+  const main = el("span", "method-main");
+  main.append(el("span", "method-name", title));
+  if (desc) main.append(el("span", "method-desc", desc));
+  const meta = el("span", "method-meta");
+  meta.append(el("span", "group-tag", ready ? "ready" : "coming soon"));
+  if (ready) meta.append(el("span", "arrow", "→"));
+  card.append(icon, main, meta);
+  return card;
+}
 
-  let device: DeviceSummary | null;
+/** Page 1 — render the platform families. */
+async function hydratePlatforms(): Promise<void> {
+  const api = window.bootible;
+  const list = document.querySelector<HTMLElement>(".platform-list");
+  if (!api?.getPlatforms || !list) return;
+  let platforms: PlatformOption[] = [];
   try {
-    device = await api.getDevice();
+    platforms = await api.getPlatforms();
   } catch {
     return;
   }
+  list.replaceChildren(
+    ...platforms.map((p) => pickCard("platform", p.id, p.label, p.blurb, p.status)),
+  );
+}
 
-  if (!device) {
-    if (!location.hash) show("empty");
+/** Page 2 — render the devices for the chosen platform. */
+async function hydrateDevices(platformId: string): Promise<void> {
+  const api = window.bootible;
+  const list = document.querySelector<HTMLElement>(".device-list");
+  if (!api?.getDevices || !list) return;
+  let devices: DeviceOption[] = [];
+  try {
+    devices = await api.getDevices(platformId);
+  } catch {
     return;
   }
+  list.replaceChildren(...devices.map((d) => pickCard("device", d.id, d.name, "", d.status)));
+}
 
+/** Record the picked device and fill the summary screen from its summary. */
+async function selectDeviceAndGo(id: string): Promise<void> {
+  const api = window.bootible;
+  if (!api?.selectDevice) return;
+  const device = await api.selectDevice(id);
+  if (!device) return;
   deviceName = device.name;
   fill("name", device.name);
   fill("system", device.system);
+  fill("device-sub", `${device.system} handheld — selected.`);
+  fill("persona-eyebrow", `Your ${device.name}`);
+  location.hash = "home";
 }
 
-void hydrateDevice();
+// Card clicks on the platform / devices pages.
+document.addEventListener("click", (event) => {
+  const card = (event.target as HTMLElement).closest<HTMLElement>("[data-pick]");
+  if (!card) return;
+  const id = card.dataset.id ?? "";
+  if (card.dataset.pick === "platform") {
+    const label = card.querySelector(".method-name")?.textContent ?? "";
+    fill("devices-eyebrow", `Step 2 of 2 · ${label}s`);
+    void hydrateDevices(id);
+    location.hash = "devices";
+  } else if (card.dataset.pick === "device") {
+    void selectDeviceAndGo(id);
+  }
+});
+
+void hydratePlatforms();
 
 // ── module catalog ────────────────────────────────────────────────────────
 // The setup groups, the review plan and every module count are driven by the
@@ -783,36 +888,57 @@ function gatherUsbRequest(): UsbBuildRequest {
 }
 
 // ── in-app USB writer screen ────────────────────────────────────────────────
-const usbState: { isoId: string; isoPath: string; disk: number } = {
+const usbState: { isoId: string; isoPath: string; regionId: string; disk: number } = {
   isoId: "",
   isoPath: "",
+  regionId: "",
   disk: -1,
 };
 
-/** Populate the ISO dropdown + disk list when the writer screen opens. */
+/** Populate the language + region dropdowns and disk list when the writer opens.
+ *  The language option's value is its ISO id, so picking a language sets the
+ *  download AND the answer-file UI language from one choice (they can't drift). */
 async function hydrateUsbWrite(): Promise<void> {
   const api = window.bootible;
-  if (!api?.getIsoCatalog) return;
+  if (!api?.getLanguages) return;
 
-  const select = document.querySelector<HTMLSelectElement>("#iso-select");
-  if (select && select.options.length === 0) {
-    let catalog: IsoOption[] = [];
+  const lang = document.querySelector<HTMLSelectElement>("#lang-select");
+  if (lang && lang.options.length === 0) {
+    let langs: LanguageOption[] = [];
     try {
-      catalog = await api.getIsoCatalog();
+      langs = await api.getLanguages();
     } catch {}
-    select.replaceChildren(
-      ...catalog.map((option) => {
+    lang.replaceChildren(
+      ...langs.map((option) => {
+        const opt = document.createElement("option");
+        opt.value = option.isoId;
+        opt.textContent = option.label;
+        return opt;
+      }),
+    );
+    if (langs[0]) {
+      usbState.isoId = langs[0].isoId;
+      usbState.isoPath = "";
+    }
+  }
+
+  const region = document.querySelector<HTMLSelectElement>("#region-select");
+  if (region && region.options.length === 0) {
+    let regions: RegionOption[] = [];
+    try {
+      regions = (await api.getRegions?.()) ?? [];
+    } catch {}
+    region.replaceChildren(
+      ...regions.map((option) => {
         const opt = document.createElement("option");
         opt.value = option.id;
         opt.textContent = option.label;
         return opt;
       }),
     );
-    if (catalog[0]) {
-      usbState.isoId = catalog[0].id;
-      usbState.isoPath = "";
-    }
+    if (regions[0]) usbState.regionId = regions[0].id;
   }
+
   await refreshDisks();
   updateWriteButton();
 }
@@ -874,6 +1000,7 @@ async function startUsbWrite(): Promise<void> {
     diskNumber: usbState.disk,
     isoPath: usbState.isoPath || undefined,
     isoId: usbState.isoId || undefined,
+    regionId: usbState.regionId || undefined,
   });
   if (result && !result.started) {
     onUsbProgress({
@@ -905,13 +1032,16 @@ window.bootible?.onUsbProgress?.(onUsbProgress);
 // Writer-screen interactions (ISO source, disk pick, confirm, write).
 document.addEventListener("change", (event) => {
   const target = event.target as HTMLElement;
-  if (target.id === "iso-select") {
+  if (target.id === "lang-select") {
     usbState.isoId = (target as HTMLSelectElement).value;
     usbState.isoPath = "";
     const path = document.querySelector("#iso-path");
     if (path) path.textContent = "";
   }
-  if (target.id === "iso-select" || target.id === "erase-confirm") updateWriteButton();
+  if (target.id === "region-select") {
+    usbState.regionId = (target as HTMLSelectElement).value;
+  }
+  if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
 });
 
 document.addEventListener("click", (event) => {
@@ -921,12 +1051,11 @@ document.addEventListener("click", (event) => {
     void (async () => {
       const picked = await window.bootible?.browseIso?.();
       if (!picked) return;
+      // Use the local ISO for the image, but keep the chosen language's isoId so
+      // the answer file's UI language still matches (uiLanguage is derived from it).
       usbState.isoPath = picked;
-      usbState.isoId = "";
       const path = document.querySelector("#iso-path");
       if (path) path.textContent = picked;
-      const select = document.querySelector<HTMLSelectElement>("#iso-select");
-      if (select) select.value = "";
       updateWriteButton();
     })();
     return;

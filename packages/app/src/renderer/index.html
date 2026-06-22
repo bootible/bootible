@@ -19,18 +19,41 @@
       </header>
 
       <div class="views">
-        <!-- ───────────────────── HOME ───────────────────── -->
+        <!-- ───────────────────── PLATFORM (page 1: device type) ───────────────────── -->
+        <main class="view setup" data-view="platform">
+          <div class="setup-head">
+            <p class="eyebrow">Step 1 of 2 · Choose your handheld</p>
+            <h1 class="setup-title">What are you setting up?</h1>
+            <p class="setup-sub">Pick the platform your handheld runs. More are on the way.</p>
+          </div>
+          <div class="method-list platform-list"></div>
+        </main>
+
+        <!-- ───────────────────── DEVICES (page 2: model) ───────────────────── -->
+        <main class="view setup" data-view="devices">
+          <div class="setup-head">
+            <p class="eyebrow" data-field="devices-eyebrow">Step 2 of 2</p>
+            <h1 class="setup-title">Which model?</h1>
+            <p class="setup-sub">Pick your exact device. Photos coming later.</p>
+          </div>
+          <div class="method-list device-list"></div>
+          <div class="bundle-back">
+            <button class="btn-ghost" type="button" data-back>Back</button>
+          </div>
+        </main>
+
+        <!-- ───────────────────── HOME / SUMMARY ───────────────────── -->
         <main class="view stage" data-view="home">
           <div class="lede">
             <p class="eyebrow">Ready to set up</p>
             <h1 class="device-name" data-field="name">ROG&nbsp;Ally&nbsp;X</h1>
-            <p class="device-sub">Windows 11 handheld — detected on this machine.</p>
+            <p class="device-sub" data-field="device-sub">Windows 11 handheld — selected.</p>
 
             <div class="actions">
               <button class="btn-primary" type="button" data-go="persona">
                 Set up this device <span class="arrow" aria-hidden="true">→</span>
               </button>
-              <button class="btn-ghost" type="button" data-go="restore">Restore a backup</button>
+              <button class="btn-ghost" type="button" data-back>Change device</button>
             </div>
           </div>
 
@@ -85,7 +108,7 @@
           <div class="bundle-list"></div>
 
           <div class="bundle-back">
-            <button class="btn-ghost" type="button" data-go="persona">Back</button>
+            <button class="btn-ghost" type="button" data-back>Back</button>
           </div>
         </main>
 
@@ -127,7 +150,7 @@
           </div>
 
           <div class="bundle-back">
-            <button class="btn-ghost" type="button" data-go="persona">Back</button>
+            <button class="btn-ghost" type="button" data-back>Back</button>
           </div>
         </main>
 
@@ -190,7 +213,7 @@
                 <button class="btn-primary" type="button" data-go="method">
                   Continue <span class="arrow" aria-hidden="true">→</span>
                 </button>
-                <button class="btn-ghost" type="button" data-go="persona">Back</button>
+                <button class="btn-ghost" type="button" data-back>Back</button>
               </div>
               <p class="readout-foot">You'll get a chance to review before anything is written.</p>
             </aside>
@@ -301,7 +324,7 @@
                 <button class="btn-primary" type="button" data-go="provision">
                   Restore this backup <span class="arrow" aria-hidden="true">→</span>
                 </button>
-                <button class="btn-ghost" type="button" data-go="home">Back</button>
+                <button class="btn-ghost" type="button" data-back>Back</button>
               </div>
               <p class="readout-foot">A safety snapshot of the current state is taken first.</p>
             </aside>
@@ -412,7 +435,7 @@
                 <button class="btn-primary" type="button" data-go="wifi">
                   Continue <span class="arrow" aria-hidden="true">→</span>
                 </button>
-                <button class="btn-ghost" type="button" data-go="method">Back</button>
+                <button class="btn-ghost" type="button" data-back>Back</button>
               </div>
               <p class="readout-foot">Stored only in the answer file on your USB.</p>
             </aside>
@@ -472,7 +495,7 @@
               <button class="btn-primary" type="button" data-action="apply">
                 <span data-field="apply-label">Write changes</span> <span class="arrow" aria-hidden="true">→</span>
               </button>
-              <button class="btn-ghost" type="button" data-go="setup">Back</button>
+              <button class="btn-ghost" type="button" data-back>Back</button>
             </div>
           </div>
         </main>
@@ -487,10 +510,20 @@
 
           <div class="usbwrite-body">
             <section class="uw-section">
+              <p class="uw-label">Windows language</p>
+              <select class="uw-select" id="lang-select" aria-label="Windows language"></select>
+              <p class="uw-hint muted">Sets the download <em>and</em> the on-screen language — they always match, so Setup won't ask.</p>
+            </section>
+
+            <section class="uw-section">
+              <p class="uw-label">Keyboard &amp; region</p>
+              <select class="uw-select" id="region-select" aria-label="Keyboard and region"></select>
+            </section>
+
+            <section class="uw-section">
               <p class="uw-label">Windows image</p>
-              <select class="uw-select" id="iso-select" aria-label="Windows image"></select>
               <div class="uw-row">
-                <button class="linkbtn" type="button" id="iso-browse">Browse for a local ISO…</button>
+                <button class="linkbtn" type="button" id="iso-browse">Use a local ISO instead…</button>
                 <span class="uw-iso-path muted" id="iso-path"></span>
               </div>
             </section>
@@ -509,7 +542,7 @@
                 <button class="btn-primary" type="button" id="usb-write-btn" disabled>
                   Write USB <span class="arrow" aria-hidden="true">→</span>
                 </button>
-                <button class="btn-ghost" type="button" data-go="review">Back</button>
+                <button class="btn-ghost" type="button" data-back>Back</button>
               </div>
             </section>
 
