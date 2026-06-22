@@ -88,7 +88,7 @@ function Resolve-WindowsIso {
     $fido = Join-Path $env:TEMP "Fido.ps1"
     Invoke-WebRequest "https://github.com/pbatard/Fido/raw/master/Fido.ps1" -OutFile $fido
     # Fido prints a genuine microsoft.com download URL for the chosen edition.
-    # Capture ALL streams (*>&1) — Fido reports errors via Write-Host, which 2>&1
+    # Capture ALL streams (*>&1) -- Fido reports errors via Write-Host, which 2>&1
     # misses, so the failure reason would otherwise come back empty.
     $fidoOut = & $fido -Win "11" -Rel $IsoRel -Ed $IsoEd -Lang $IsoLang -Arch $IsoArch -GetUrl *>&1
     $url = $fidoOut | Where-Object { "$_" -match "^https" } | Select-Object -First 1
@@ -181,7 +181,15 @@ function Format-UsbDisk($disk) {
     }
     Write-Step "Erasing and formatting disk $($disk.Number)..."
     Clear-Disk -Number $disk.Number -RemoveData -RemoveOEM -Confirm:$false
-    Initialize-Disk -Number $disk.Number -PartitionStyle GPT -Confirm:$false
+    # Clear-Disk leaves the existing partition style in place, so the disk is
+    # still "initialized" -- Initialize-Disk would then fail. Only initialize a
+    # RAW disk; if it survived as MBR, convert it; if already GPT, leave it.
+    $cleared = Get-Disk -Number $disk.Number
+    if ($cleared.PartitionStyle -eq "RAW") {
+        Initialize-Disk -Number $disk.Number -PartitionStyle GPT -Confirm:$false
+    } elseif ($cleared.PartitionStyle -ne "GPT") {
+        Set-Disk -Number $disk.Number -PartitionStyle GPT
+    }
     # FAT32 is required for UEFI boot; Windows caps FAT32 volumes at 32 GB, which
     # is ample for install media (install.wim is split below to dodge FAT32's
     # 4 GB file limit).
@@ -230,7 +238,14 @@ try {
     Send-Progress 2 "Resolving the Windows 11 ISO..."
     $iso = Resolve-WindowsIso
     Send-Progress 42 "Resolving the WiFi driver..."
-    $driver = Resolve-Driver
+    # Non-fatal: if the driver can't be fetched, the install still completes --
+    # WiFi just won't work during setup, so connect it after first boot.
+    $driver = $null
+    try {
+        $driver = Resolve-Driver
+    } catch {
+        Send-Progress 42 "WiFi driver not fetched -- continuing without it (connect WiFi after first boot). $($_.Exception.Message)"
+    }
     Send-Progress 46 "Selecting the USB disk..."
     $disk = Select-UsbDisk
     Send-Progress 50 "Erasing and formatting the USB..."
@@ -239,8 +254,12 @@ try {
 
     Send-Progress 55 "Copying Windows media (this takes a few minutes)..."
     Copy-WindowsMedia $iso $usb
-    Send-Progress 88 "Staging the WiFi driver..."
-    Copy-Driver $driver $usb
+    if ($driver) {
+        Send-Progress 88 "Staging the WiFi driver..."
+        Copy-Driver $driver $usb
+    } else {
+        Send-Progress 88 "Skipping WiFi driver (not fetched) -- connect WiFi after first boot."
+    }
     Send-Progress 95 "Copying the bootible bundle..."
     Copy-Bundle $usb
 
