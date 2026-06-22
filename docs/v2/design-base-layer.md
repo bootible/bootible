@@ -22,16 +22,9 @@ A bootibled Ally installs clean Windows and boots to the desktop. The factory de
 
 This design introduces one new concept — the **base** — and two dimensions the config has never modelled: **boot shell** (what auto-launches) and **driver stack** (what gets staged beyond Wi-Fi).
 
-### North-star delta (needs your agreement before this is "real")
+### North-star declarations (agreed)
 
-The base concept is a new outcome. Per ODAD, north-star declarations are an agreement layer — I am **proposing**, not committing, these additions to `north-star.md`:
-
-- A user **chooses the experience their handheld boots into** — bare Windows, Steam Big Picture, the Xbox console shell, or the full ASUS experience — as a single up-front choice.
-- A "clean Xbox" base yields a device that is **fully hardware-functional (OS + drivers) without any ASUS software** installed.
-- Every base is **debloated and tuned by default**; the OG experience a user restores is *better* than factory, never a stock re-image.
-- A user **layers tuning, extra software, and access (SSH) on top of any base** — the base sets the floor, the modifiers raise it.
-
-> **❓ Decide:** Approve these four declarations (or amend) — they anchor everything below.
+The base concept added four declarations to `north-star.md` (group: *Choose your experience*) — agreed, and the anchor for everything below: the user picks the boot experience up front; "clean Xbox" = functional hardware with no ASUS software; every base is debloated+tuned by default (better than factory); modifiers layer on any base.
 
 ---
 
@@ -60,7 +53,7 @@ flowchart TB
 
 A **base** resolves to three things: a **shell** (boot target), a **driver stack** (what to stage), and a **module floor** (modules it implies). Modifiers are the existing module catalog, layered on top. A base is a strictly more capable `Bundle` — it adds the shell and driver dimensions a bundle never had.
 
-**▶ Rec:** the base selector **replaces** the `bundles`/`persona` screen built earlier. Everyone picks a base (the "set it up for me" outcome is now "pick a base"), then optionally opens modifiers (the tinker screen). This collapses two screens into one clearer choice.
+**Decided:** the base selector **replaces** the `bundles`/`persona` screen. Everyone picks a base (the "set it up for me" outcome is now "pick a base"), then optionally opens modifiers (the tinker screen). This collapses two screens into one clearer choice; the persona fork is retired.
 
 ### The two new dimensions
 
@@ -145,7 +138,7 @@ flowchart LR
 
 - **Base replaces bundles** → one fewer concept, but throws away the just-built bundles/persona screen. ▶ Rec accept: base is strictly more capable, and the screens are young.
 - **Driver staging at build time** → a build now depends on reaching ASUS's servers (like it already depends on Fido/MS for the ISO). Accepted: same shape as today's ISO dependency; cache + browse-local fallback applies.
-- **Tuning on by default for all bases** → a "Raw Windows" base is not actually raw (it's tuned). ❓ Decide: is "Raw Windows" *truly* untouched (no tuning), or "clean Windows, tuned"? The north-star delta currently says tuned-by-default; "Raw" may be the one base that opts out.
+- **Tuning on by default for all bases** → "Raw Windows" is **clean + tuned** (decided), not vanilla. It still gets bootible's power/display/debloat floor; "raw" refers to the *shell* (desktop, no launcher), not the absence of tuning. Consistent with "every base is better than factory."
 
 ---
 

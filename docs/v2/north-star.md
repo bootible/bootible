@@ -25,6 +25,13 @@ This is what bootible v2 must let them do. The declarations below are the testab
 - A user (or a contributor) adds a device bootible has never supported by **dropping in a registry entry — data, not code**.
 - A device only ever receives content **it can actually run**: point a TrimUI at a 2 TB library and it pulls GBA/SNES/PS1, never PS2.
 
+### Choose your experience
+
+- A user **chooses the experience their handheld boots into** — bare Windows, Steam Big Picture, the Xbox console shell, or the full ASUS experience — as a single up-front choice, then customises on top.
+- A "clean Xbox" experience yields a device that is **fully hardware-functional (OS + drivers) with no ASUS software** installed.
+- Every base is **debloated and tuned by default**; the experience a user restores is *better than factory*, never a stock re-image.
+- A user **layers tuning, extra software, and access (an SSH key) on top of any base** — the base sets the floor, the modifiers raise it.
+
 ### Your stuff follows you
 
 - A user restores a freshly-wiped device to **~90% of its prior state by pointing bootible at one place and entering one credential**.
