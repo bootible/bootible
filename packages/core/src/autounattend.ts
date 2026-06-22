@@ -29,8 +29,15 @@ export interface AutounattendConfig {
   computerName?: string;
   /** Windows image name to install. Default "Windows 11 Home". */
   edition?: string;
-  /** BCP-47 locale for input/system/user locale. Default "en-NZ". */
+  /** BCP-47 locale for input/system/user locale (region + keyboard). Default "en-NZ". */
   locale?: string;
+  /**
+   * Windows display language — MUST match the UI language of the ISO being
+   * installed, or Setup can't apply it and falls back to prompting for
+   * language/keyboard. bootible downloads the "English International" image
+   * (prepare-usb.ps1 $IsoLang), whose UI language is en-GB. Default "en-GB".
+   */
+  uiLanguage?: string;
   /** OOBE time zone. Default "New Zealand Standard Time". */
   timeZone?: string;
   account: AccountMode;
@@ -82,13 +89,13 @@ function localAccountBlock(account: LocalAccountMode): string {
       </AutoLogon>`;
 }
 
-function windowsPePass(locale: string, edition: string): string {
+function windowsPePass(locale: string, edition: string, uiLanguage: string): string {
   return `  <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" ${COMPONENT_ATTRS}>
-      <SetupUILanguage><UILanguage>en-US</UILanguage></SetupUILanguage>
+      <SetupUILanguage><UILanguage>${uiLanguage}</UILanguage></SetupUILanguage>
       <InputLocale>${locale}</InputLocale>
       <SystemLocale>${locale}</SystemLocale>
-      <UILanguage>en-US</UILanguage>
+      <UILanguage>${uiLanguage}</UILanguage>
       <UserLocale>${locale}</UserLocale>
     </component>
     <component name="Microsoft-Windows-Setup" ${COMPONENT_ATTRS}>
@@ -150,12 +157,13 @@ function specializePass(config: AutounattendConfig): string {
 function oobeSystemPass(config: AutounattendConfig): string {
   const isLocal = config.account.mode === "local";
   const locale = config.locale ?? "en-NZ";
+  const uiLanguage = config.uiLanguage ?? "en-GB";
   const accountBlock = isLocal ? localAccountBlock(config.account as LocalAccountMode) : "";
   return `  <settings pass="oobeSystem">
     <component name="Microsoft-Windows-International-Core" ${COMPONENT_ATTRS}>
       <InputLocale>${locale}</InputLocale>
       <SystemLocale>${locale}</SystemLocale>
-      <UILanguage>en-US</UILanguage>
+      <UILanguage>${uiLanguage}</UILanguage>
       <UserLocale>${locale}</UserLocale>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" ${COMPONENT_ATTRS}>
@@ -188,9 +196,10 @@ function oobeSystemPass(config: AutounattendConfig): string {
 export function generateAutounattend(config: AutounattendConfig): string {
   const locale = config.locale ?? "en-NZ";
   const edition = config.edition ?? "Windows 11 Home";
+  const uiLanguage = config.uiLanguage ?? "en-GB";
   return `<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
-${windowsPePass(locale, edition)}
+${windowsPePass(locale, edition, uiLanguage)}
 ${specializePass(config)}
 ${oobeSystemPass(config)}
 </unattend>

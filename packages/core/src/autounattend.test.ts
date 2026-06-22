@@ -55,6 +55,19 @@ describe("generateAutounattend", () => {
     expect(xml).not.toContain("<SkipUserOOBE>true</SkipUserOOBE>");
   });
 
+  it("defaults UI language to en-GB to match the English International ISO (suppresses the language/keyboard prompt)", () => {
+    const xml = generateAutounattend(base);
+    expect(xml).toContain("<SetupUILanguage><UILanguage>en-GB</UILanguage></SetupUILanguage>");
+    // Region/keyboard stay NZ; only the display language matches the image.
+    expect(xml).toContain("<UserLocale>en-NZ</UserLocale>");
+    expect(xml).not.toContain("<UILanguage>en-US</UILanguage>");
+  });
+
+  it("honours a custom UI language when the ISO differs", () => {
+    const xml = generateAutounattend({ ...base, uiLanguage: "en-US" });
+    expect(xml).toContain("<SetupUILanguage><UILanguage>en-US</UILanguage></SetupUILanguage>");
+  });
+
   it("runs the bootible bootstrap as the first logon command", () => {
     const xml = generateAutounattend(base);
     expect(xml).toContain("<FirstLogonCommands>");
