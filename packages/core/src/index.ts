@@ -59,6 +59,8 @@ export type {
   RestoreOptions,
 } from "./orchestrator";
 export { restore } from "./orchestrator";
+export type { DevicePlatform, PlatformId, RoadmapDevice } from "./platforms";
+export { PLATFORMS, platformById, platformForOs, ROADMAP_DEVICES } from "./platforms";
 export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
 export type { DeviceProfile } from "./profiles";
