@@ -35,6 +35,19 @@ export interface RegionOption {
   label: string;
 }
 
+export interface PlatformOption {
+  id: string;
+  label: string;
+  blurb: string;
+  status: "ready" | "coming-soon";
+}
+
+export interface DeviceOption {
+  id: string;
+  name: string;
+  status: "ready" | "coming-soon";
+}
+
 export interface UsbDisk {
   number: number;
   name: string;
@@ -65,6 +78,11 @@ export interface UsbProgress {
 const api = {
   version: "v2 (dev)",
   getDevice: (): Promise<DeviceSummary | null> => ipcRenderer.invoke("device:get"),
+  getPlatforms: (): Promise<PlatformOption[]> => ipcRenderer.invoke("platforms:get"),
+  getDevices: (platformId: string): Promise<DeviceOption[]> =>
+    ipcRenderer.invoke("devices:list", platformId),
+  selectDevice: (id: string): Promise<DeviceSummary | null> =>
+    ipcRenderer.invoke("device:select", id),
   getCatalog: (): Promise<GroupSummary[]> => ipcRenderer.invoke("catalog:get"),
   getBundles: (): Promise<Bundle[]> => ipcRenderer.invoke("bundles:get"),
   getState: (): Promise<ModuleStateReport[]> => ipcRenderer.invoke("device:state"),

@@ -22,8 +22,11 @@ import {
   keyboardRegionById,
   loadRegistry,
   type ModuleStateReport,
+  PLATFORMS,
   type ProvisioningMethod,
+  platformForOs,
   provisioningMethods,
+  ROADMAP_DEVICES,
   type StepEvent,
   type SystemInfo,
   selectDevice,
@@ -78,11 +81,60 @@ function loadDeviceEntry(): DeviceEntry | null {
   return selectDevice(loadRegistryEntries(), getSystemInfo());
 }
 
-/** The device we build media / configs FOR (host-side). Defaults to the Ally;
- *  this works from any PC, since you build a handheld's USB from your desktop. */
+/** The device the user picked on the device-selector pages (page 1/2). Drives
+ *  the catalog, bundles, methods and the build from here on. */
+let selectedDeviceId: string | null = null;
+
+/** The device we build media / configs FOR (host-side) — the user's pick, or the
+ *  Ally as a fallback. Works from any PC, since you build a handheld's USB from
+ *  your desktop. */
 function targetDevice(): DeviceEntry | null {
   const registry = loadRegistryEntries();
+  if (selectedDeviceId) {
+    const picked = registry.find((d) => d.id === selectedDeviceId);
+    if (picked) return picked;
+  }
   return registry.find((d) => d.id === "rog-ally") ?? registry[0] ?? null;
+}
+
+/** Platform families with ready/coming-soon status (page 1). A platform is
+ *  ready if any of its registry devices has a buildable DeviceProfile. */
+function getPlatforms(): { id: string; label: string; blurb: string; status: string }[] {
+  const registry = loadRegistryEntries();
+  return PLATFORMS.map((p) => {
+    const ready = registry.some((d) => platformForOs(d.os) === p.id && !!deviceProfile(d.id));
+    return { id: p.id, label: p.label, blurb: p.blurb, status: ready ? "ready" : "coming-soon" };
+  });
+}
+
+/** Devices for a platform (page 2): registry devices (ready if they have a
+ *  profile) followed by roadmap placeholders, ready first. */
+function getDevices(platformId: string): { id: string; name: string; status: string }[] {
+  const registry = loadRegistryEntries();
+  const real = registry
+    .filter((d) => platformForOs(d.os) === platformId)
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      status: deviceProfile(d.id) ? "ready" : "coming-soon",
+    }));
+  const roadmap = ROADMAP_DEVICES.filter((r) => r.platform === platformId).map((r) => ({
+    id: r.id,
+    name: r.name,
+    status: "coming-soon",
+  }));
+  return [...real, ...roadmap].sort(
+    (a, b) => (a.status === "ready" ? 0 : 1) - (b.status === "ready" ? 0 : 1),
+  );
+}
+
+/** Record the picked device (only if buildable) and return its summary for the
+ *  summary screen, or null if it isn't a real, ready device. */
+function selectDeviceById(id: string): DeviceSummary | null {
+  const entry = loadRegistryEntries().find((d) => d.id === id);
+  if (!entry || !deviceProfile(entry.id)) return null;
+  selectedDeviceId = entry.id;
+  return deviceSummary(entry);
 }
 
 /** The provisioning profile (catalog + bundles + executor) for a device. */
@@ -545,6 +597,9 @@ function createWindow(): void {
 app.whenReady().then(() => {
   ipcMain.handle("device:get", () => getDevice());
   ipcMain.handle("device:state", () => getDeviceState());
+  ipcMain.handle("platforms:get", () => getPlatforms());
+  ipcMain.handle("devices:list", (_event, platformId: string) => getDevices(platformId));
+  ipcMain.handle("device:select", (_event, id: string) => selectDeviceById(id));
   ipcMain.handle("catalog:get", () => getCatalog());
   ipcMain.handle("bundles:get", () => getBundles());
   ipcMain.handle("methods:get", () => getMethods());
