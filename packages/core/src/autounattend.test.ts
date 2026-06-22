@@ -40,11 +40,19 @@ describe("generateAutounattend", () => {
     expect(xml).toContain("<HideOnlineAccountScreens>true</HideOnlineAccountScreens>");
   });
 
+  it("skips the whole OOBE in local mode (incl. 25H2 engagement screens)", () => {
+    const xml = generateAutounattend(base);
+    expect(xml).toContain("<SkipMachineOOBE>true</SkipMachineOOBE>");
+    expect(xml).toContain("<SkipUserOOBE>true</SkipUserOOBE>");
+  });
+
   it("omits the local account and auto-logon in microsoft (semi-attended) mode", () => {
     const xml = generateAutounattend({ ...base, account: { mode: "microsoft" } });
     expect(xml).not.toContain("<LocalAccounts>");
     expect(xml).not.toContain("<AutoLogon>");
     expect(xml).toContain("<HideOnlineAccountScreens>false</HideOnlineAccountScreens>");
+    // MS account needs interactive sign-in, so we can't skip user OOBE there.
+    expect(xml).not.toContain("<SkipUserOOBE>true</SkipUserOOBE>");
   });
 
   it("runs the bootible bootstrap as the first logon command", () => {

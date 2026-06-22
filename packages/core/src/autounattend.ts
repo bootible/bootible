@@ -164,6 +164,12 @@ function oobeSystemPass(config: AutounattendConfig): string {
         <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
         <HideOnlineAccountScreens>${isLocal ? "true" : "false"}</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>${config.wifi ? "true" : "false"}</HideWirelessSetupInOOBE>
+        ${
+          isLocal
+            ? `<SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>`
+            : ""
+        }
         <ProtectYourPC>3</ProtectYourPC>
       </OOBE>${accountBlock}
       <TimeZone>${xmlEscape(config.timeZone ?? "New Zealand Standard Time")}</TimeZone>
