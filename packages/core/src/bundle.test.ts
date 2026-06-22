@@ -53,4 +53,16 @@ describe("buildUsbBundle", () => {
       buildUsbBundle(base, allyExecutor).some((f) => f.path.toLowerCase().includes("readme")),
     ).toBe(true);
   });
+
+  it("bakes the chosen UI language + region into the answer file (so it matches the ISO)", () => {
+    const auto = buildUsbBundle(
+      { ...base, uiLanguage: "en-US", locale: "en-AU" },
+      allyExecutor,
+    ).find((f) => f.path === "autounattend.xml");
+    expect(auto?.content).toContain(
+      "<SetupUILanguage><UILanguage>en-US</UILanguage></SetupUILanguage>",
+    );
+    expect(auto?.content).toContain("<UserLocale>en-AU</UserLocale>");
+    expect(auto?.content).not.toContain("en-GB");
+  });
 });

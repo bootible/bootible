@@ -10,12 +10,16 @@ import {
   type DeviceEntry,
   type DeviceProfile,
   type DeviceSummary,
+  DISPLAY_LANGUAGES,
+  defaultKeyboardRegion,
   deviceProfile,
   deviceSummary,
   type Exec,
   type GroupSummary,
   generateBootstrapScript,
   groupCatalog,
+  KEYBOARD_REGIONS,
+  keyboardRegionById,
   loadRegistry,
   type ModuleStateReport,
   type ProvisioningMethod,
@@ -163,6 +167,11 @@ export interface UsbBuildRequest {
   modules: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
+  /** Catalog id of the ISO/display language — sets the download language AND the
+   *  answer file's UI language from one choice so they can't disagree. */
+  isoId?: string;
+  /** Region/keyboard id from KEYBOARD_REGIONS. Omitted → default (New Zealand). */
+  regionId?: string;
 }
 
 /** Assemble the USB bundle (autounattend + bootstrap + config + wifi) into a
@@ -181,7 +190,19 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
     req.account.mode === "local"
       ? { mode: "local", username: req.account.username || "ally", password: req.account.password }
       : { mode: "microsoft" };
-  const spec: UsbBuildSpec = { device, config, account, wifi: req.wifi };
+  // The answer file's UI language is taken from the SAME catalog entry as the
+  // ISO download, so the image and the autounattend always agree (no Setup
+  // language prompt). Region/keyboard is an independent choice (default NZ).
+  const isoOption = ISO_CATALOG.find((o) => o.id === req.isoId);
+  const region = keyboardRegionById(req.regionId) ?? defaultKeyboardRegion();
+  const spec: UsbBuildSpec = {
+    device,
+    config,
+    account,
+    wifi: req.wifi,
+    uiLanguage: isoOption?.uiLanguage,
+    locale: region.locale,
+  };
 
   const stagingPath = join(app.getPath("temp"), "bootible-usb-bundle");
   rmSync(stagingPath, { recursive: true, force: true });
@@ -212,10 +233,8 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
 
 export interface UsbWriteRequest extends UsbBuildRequest {
   diskNumber: number;
-  /** A local ISO path (browse), or... */
+  /** A local ISO path (browse) instead of downloading the catalog isoId via Fido. */
   isoPath?: string;
-  /** ...a catalog id to download via Fido. */
-  isoId?: string;
 }
 
 /** Tail the writer's NDJSON progress file and stream each line to the renderer. */
@@ -369,29 +388,21 @@ function listUsbDisks(): UsbDisk[] {
   }
 }
 
-// Known Windows 11 images for the Rufus-style dropdown. Fido resolves the real
-// Microsoft download URL from these (rel/ed/lang/arch) at download time.
-// Fido only serves the release Microsoft currently offers, via -Rel "Latest"
-// (specific older versions like 24H2 are rejected). So the dropdown is the
-// latest Win 11 by language/edition; for a specific version, use a local ISO.
-const ISO_CATALOG = [
-  {
-    id: "win11-latest-intl",
-    label: "Windows 11 (latest) — English International (x64)",
-    rel: "Latest",
-    ed: "Home/Pro",
-    lang: "English International",
-    arch: "x64",
-  },
-  {
-    id: "win11-latest-us",
-    label: "Windows 11 (latest) — English (United States) (x64)",
-    rel: "Latest",
-    ed: "Home/Pro",
-    lang: "English",
-    arch: "x64",
-  },
-] as const;
+// The Rufus-style ISO dropdown, derived from the display-language catalog so the
+// download language and the answer-file UI language are one and the same choice
+// (no mismatch → no Windows Setup language prompt). Fido resolves the real
+// Microsoft URL from rel/ed/lang/arch at download time; -Rel "Latest" is the
+// only release it serves (older versions like 24H2 are rejected), so for a
+// specific version the user browses to a local ISO instead.
+const ISO_CATALOG = DISPLAY_LANGUAGES.map((l) => ({
+  id: `win11-latest-${l.id}`,
+  label: `Windows 11 (latest) — ${l.label} (x64)`,
+  rel: "Latest",
+  ed: "Home/Pro",
+  lang: l.fidoLang,
+  arch: "x64",
+  uiLanguage: l.uiLanguage,
+}));
 
 function getIsoCatalog(): IsoOption[] {
   return ISO_CATALOG.map((o) => ({ id: o.id, label: o.label }));
@@ -546,6 +557,10 @@ app.whenReady().then(() => {
   ipcMain.handle("usb:write", (event, req: UsbWriteRequest) => writeUsb(event.sender, req));
   ipcMain.handle("usb:disks", () => listUsbDisks());
   ipcMain.handle("iso:catalog", () => getIsoCatalog());
+  ipcMain.handle("languages:get", () =>
+    DISPLAY_LANGUAGES.map((l) => ({ id: l.id, label: l.label, isoId: `win11-latest-${l.id}` })),
+  );
+  ipcMain.handle("regions:get", () => KEYBOARD_REGIONS.map((r) => ({ id: r.id, label: r.label })));
   ipcMain.handle("iso:browse", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win ? browseIso(win) : null;

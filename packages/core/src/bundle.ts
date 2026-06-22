@@ -17,6 +17,11 @@ export interface UsbBuildSpec {
   account: AccountMode;
   wifi?: { ssid: string; password: string };
   computerName?: string;
+  /** Windows display language — MUST match the UI language of the ISO being
+   *  installed (see languages.ts). Omitted → autounattend default (en-GB). */
+  uiLanguage?: string;
+  /** Region/keyboard BCP-47 locale. Omitted → autounattend default (en-NZ). */
+  locale?: string;
 }
 
 /** A file to write onto the USB, by path relative to the USB root. */
@@ -64,6 +69,8 @@ export function buildUsbBundle(
     computerName: spec.computerName,
     account: spec.account,
     wifi: spec.wifi,
+    uiLanguage: spec.uiLanguage,
+    locale: spec.locale,
     firstLogonCommand: FIRST_LOGON_COMMAND,
   });
   const bootstrap = generateBootstrapScript({

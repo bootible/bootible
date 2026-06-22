@@ -17,6 +17,22 @@ export interface UsbBuildRequest {
   modules: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
+  /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
+  isoId?: string;
+  /** Region/keyboard id from getRegions(). Omitted → default (New Zealand). */
+  regionId?: string;
+}
+
+export interface LanguageOption {
+  id: string;
+  label: string;
+  /** The ISO catalog id to select when this language is chosen. */
+  isoId: string;
+}
+
+export interface RegionOption {
+  id: string;
+  label: string;
 }
 
 export interface UsbDisk {
@@ -35,7 +51,6 @@ export interface IsoOption {
 export interface UsbWriteRequest extends UsbBuildRequest {
   diskNumber: number;
   isoPath?: string;
-  isoId?: string;
 }
 
 export interface UsbProgress {
@@ -61,6 +76,8 @@ const api = {
     ipcRenderer.invoke("usb:build", req),
   getUsbDisks: (): Promise<UsbDisk[]> => ipcRenderer.invoke("usb:disks"),
   getIsoCatalog: (): Promise<IsoOption[]> => ipcRenderer.invoke("iso:catalog"),
+  getLanguages: (): Promise<LanguageOption[]> => ipcRenderer.invoke("languages:get"),
+  getRegions: (): Promise<RegionOption[]> => ipcRenderer.invoke("regions:get"),
   browseIso: (): Promise<string | null> => ipcRenderer.invoke("iso:browse"),
   writeUsb: (req: UsbWriteRequest): Promise<{ started: boolean }> =>
     ipcRenderer.invoke("usb:write", req),

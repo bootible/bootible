@@ -24,6 +24,17 @@ export type {
 } from "./config";
 export { buildConfig, deepMerge, loadArtifact, serializeConfig } from "./config";
 export { getDisplayTweakCommands } from "./display";
+export type { DisplayLanguage, KeyboardRegion } from "./languages";
+export {
+  DEFAULT_DISPLAY_LANGUAGE_ID,
+  DEFAULT_KEYBOARD_REGION_ID,
+  DISPLAY_LANGUAGES,
+  defaultDisplayLanguage,
+  defaultKeyboardRegion,
+  displayLanguageById,
+  KEYBOARD_REGIONS,
+  keyboardRegionById,
+} from "./languages";
 export type {
   BootibleModule,
   GroupSummary,
