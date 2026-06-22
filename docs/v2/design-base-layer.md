@@ -92,8 +92,8 @@ Installs the Xbox home app (`Microsoft.GamingApp` ▶ Rec via winget) and enable
 On-device checks (a clean bootible install of a ROG Xbox Ally X) showed **zero devices without a working driver**: Windows Update delivers the *complete* stack, including the **ASUS System Control Interface v3** (buttons), ASUS firmware, and the AMD Radeon GPU driver. So "all hardware works" is met by Windows Update out of the box — there is **no asus-drivers module to build**. The driver "universal floor" is Windows Update itself (the MT7922 Wi-Fi staging stays, since it's needed *during* install before WU can run).
 **Optional safety net (only if a future device shows gaps):** a tiny step that triggers/waits for a WU driver scan at first logon. Not building it unless a device needs it.
 
-### `armoury-crate` (medium — vendor installer, Full ROG only)
-A4 research resolved the silent-install question: **there isn't a reliable one** — the installer is GUI (`SetupROGLSLService.exe`) and known to hang. But Windows **auto-prompts** to install Armoury Crate on first boot once the ASUS components are present. So for Full ROG, **lean on the OS auto-prompt** (or stage `SetupROGLSLService.exe` and first-run it), not a forced silent install. Only the Full ROG base includes this.
+### `armoury-crate` (Full ROG only) — **winget, like the other app modules**
+Better than research first suggested: **`Asus.ArmouryCrate` is on winget** with a *stable* installer URL (`ArmouryCrateInstallTool.zip` + SHA256, not API-gated). It's ASUS's universal install tool that **detects the handheld and pulls the SE/Command Center build**. So this is a normal `appInstall` (`winget install --id Asus.ArmouryCrate`), best-effort/non-fatal like the rest. The tool fetches components on first run and may want a reboot — flagged in the module copy. Only the Full ROG base includes it.
 
 ### `ssh-key` (easy — feature + file)
 Enables the OpenSSH Server optional feature and writes the user's **pasted public key** to `authorized_keys`.
@@ -171,6 +171,6 @@ flowchart LR
 2. **`ssh-key`** — small, independent, high user value.
 3. **Base catalog + config fields + renderer base selector** — wires the model together; bases selectable, shells working, on the existing Wi-Fi-only driver floor.
 4. ~~**`asus-drivers` staging**~~ — **removed.** Hardware checks proved Windows Update delivers the full driver stack (incl. ASUS System Control Interface + AMD GPU) on a clean install. "All hardware works" needs no module.
-5. **`armoury-crate`** (Full ROG only) — install Armoury Crate SE (staged `SetupROGLSLService.exe` first-run; the OS auto-prompt doesn't reliably fire).
+5. **`armoury-crate`** (Full ROG only) — `winget install Asus.ArmouryCrate` (ASUS's install tool detects the handheld and pulls the SE build). A normal app module.
 
 Steps 1–3 ship the model and the shells; the driver floor is Windows Update itself (the MT7922 staging already handles install-time Wi-Fi). That removes the one piece that looked hard — there's no driver-staging engine to build.

@@ -30,12 +30,16 @@ describe("base catalog", () => {
     expect(ids).toContain("steam-bigpicture");
   });
 
-  it("every base's resolved modules exist in the catalog (except documented forward refs)", () => {
+  it("full-rog base includes Armoury Crate + the Xbox shell", () => {
+    const ids = baseModuleIds(baseById("full-rog") as Base);
+    expect(ids).toContain("armoury-crate");
+    expect(ids).toContain("xbox-fullscreen");
+  });
+
+  it("every base's resolved modules exist in the catalog", () => {
     const known = new Set(allyCatalog.map((m) => m.id));
-    const forwardRefs = new Set(["armoury-crate"]); // Phase B6, not yet built
     for (const base of BASES) {
       for (const id of baseModuleIds(base)) {
-        if (forwardRefs.has(id)) continue;
         expect(known.has(id), `base ${base.id} references unknown module ${id}`).toBe(true);
       }
     }

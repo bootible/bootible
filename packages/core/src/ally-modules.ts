@@ -385,6 +385,13 @@ export const allyCatalog: BootibleModule[] = [
     "Install Moonlight + Chiaki-ng to stream from your gaming PC or PlayStation.",
     ["MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
   ),
+  appInstall(
+    "armoury-crate",
+    "Armoury Crate",
+    "Install ASUS Armoury Crate — the factory control surface (operating modes, fan curves, button remap). ASUS's install tool detects the handheld and pulls the SE/Command Center build; it fetches components on first run and may want a reboot.",
+    ["Asus.ArmouryCrate"],
+    "system",
+  ),
   sshKey,
   steamBigPicture,
   xboxFullscreen,
