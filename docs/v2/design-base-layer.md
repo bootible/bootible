@@ -88,15 +88,16 @@ Four modules, each fitting the existing `BootibleModule` contract (`apply(ctx, e
 Installs the Xbox home app (`Microsoft.GamingApp` ▶ Rec via winget) and enables Xbox mode with enter-on-startup via registry. **Contained complexity:** exact keys are isolated in this one module; the rest of the system only sees "a module."
 **Gap:** registry keys to confirm on-device (`findings-base-layer.md` stub).
 
-### `asus-drivers` (hard — staging, no winget) — **universal floor**
-Stages the full ASUS/MediaTek driver set (System Control Interface, MCU/ACPI, AMD GPU, Bluetooth — Wi-Fi already staged) onto the USB, consumed during install. **Applied to every base** so all hardware works on all four.
-**Contained complexity:** the one genuinely hard piece. Contain it in `prepare-usb.ps1`'s existing `Resolve-Driver`/staging path, extended to a *list* of drivers fetched at build time.
-**Gaps:** exact driver URLs for RC72LA, version pinning, reboot ordering — all build-time-fetched, never hardcoded.
-**Note:** because it's now a floor (not optional), it gates the "all hardware works" promise for *every* base — so it is foundational, not a late add. The easy shell/SSH work can still ship first to validate the model while the driver set is captured.
+### `asus-drivers` (medium — smaller than first thought) — **universal floor**
+A4 research reframed this. Windows Update already covers AMD GPU, MediaTek Wi-Fi (staged) + Bluetooth, audio, chipset on a clean install — the validated run proved it. The **only** ASUS-specific, clean-install-missing driver is the **ASUS System Control Interface** (back/Option buttons, Command Center button, ACPI/brightness). And ASUS publishes **no static driver URLs** (API-gated).
+So this module is:
+1. **Trigger a Windows Update driver scan** at first logon (network is up) to pull the bulk.
+2. **Ensure the System Control Interface** — if Windows Update doesn't deliver it, stage that *one* driver (resolved from the ASUS API at build time, or captured once + version-checked).
+**Applied to every base** so all hardware works on all four.
+**Open:** whether Windows Update delivers the SCI driver itself (Phase C) — decides one-driver vs zero. Reboot may be needed (like HidHide).
 
-### `armoury-crate` (medium — vendor installer)
-Installs Armoury Crate SE silently.
-**Gap:** confirm a silent-install flag that doesn't drag the wider ASUS suite. **❓ Decide** fallback if no clean silent install exists: stage the installer + first-run it, or hand off (a `guided`-style step).
+### `armoury-crate` (medium — vendor installer, Full ROG only)
+A4 research resolved the silent-install question: **there isn't a reliable one** — the installer is GUI (`SetupROGLSLService.exe`) and known to hang. But Windows **auto-prompts** to install Armoury Crate on first boot once the ASUS components are present. So for Full ROG, **lean on the OS auto-prompt** (or stage `SetupROGLSLService.exe` and first-run it), not a forced silent install. Only the Full ROG base includes this.
 
 ### `ssh-key` (easy — feature + file)
 Enables the OpenSSH Server optional feature and writes the user's **pasted public key** to `authorized_keys`.

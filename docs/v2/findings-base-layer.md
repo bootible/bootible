@@ -71,14 +71,42 @@ bootible's tuning writes power/registry settings; the ASUS layer drives hardware
 
 ---
 
-## What is still open (gaps to close before building)
+## ASUS driver research (A4) — what's actually needed, and how to get it
 
-These are the volatile, must-verify-on-source items — flagged honestly rather than guessed:
+The original stubs assumed bootible would stage a *full ASUS driver set* from static URLs. The research changes that picture and simplifies it.
 
-- **Exact ASUS driver set + URLs for the Ally X (RC72LA).** System Control Interface, MCU/ACPI, AMD GPU (Adrenalin). Source: the ROG Ally X support/download page. Best fetched at build time (like the Wi-Fi driver), since URLs and versions move. **STUB — needs source capture.**
-- **Whether Armoury Crate SE installs silently** (and without dragging the wider ASUS software suite). **STUB — needs verification.**
-- **The exact registry keys** for Xbox mode + "enter on startup," and the **package id** for the Xbox home app (likely `Microsoft.GamingApp` via winget). **STUB — lift from the community tool / confirm on-device.**
-- **Driver/Armoury-Crate install ordering and reboot needs** at first logon (some ASUS drivers want a reboot, as HidHide already does). **STUB.**
+**ASUS publishes no static driver URLs.** The RC72LA download page is fully API/JS-driven — scraping it returns only page chrome; the driver list and download links come from a backend API (resolved per product-hash at request time). So a stable hardcoded URL set does not exist, and any direct-fetch must hit the ASUS API at build time.
+
+> [ASUS — ROG Ally X (2024) RC72LA Download page](https://www.asus.com/us/supportonly/rog%20ally%20x%20(2024)%20rc72la/helpdesk_download/) — renders the model + OS selector but no driver entries without executing the page's API calls. 📄 Confirmed by scrape.
+
+**Only one driver is genuinely ASUS-specific and clean-install-missing: the ASUS System Control Interface (v3).** It is what powers the back/Option (M1/M2) buttons, the Command Center / Armoury Crate buttons, and ACPI/brightness. Everything else a handheld needs — AMD GPU, MediaTek Wi-Fi (already staged) + Bluetooth, audio, chipset, card reader — comes from Windows Update or AMD Adrenalin, not an ASUS-only package.
+
+> [r/ROGAlly — Option buttons not working](https://www.reddit.com/r/ROGAlly/comments/148gcu6/option_buttons_not_working_armoury_crate_not/) — "the back buttons and the 'Armoury Crate' button … require the **ASUS System Control Interface v3** driver (v3.1.16.0) to work properly."
+> [r/ROGAlly — graphics drivers](https://www.reddit.com/r/ROGAlly/comments/144m0sk/) — the Ally "is essentially a Windows 11 device, so driver updates are done through AMD Radeon Adrenalin," i.e. the GPU is not ASUS-gated.
+
+**This reshapes the asus-drivers approach (Phase B5).** The validated clean install already produced a working device (Wi-Fi via the staged MT7922, apps, desktop) — Windows Update covers the bulk. So B5 is not "scrape ASUS's API for many drivers"; it is the much smaller:
+1. **Trigger a Windows Update driver scan** in the bootstrap (network is up by first logon) to pull AMD/MediaTek/audio/chipset.
+2. **Ensure the ASUS System Control Interface** is present — verify on hardware whether Windows Update delivers it; if not, stage that *one* driver (resolved at build time from the ASUS API, or captured once and version-checked).
+
+**Armoury Crate SE has no clean silent install.** The installer is GUI (`SetupROGLSLService.exe`) and is known to hang (e.g. at 80%). But Windows **auto-prompts** to install Armoury Crate on first boot once the ASUS components are present.
+
+> [ASUS FAQ 1041654 — Armoury Crate FAQ](https://www.asus.com/support/faq/1041654/) — install is via double-clicking `SetupROGLSLService.exe`.
+> [ROG Forum — AC SE installer hanging at 80%](https://rog-forum.asus.com/t5/handheld-gaming/armory-crate-se-installer-is-hanging-at-80/td-p/976528) — GUI install, fragile.
+> [Exxact — ASUS Armoury Crate Installation](https://support.exxactcorp.com/hc/en-us/articles/35589705730455-ASUS-Armoury-Crate-Installation) — "Upon first bootup … the operating system will prompt to automatically download and execute the Armoury Crate" installer.
+
+So for **Full ROG** (the only base wanting Armoury Crate), the robust path is to **let Windows' first-boot auto-prompt install it** (or stage `SetupROGLSLService.exe` and first-run it), not to force a silent install that doesn't reliably exist.
+
+### Resolved stubs
+
+- ✅ **Xbox home-app key** — `HKCU\…\GamingConfiguration\GamingHomeApp = Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.App` (resolved in A1, shipped in the `xbox-fullscreen` module).
+- ✅ **ASUS driver set** — only the System Control Interface is ASUS-specific; the rest is Windows Update / Adrenalin. No static URLs (API-gated).
+- ✅ **Armoury Crate silent install** — none reliable; use the OS auto-prompt / staged-installer first-run for Full ROG.
+
+### Still open (verify on the Phase C hardware run)
+
+- **Does Windows Update deliver the ASUS System Control Interface** automatically on a clean Ally X install, or must it be staged? Determines whether B5 stages one driver or zero.
+- **Xbox "enter on startup"** registry key — capture by toggling the Settings switch and reading the resulting value on-device.
+- **Driver reboot needs** at first logon (the SCI driver may want a reboot, like HidHide already does).
 
 ---
 
