@@ -15,12 +15,24 @@ export interface ProvisionResult {
 
 export interface UsbBuildRequest {
   modules: string[];
+  /** Chosen base id (raw / steam-bp / xbox / full-rog). */
+  baseId?: string;
+  /** The user's SSH public key (enables the ssh-key module). */
+  sshPublicKey?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
   isoId?: string;
   /** Region/keyboard id from getRegions(). Omitted → default (New Zealand). */
   regionId?: string;
+}
+
+export interface BaseOption {
+  id: string;
+  label: string;
+  description: string;
+  tag?: string;
+  recommended?: boolean;
 }
 
 export interface LanguageOption {
@@ -85,11 +97,13 @@ const api = {
     ipcRenderer.invoke("device:select", id),
   getCatalog: (): Promise<GroupSummary[]> => ipcRenderer.invoke("catalog:get"),
   getBundles: (): Promise<Bundle[]> => ipcRenderer.invoke("bundles:get"),
+  getBases: (): Promise<BaseOption[]> => ipcRenderer.invoke("bases:get"),
   getState: (): Promise<ModuleStateReport[]> => ipcRenderer.invoke("device:state"),
   getMethods: (): Promise<ProvisioningMethod[]> => ipcRenderer.invoke("methods:get"),
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),
-  exportConfig: (modules: string[]): Promise<{ path: string } | null> =>
-    ipcRenderer.invoke("config:export", modules),
+  exportConfig: (
+    req: Pick<UsbBuildRequest, "modules" | "baseId" | "sshPublicKey">,
+  ): Promise<{ path: string } | null> => ipcRenderer.invoke("config:export", req),
   buildUsb: (req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null> =>
     ipcRenderer.invoke("usb:build", req),
   getUsbDisks: (): Promise<UsbDisk[]> => ipcRenderer.invoke("usb:disks"),

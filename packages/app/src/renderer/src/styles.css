@@ -85,7 +85,7 @@ body[data-view="devices"] .view[data-view="devices"] {
   display: flex;
 }
 
-body[data-view="persona"] .view[data-view="persona"] {
+body[data-view="base"] .view[data-view="base"] {
   display: flex;
 }
 

@@ -50,7 +50,7 @@
             <p class="device-sub" data-field="device-sub">Windows 11 handheld — selected.</p>
 
             <div class="actions">
-              <button class="btn-primary" type="button" data-go="persona">
+              <button class="btn-primary" type="button" data-go="base">
                 Set up this device <span class="arrow" aria-hidden="true">→</span>
               </button>
               <button class="btn-ghost" type="button" data-back>Change device</button>
@@ -67,33 +67,17 @@
           </aside>
         </main>
 
-        <!-- ───────────────────── PERSONA (who are you) ───────────────────── -->
-        <main class="view setup" data-view="persona">
+        <!-- ───────────────────── BASE (pick the experience) ───────────────────── -->
+        <main class="view setup" data-view="base">
           <div class="setup-head">
-            <p class="eyebrow" data-field="persona-eyebrow">Your ROG Ally X</p>
-            <h1 class="setup-title">How do you want to do this?</h1>
-            <p class="setup-sub">Same end result — pick how involved you want to be.</p>
+            <p class="eyebrow" data-field="base-eyebrow">Your ROG Ally X</p>
+            <h1 class="setup-title">Pick your base</h1>
+            <p class="setup-sub">
+              The experience your handheld boots into. Every base is fully driver-complete,
+              debloated and tuned — you choose what it boots into and what's pre-installed.
+            </p>
           </div>
-
-          <div class="method-list">
-            <button class="method-card" type="button" data-go="bundles">
-              <span class="method-icon" aria-hidden="true">✦</span>
-              <span class="method-main">
-                <span class="method-name">Set it up for me</span>
-                <span class="method-desc">Pick a recommended setup — described in plain English by what you get, not a list of switches.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">recommended</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
-
-            <button class="method-card" type="button" data-go="setup">
-              <span class="method-icon" aria-hidden="true">⚙</span>
-              <span class="method-main">
-                <span class="method-name">Let me choose</span>
-                <span class="method-desc">See every step, grouped and explained, and toggle exactly what runs. For people who like to tinker.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">advanced</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
-          </div>
+          <div class="method-list base-list"></div>
         </main>
 
         <!-- ───────────────────── BUNDLES (set it up for me) ───────────────────── -->
@@ -429,6 +413,10 @@
               <div class="field" data-when="local">
                 <label class="field-label" for="acct-pass">Password <span class="muted">(optional)</span></label>
                 <input class="field-input" id="acct-pass" type="password" placeholder="leave blank for none" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="ssh-key">SSH public key <span class="muted">(optional)</span></label>
+                <textarea class="field-input" id="ssh-key" rows="3" placeholder="ssh-ed25519 AAAA… — paste to enable SSH into the device" autocomplete="off" spellcheck="false"></textarea>
               </div>
 
               <div class="summary-actions">

@@ -3,7 +3,11 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "no
 import { dirname, join } from "node:path";
 import {
   type AccountMode,
+  BASES,
+  type Base,
   type Bundle,
+  baseById,
+  baseModuleIds,
   buildConfig,
   buildUsbBundle,
   checkModules,
@@ -164,6 +168,18 @@ function getBundles(): Bundle[] {
   return profileFor(targetDevice())?.bundles ?? [];
 }
 
+/** The base catalog (page after device summary) — the experience the handheld
+ *  boots into. Projects just what the renderer needs. */
+function getBases(): Array<Pick<Base, "id" | "label" | "description" | "tag" | "recommended">> {
+  return BASES.map((b) => ({
+    id: b.id,
+    label: b.label,
+    description: b.description,
+    tag: b.tag,
+    recommended: b.recommended,
+  }));
+}
+
 /** Provisioning methods for the target device — derived from its registry
  *  provisioning_models, so the method screen supports any device type. */
 function getMethods(): ProvisioningMethod[] {
@@ -196,12 +212,13 @@ function getDeviceState(): ModuleStateReport[] {
  */
 async function exportConfig(
   win: BrowserWindow,
-  modules: string[],
+  req: BuildChoice,
 ): Promise<{ path: string } | null> {
+  const modules = resolveModules(req);
   const config = buildConfig({
     device: targetDevice()?.id ?? "rog-ally",
     modules: modules.length ? modules : undefined,
-    settings: RECOMMENDED_SETTINGS,
+    settings: buildSettings(req),
   });
 
   const result = await dialog.showSaveDialog(win, {
@@ -216,7 +233,13 @@ async function exportConfig(
 }
 
 export interface UsbBuildRequest {
+  /** Modifier module ids the user added on top of the base. */
   modules: string[];
+  /** Chosen base id (raw / steam-bp / xbox / full-rog). Resolves to the base's
+   *  shell + software floor, unioned with the universal floor and the modifiers. */
+  baseId?: string;
+  /** The user's SSH public key (plain data); enables the ssh-key module. */
+  sshPublicKey?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -226,6 +249,27 @@ export interface UsbBuildRequest {
   regionId?: string;
 }
 
+/** The base + modifier choices that resolve to a final module set. */
+type BuildChoice = { modules: string[]; baseId?: string; sshPublicKey?: string };
+
+/** The final module-id set for a build: the base's resolved floor (shell +
+ *  software + universal tuning) unioned with the user's modifier picks, plus the
+ *  ssh-key module when a key is supplied. */
+function resolveModules(req: BuildChoice): string[] {
+  const base = baseById(req.baseId);
+  const ids = new Set<string>(base ? baseModuleIds(base) : []);
+  for (const id of req.modules) ids.add(id);
+  if (req.sshPublicKey?.trim()) ids.add("ssh-key");
+  return [...ids];
+}
+
+/** The settings bag, with the SSH public key folded in when provided. */
+function buildSettings(req: BuildChoice): Record<string, unknown> {
+  return req.sshPublicKey?.trim()
+    ? { ...RECOMMENDED_SETTINGS, ssh_public_key: req.sshPublicKey.trim() }
+    : RECOMMENDED_SETTINGS;
+}
+
 /** Assemble the USB bundle (autounattend + bootstrap + config + wifi) into a
  *  staging folder. Returns the path, or null if there's no device profile. */
 function stageUsbBundle(req: UsbBuildRequest): string | null {
@@ -233,10 +277,11 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
   const profile = profileFor(device);
   if (!device || !profile) return null;
 
+  const modules = resolveModules(req);
   const config = buildConfig({
     device: device.id,
-    modules: req.modules.length ? req.modules : undefined,
-    settings: RECOMMENDED_SETTINGS,
+    modules: modules.length ? modules : undefined,
+    settings: buildSettings(req),
   });
   const account: AccountMode =
     req.account.mode === "local"
@@ -496,10 +541,13 @@ async function applyDevice(
   });
   if (confirm.response !== 1) return { status: "cancelled" };
 
+  // Same base+modifier resolution as the USB path, so every approach ends with
+  // the device set identically.
+  const modules = resolveModules(req);
   const config = buildConfig({
     device: device.id,
-    modules: req.modules.length ? req.modules : undefined,
-    settings: RECOMMENDED_SETTINGS,
+    modules: modules.length ? modules : undefined,
+    settings: buildSettings(req),
   });
   const script = generateBootstrapScript({ device, config, executorFactory: profile.executor });
   const dir = join(app.getPath("temp"), "bootible-apply");
@@ -602,11 +650,12 @@ app.whenReady().then(() => {
   ipcMain.handle("device:select", (_event, id: string) => selectDeviceById(id));
   ipcMain.handle("catalog:get", () => getCatalog());
   ipcMain.handle("bundles:get", () => getBundles());
+  ipcMain.handle("bases:get", () => getBases());
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
-  ipcMain.handle("config:export", (event, modules: string[]) => {
+  ipcMain.handle("config:export", (event, req: BuildChoice) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    return win ? exportConfig(win, modules ?? []) : null;
+    return win ? exportConfig(win, req ?? { modules: [] }) : null;
   });
   ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
   ipcMain.handle("usb:write", (event, req: UsbWriteRequest) => writeUsb(event.sender, req));

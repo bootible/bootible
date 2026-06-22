@@ -48,10 +48,20 @@ interface ProvisionResult {
 
 interface UsbBuildRequest {
   modules: string[];
+  baseId?: string;
+  sshPublicKey?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
   regionId?: string;
+}
+
+interface BaseOption {
+  id: string;
+  label: string;
+  description: string;
+  tag?: string;
+  recommended?: boolean;
 }
 
 interface ModuleStateReport {
@@ -120,6 +130,7 @@ interface BootibleApi {
   getPlatforms(): Promise<PlatformOption[]>;
   getDevices(platformId: string): Promise<DeviceOption[]>;
   selectDevice(id: string): Promise<DeviceSummary | null>;
+  getBases(): Promise<BaseOption[]>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -129,7 +140,11 @@ interface BootibleApi {
   provision(): Promise<ProvisionResult>;
   onProvisionStep(cb: (event: StepEvent) => void): void;
   onProvisionDone(cb: (result: ProvisionResult) => void): void;
-  exportConfig(modules: string[]): Promise<{ path: string } | null>;
+  exportConfig(req: {
+    modules: string[];
+    baseId?: string;
+    sshPublicKey?: string;
+  }): Promise<{ path: string } | null>;
   buildUsb(req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null>;
   openPath(path: string): Promise<string>;
   applyDevice(req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }>;
@@ -150,7 +165,7 @@ const VIEWS = [
   "platform",
   "devices",
   "home",
-  "persona",
+  "base",
   "bundles",
   "method",
   "setup",
@@ -194,6 +209,7 @@ function syncFromHash(): void {
   const view = location.hash.replace(/^#/, "") || "platform";
   show(view);
   if (view === "platform") void hydratePlatforms();
+  if (view === "base") void hydrateBases();
   if (view === "review") {
     setApplyLabel();
     renderReviewPlan();
@@ -349,11 +365,42 @@ async function selectDeviceAndGo(id: string): Promise<void> {
   fill("name", device.name);
   fill("system", device.system);
   fill("device-sub", `${device.system} handheld — selected.`);
-  fill("persona-eyebrow", `Your ${device.name}`);
+  fill("base-eyebrow", `Your ${device.name}`);
   location.hash = "home";
 }
 
-// Card clicks on the platform / devices pages.
+/** A base card — the experience picker (charcoal/amber method-card style). */
+function baseCard(base: BaseOption): HTMLElement {
+  const card = el("button", "method-card") as HTMLButtonElement;
+  card.type = "button";
+  card.dataset.pick = "base";
+  card.dataset.id = base.id;
+  const icon = el("span", "method-icon", base.recommended ? "★" : "◆");
+  icon.setAttribute("aria-hidden", "true");
+  const main = el("span", "method-main");
+  main.append(el("span", "method-name", base.label), el("span", "method-desc", base.description));
+  const meta = el("span", "method-meta");
+  if (base.tag) meta.append(el("span", "group-tag", base.tag));
+  meta.append(el("span", "arrow", "→"));
+  card.append(icon, main, meta);
+  return card;
+}
+
+/** Render the base selector (the page after the device summary). */
+async function hydrateBases(): Promise<void> {
+  const api = window.bootible;
+  const list = document.querySelector<HTMLElement>(".base-list");
+  if (!api?.getBases || !list) return;
+  let bases: BaseOption[] = [];
+  try {
+    bases = await api.getBases();
+  } catch {
+    return;
+  }
+  list.replaceChildren(...bases.map(baseCard));
+}
+
+// Card clicks on the platform / devices / base pages.
 document.addEventListener("click", (event) => {
   const card = (event.target as HTMLElement).closest<HTMLElement>("[data-pick]");
   if (!card) return;
@@ -365,6 +412,9 @@ document.addEventListener("click", (event) => {
     location.hash = "devices";
   } else if (card.dataset.pick === "device") {
     void selectDeviceAndGo(id);
+  } else if (card.dataset.pick === "base") {
+    selectedBaseId = id;
+    location.hash = "method";
   }
 });
 
@@ -383,6 +433,7 @@ const GROUP_TAGS: Record<string, string> = {
 
 let catalog: GroupSummary[] = [];
 let deviceName = "ROG Ally X";
+let selectedBaseId = "";
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -853,8 +904,13 @@ let lastArtifactPath = "";
 async function runExport(): Promise<void> {
   const api = window.bootible;
   if (!api?.exportConfig) return;
-  const modules = selectedModuleIds();
-  const result = await api.exportConfig(modules);
+  const req = gatherUsbRequest();
+  const modules = req.modules;
+  const result = await api.exportConfig({
+    modules,
+    baseId: req.baseId,
+    sshPublicKey: req.sshPublicKey,
+  });
   if (!result) return; // cancelled
 
   lastArtifactPath = result.path;
@@ -874,9 +930,10 @@ async function runExport(): Promise<void> {
   location.hash = "done";
 }
 
-/** Gather the USB build inputs from the wizard's account + WiFi fields. */
+/** Gather the USB build inputs from the wizard's base, account, SSH + WiFi. */
 function gatherUsbRequest(): UsbBuildRequest {
-  const val = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.value.trim() ?? "";
+  const val = (sel: string) =>
+    document.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel)?.value.trim() ?? "";
   const mode = document.body.dataset.account === "microsoft" ? "microsoft" : "local";
   const account =
     mode === "local"
@@ -884,7 +941,11 @@ function gatherUsbRequest(): UsbBuildRequest {
       : { mode };
   const ssid = val("#wifi-ssid");
   const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
-  return { modules: selectedModuleIds(), account, wifi };
+  const sshPublicKey = val("#ssh-key") || undefined;
+  // When a base is chosen it defines the full module set; modifiers (the tinker
+  // screen) are an explicit add-on path, not the default all-on toggles.
+  const modules = selectedBaseId ? [] : selectedModuleIds();
+  return { modules, baseId: selectedBaseId || undefined, sshPublicKey, account, wifi };
 }
 
 // ── in-app USB writer screen ────────────────────────────────────────────────
