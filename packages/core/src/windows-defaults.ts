@@ -23,10 +23,25 @@ const TWEAKS: RegTweak[] = [
     type: "REG_DWORD",
     value: 0,
   },
-  // Turn off Windows Copilot
+  // Turn off Windows Copilot (the integrated feature)
   {
     path: "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot",
     name: "TurnOffWindowsCopilot",
+    type: "REG_DWORD",
+    value: 1,
+  },
+  // Hide the Copilot taskbar button
+  {
+    path: "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+    name: "ShowCopilotButton",
+    type: "REG_DWORD",
+    value: 0,
+  },
+  // Lock off Windows Recall (AI snapshotting) — keeps it disabled even on
+  // Copilot+ hardware / after updates that might re-enable it.
+  {
+    path: "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
+    name: "DisableAIDataAnalysis",
     type: "REG_DWORD",
     value: 1,
   },
@@ -71,4 +86,33 @@ export function getWindowsDefaultsCommands(): string[][] {
     String(tweak.value),
     "/f",
   ]);
+}
+
+/**
+ * Actually REMOVE the Copilot app (the reg policies only hide the integrated
+ * feature; on 25H2 Copilot is a separate app that ships installed + provisioned)
+ * and ensure the Recall optional feature stays off. All best-effort — they no-op
+ * cleanly when the package/feature isn't present (e.g. a clean ISO without it).
+ */
+export function getAiRemovalCommands(): string[][] {
+  return [
+    // Remove Copilot for all existing users…
+    [
+      "powershell",
+      "-Command",
+      "Get-AppxPackage -AllUsers '*Copilot*' | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue",
+    ],
+    // …and deprovision it so it doesn't return for newly-created users.
+    [
+      "powershell",
+      "-Command",
+      "Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like '*Copilot*' } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue",
+    ],
+    // Make sure the Recall optional feature is disabled (no-op if already off).
+    [
+      "powershell",
+      "-Command",
+      "Disable-WindowsOptionalFeature -Online -FeatureName Recall -NoRestart -ErrorAction SilentlyContinue",
+    ],
+  ];
 }

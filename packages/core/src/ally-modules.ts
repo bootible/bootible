@@ -4,7 +4,7 @@ import type { BootibleModule, ModuleGroup, ModuleState } from "./modules";
 import { getServiceTrimCommands } from "./optimization";
 import { getPowerConfigCommands } from "./power";
 import type { Exec } from "./secrets";
-import { getWindowsDefaultsCommands } from "./windows-defaults";
+import { getAiRemovalCommands, getWindowsDefaultsCommands } from "./windows-defaults";
 import { getWingetInstallCommands } from "./winget";
 
 /** Read a REG_DWORD value via `reg query`, or null if absent/unreadable. */
@@ -116,10 +116,14 @@ const windowsDefaults: BootibleModule = {
   id: "windows-defaults",
   name: "Windows defaults",
   group: "system",
-  description: "Turn off telemetry, Copilot and Bing search; show file extensions.",
-  changes: "6 registry values",
+  description:
+    "Turn off telemetry and Bing search, show file extensions, and remove Copilot + lock off Recall.",
+  changes: "registry tweaks + Copilot removal + Recall off",
   apply(_ctx, exec) {
-    return { status: "applied", actions: runCommands(exec, getWindowsDefaultsCommands()) };
+    return {
+      status: "applied",
+      actions: runCommands(exec, [...getWindowsDefaultsCommands(), ...getAiRemovalCommands()]),
+    };
   },
   check(_ctx, exec) {
     return regState(

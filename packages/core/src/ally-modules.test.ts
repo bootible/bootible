@@ -72,7 +72,7 @@ describe("allyCatalog", () => {
     ]);
   });
 
-  it("applies Windows defaults via reg add", () => {
+  it("applies Windows defaults: reg tweaks + Copilot removal + Recall off", () => {
     const wd = allyCatalog.find((m) => m.id === "windows-defaults");
     expect(wd).toBeDefined();
     const calls: string[][] = [];
@@ -81,8 +81,17 @@ describe("allyCatalog", () => {
       return "";
     });
     expect(result?.status).toBe("applied");
-    expect(calls.every((c) => c[0] === "reg" && c[1] === "add")).toBe(true);
-    expect(calls.some((c) => c.includes("AllowTelemetry"))).toBe(true);
+    const regAdds = calls.filter((c) => c[0] === "reg" && c[1] === "add");
+    expect(regAdds.some((c) => c.includes("AllowTelemetry"))).toBe(true);
+    expect(regAdds.some((c) => c.includes("DisableAIDataAnalysis"))).toBe(true);
+    const joined = calls.map((c) => c.join(" "));
+    expect(joined.some((c) => c.includes("Remove-AppxPackage") && c.includes("Copilot"))).toBe(
+      true,
+    );
+    expect(
+      joined.some((c) => c.includes("Remove-AppxProvisionedPackage") && c.includes("Copilot")),
+    ).toBe(true);
+    expect(joined.some((c) => c.includes("FeatureName Recall"))).toBe(true);
   });
 
   it("trims background services via sc config", () => {
