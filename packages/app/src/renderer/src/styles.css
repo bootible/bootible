@@ -1377,6 +1377,13 @@ body[data-view="account"] .summary::before {
   border-left-color: #e5564a;
 }
 
+.watch-alias {
+  margin-top: 12px;
+  font-family: "Space Mono", monospace;
+  font-size: 14px;
+  color: #39d98a;
+}
+
 .method-card:hover {
   border-color: #3a3f48;
   transform: translateY(-1px);

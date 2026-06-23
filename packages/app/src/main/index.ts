@@ -320,6 +320,8 @@ export interface UsbBuildRequest {
   baseId?: string;
   /** The user's chosen SSH public keys (plain data); enables the ssh-key module. */
   sshPublicKeys?: string[];
+  /** Device hostname — sets the computer name, the .local name, and the SSH alias. */
+  hostname?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -333,9 +335,54 @@ export interface UsbBuildRequest {
  *  know which discovered device is the one we just built. */
 let lastBuildId = "";
 /** Remembered from the last build so Verify can SSH in with no prompts: the local
- *  account name and the private key matching a chosen public key. */
+ *  account name, the private key matching a chosen public key, and the hostname
+ *  (for the `ssh <hostname>` alias). */
 let lastBuildUsername = "";
 let lastBuildIdentity = "";
+let lastBuildHostname = "";
+
+/** A valid Windows computer name from arbitrary input: alphanumeric + hyphen,
+ *  <=15 chars. Empty if nothing usable. */
+function sanitizeHostname(raw: string | undefined): string {
+  return (raw ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 15);
+}
+
+/** Write/replace a delimited bootible-managed Host block in ~/.ssh/config so
+ *  `ssh <hostname>` needs no username, password, IP, or key path. Idempotent;
+ *  never touches the user's other entries. */
+function writeSshAlias(hostname: string, ip: string): void {
+  const dir = sshDir();
+  mkdirSync(dir, { recursive: true });
+  const configPath = join(dir, "config");
+  const begin = `# >>> bootible managed: ${hostname} >>>`;
+  const end = `# <<< bootible managed: ${hostname} <<<`;
+  // HostName uses the discovered IP (Verify just proved it works); a static IP
+  // (G6) makes it permanent. User + key are baked in for prompt-free login.
+  const block = [
+    begin,
+    `Host ${hostname}`,
+    `  HostName ${ip}`,
+    `  User ${lastBuildUsername || "ally"}`,
+    ...(lastBuildIdentity ? [`  IdentityFile ${lastBuildIdentity}`, "  IdentitiesOnly yes"] : []),
+    "  StrictHostKeyChecking accept-new",
+    end,
+  ].join("\n");
+  let existing = "";
+  try {
+    existing = readFileSync(configPath, "utf8");
+  } catch {}
+  // Drop any prior bootible block for this hostname, then append the fresh one.
+  const stripped = existing
+    .replace(new RegExp(`${begin}[\\s\\S]*?${end}\\n?`, "g"), "")
+    .replace(/\n+$/, "");
+  const next = stripped ? `${stripped}\n\n${block}\n` : `${block}\n`;
+  writeFileSync(configPath, next, "utf8");
+}
 
 /** The private-key path on this machine matching one of the chosen public keys
  *  (so Verify can authenticate), or "" to let ssh use its default identities. */
@@ -355,7 +402,7 @@ function identityForKeys(keys: string[]): string {
 /** Verify a discovered device over SSH (key auth, no prompts): read its status
  *  + receipt to confirm the configure ran. Returns the raw output, or the error
  *  if unreachable. */
-function verifyDevice(ip: string): { reachable: boolean; output: string } {
+function verifyDevice(ip: string): { reachable: boolean; output: string; alias?: string } {
   const target = `${lastBuildUsername || "ally"}@${ip}`;
   // cmd-friendly remote command — no nested quoting through ssh -> cmd.
   const remote =
@@ -373,7 +420,16 @@ function verifyDevice(ip: string): { reachable: boolean; output: string } {
   ];
   try {
     const output = execFileSync("ssh", args, { encoding: "utf8", timeout: 20000 });
-    return { reachable: true, output: output.trim() };
+    // Reachable → write the `ssh <hostname>` alias so the user can reach it
+    // prompt-free from now on.
+    let alias: string | undefined;
+    if (lastBuildHostname) {
+      try {
+        writeSshAlias(lastBuildHostname, ip);
+        alias = lastBuildHostname;
+      } catch {}
+    }
+    return { reachable: true, output: output.trim(), alias };
   } catch (error) {
     const e = error as { stdout?: Buffer | string; stderr?: Buffer | string; message?: string };
     return {
@@ -495,9 +551,11 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
   // A fresh build token, baked into the beacon, so the desktop recognises the
   // exact device it built when it announces itself on the LAN.
   lastBuildId = randomBytes(6).toString("hex");
-  // Remember how to SSH in for Verify (local account name + matching private key).
+  // Remember how to SSH in for Verify (local account name + matching private key)
+  // and the hostname for the `ssh <hostname>` alias.
   lastBuildUsername = account.mode === "local" ? account.username || "ally" : "";
   lastBuildIdentity = identityForKeys(chosenKeys(req));
+  lastBuildHostname = sanitizeHostname(req.hostname);
   const spec: UsbBuildSpec = {
     device,
     config,
@@ -506,6 +564,7 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
     uiLanguage: isoOption?.uiLanguage,
     locale: region.locale,
     buildId: lastBuildId,
+    computerName: lastBuildHostname || undefined,
   };
 
   const stagingPath = join(app.getPath("temp"), "bootible-usb-bundle");

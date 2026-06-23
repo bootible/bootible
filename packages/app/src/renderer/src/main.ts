@@ -50,6 +50,7 @@ interface UsbBuildRequest {
   modules: string[];
   baseId?: string;
   sshPublicKeys?: string[];
+  hostname?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
@@ -152,7 +153,7 @@ interface BootibleApi {
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
   onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
-  verifyDevice(ip: string): Promise<{ reachable: boolean; output: string }>;
+  verifyDevice(ip: string): Promise<{ reachable: boolean; output: string; alias?: string }>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -1021,6 +1022,7 @@ function gatherUsbRequest(): UsbBuildRequest {
   const picked = hostSshKeys.filter((k) => selectedKeyIds.has(k.id)).map((k) => k.publicKey);
   const pasted = val("#ssh-paste");
   const sshPublicKeys = [...picked, ...(pasted ? [pasted] : [])];
+  const hostname = val("#device-hostname") || undefined;
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
   const modules = selectedBaseId ? [] : selectedModuleIds();
@@ -1028,6 +1030,7 @@ function gatherUsbRequest(): UsbBuildRequest {
     modules,
     baseId: selectedBaseId || undefined,
     sshPublicKeys: sshPublicKeys.length ? sshPublicKeys : undefined,
+    hostname,
     account,
     wifi,
   };
@@ -1215,6 +1218,9 @@ function renderDiscovered(): void {
 
       const result = verifyResults.get(d.ip);
       if (result) {
+        if (result.reachable && result.alias) {
+          card.append(el("div", "watch-alias", `✓ verified — now just \`ssh ${result.alias}\``));
+        }
         card.append(
           el(
             "pre",

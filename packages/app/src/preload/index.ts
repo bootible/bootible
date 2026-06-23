@@ -19,6 +19,8 @@ export interface UsbBuildRequest {
   baseId?: string;
   /** The user's chosen SSH public keys (enables the ssh-key module). */
   sshPublicKeys?: string[];
+  /** Device hostname — computer name, .local name, and SSH alias. */
+  hostname?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
@@ -119,7 +121,7 @@ const api = {
     ipcRenderer.invoke("ssh:generate-key", comment),
   startDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:start"),
   stopDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:stop"),
-  verifyDevice: (ip: string): Promise<{ reachable: boolean; output: string }> =>
+  verifyDevice: (ip: string): Promise<{ reachable: boolean; output: string; alias?: string }> =>
     ipcRenderer.invoke("device:verify", ip),
   onBeaconDevice: (cb: (device: DiscoveredDevice) => void): void => {
     ipcRenderer.on("beacon:device", (_e, device: DiscoveredDevice) => cb(device));
