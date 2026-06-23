@@ -416,8 +416,10 @@ body[data-view="connect"] .view[data-view="connect"] {
   margin: 0 auto;
   padding: 40px 64px;
   flex-direction: column;
-  justify-content: safe center;
-  gap: 40px;
+  /* Top-aligned so adding a Back button doesn't re-centre the page (no jump
+     between steps), and tall pages (base, app-picker) don't get pushed to scroll. */
+  justify-content: flex-start;
+  gap: 26px;
 }
 
 .setup-title {
@@ -430,7 +432,7 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 .setup-sub {
   margin-top: 14px;
-  max-width: 56ch;
+  max-width: 78ch;
   font-size: 16px;
   line-height: 1.5;
   color: var(--dim);
@@ -1754,6 +1756,13 @@ body[data-view="account"] .summary::before {
   font-family: "Space Mono", monospace;
   font-size: 10.5px;
   color: var(--dim);
+}
+
+.app-note {
+  font-size: 12px;
+  color: var(--dim);
+  font-style: italic;
+  margin: 6px 0 0;
 }
 
 .watch-host {

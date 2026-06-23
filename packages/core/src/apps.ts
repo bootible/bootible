@@ -23,6 +23,8 @@ export interface AppGroup {
   id: string;
   label: string;
   apps: AppEntry[];
+  /** Optional footnote shown under the group (e.g. "no desktop app" cases). */
+  note?: string;
 }
 
 export const APP_GROUPS: AppGroup[] = [
@@ -43,8 +45,8 @@ export const APP_GROUPS: AppGroup[] = [
     ],
   },
   {
-    // Edge ships with Windows, so it's not listed here (use "Disable Edge" in the
-    // floor debloat if you don't want it). Safari has no Windows version.
+    // Edge ships with Windows; install another and set it as default. Safari has
+    // had no Windows version since 2012.
     id: "browsers",
     label: "Browsers",
     apps: [
@@ -52,6 +54,7 @@ export const APP_GROUPS: AppGroup[] = [
       { id: "chrome", name: "Chrome", wingetId: "Google.Chrome" },
       { id: "opera", name: "Opera", wingetId: "Opera.Opera" },
     ],
+    note: "Edge comes with Windows. Install another browser and set it as default.",
   },
   {
     id: "comms",
@@ -78,6 +81,7 @@ export const APP_GROUPS: AppGroup[] = [
       { id: "claude", name: "Claude", wingetId: "Anthropic.Claude" },
       { id: "chatgpt", name: "ChatGPT", wingetId: "9NT1R1C2HH7J", source: "msstore" },
     ],
+    note: "Gemini is browser-only — Google ships no desktop app.",
   },
   {
     id: "launchers",
@@ -127,6 +131,21 @@ export const APP_GROUPS: AppGroup[] = [
     ],
   },
   {
+    id: "emulators",
+    label: "Emulators",
+    apps: [
+      { id: "retroarch", name: "RetroArch", wingetId: "Libretro.RetroArch" },
+      { id: "dolphin", name: "Dolphin (GameCube / Wii)", wingetId: "DolphinEmulator.Dolphin" },
+      { id: "pcsx2", name: "PCSX2 (PS2)", wingetId: "PCSX2Team.PCSX2" },
+      { id: "ppsspp", name: "PPSSPP (PSP)", wingetId: "PPSSPPTeam.PPSSPP" },
+      { id: "duckstation", name: "DuckStation (PS1)", wingetId: "Stenzek.DuckStation" },
+      { id: "cemu", name: "Cemu (Wii U)", wingetId: "Cemu.Cemu" },
+      { id: "mgba", name: "mGBA (Game Boy Advance)", wingetId: "JeffreyPfau.mGBA" },
+      { id: "melonds", name: "melonDS (Nintendo DS)", wingetId: "melonDS.melonDS" },
+    ],
+    note: "Emulators only — bring your own legally-owned, first-party game backups.",
+  },
+  {
     id: "dev",
     label: "Dev tools",
     apps: [
@@ -158,18 +177,6 @@ export const APP_GROUPS: AppGroup[] = [
       { id: "1password", name: "1Password", wingetId: "AgileBits.1Password" },
       { id: "bitwarden", name: "Bitwarden", wingetId: "Bitwarden.Bitwarden" },
       { id: "keepassxc", name: "KeePassXC", wingetId: "KeePassXCTeam.KeePassXC" },
-    ],
-  },
-  {
-    id: "runtimes",
-    label: "Runtimes",
-    apps: [
-      { id: "dotnet8", name: ".NET 8 Runtime", wingetId: "Microsoft.DotNet.Runtime.8" },
-      {
-        id: "dotnet8desktop",
-        name: ".NET 8 Desktop Runtime",
-        wingetId: "Microsoft.DotNet.DesktopRuntime.8",
-      },
     ],
   },
 ];

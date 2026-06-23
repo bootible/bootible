@@ -104,6 +104,7 @@ interface AppGroup {
   id: string;
   label: string;
   apps: AppEntry[];
+  note?: string;
 }
 
 interface HostSshKey {
@@ -606,6 +607,7 @@ function appGroupNode(group: AppGroup): HTMLElement {
     row.append(cb, meta);
     items.append(row);
   }
+  if (group.note) items.append(el("p", "app-note", group.note));
   details.append(summary, items);
   return details;
 }
