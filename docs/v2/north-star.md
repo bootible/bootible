@@ -32,6 +32,14 @@ This is what bootible v2 must let them do. The declarations below are the testab
 - Every base is **debloated and tuned by default**; the experience a user restores is *better than factory*, never a stock re-image.
 - A user **layers tuning, extra software, and access (an SSH key) on top of any base** — the base sets the floor, the modifiers raise it.
 
+### Never touch the handheld
+
+- A user provisions and verifies a handheld **without ever attaching a keyboard or mouse, or reading its screen** — every interaction happens from their desktop.
+- A freshly-built device **announces itself on the network**; the desktop **discovers it, shows live status, and verifies it over SSH** — no IP hunting.
+- A user authorises SSH access by **picking from the keys already on their machine** (multi-select), not by pasting key text.
+- After provisioning, the user reaches the device with **`ssh <name>` — no username, password, IP, or key path** (bootible writes the SSH alias for them).
+- None of this **requires an account, a cloud service, or Tailscale** — the default path is pure LAN; those are opt-in upgrades for cross-network reach.
+
 ### Your stuff follows you
 
 - A user restores a freshly-wiped device to **~90% of its prior state by pointing bootible at one place and entering one credential**.

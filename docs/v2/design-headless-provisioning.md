@@ -1,0 +1,152 @@
+---
+description: bootible's headless remote-provisioning loop — pick keys from your desktop, build, walk away, watch the device announce itself and self-verify, then `ssh <name>` with no username, password, or IP
+tags: [bootible, v2, design, headless, ssh, beacon, discovery, remote]
+audience: { human: 45, agent: 55 }
+purpose: { design: 100 }
+---
+
+# Headless Remote Provisioning — Design
+
+**Status:** Design (ODAD step 4). **DRAFT for review.**
+**Builds on:** `design-base-layer.md`, the `ssh-key` module (Phase A2) · **Followed by:** plans
+
+> Markers: **▶ Rec** = recommendation. **❓ Decide** = a fork needing a call.
+
+---
+
+## 1. Context
+
+Setting up a handheld by hand is miserable: a keyboard jammed into it, the screen read through a phone camera, no mouse, fighting Windows sleep/firewall, hunting the device's IP. bootible already moved the *build* to the desktop — but everything *after* boot (verify, diagnose, fix) drags you back onto the device.
+
+This design closes that gap. The goal isn't "the device configures itself." It's:
+
+> **The handheld is born headless. You never touch it again — no keyboard, mouse, or screen. Everything from your desk, ending in `ssh <name>` with nothing else typed.**
+
+### North-star declarations (proposed — group: *Never touch the handheld*)
+
+- A user provisions and verifies a handheld **without ever attaching a keyboard, mouse, or reading its screen** — every interaction is from their desktop.
+- A freshly-built device **announces itself on the network**; the desktop **discovers it, shows live status, and verifies it over SSH** — no IP hunting.
+- A user authorises SSH access by **picking from the keys already on their machine** (multi-select), not by pasting key text.
+- After provisioning, the user reaches the device with **`ssh <name>` — no username, password, IP, or key path** (bootible writes the SSH alias for them).
+- None of this **requires an account, a cloud service, or Tailscale** — the default path is pure LAN. Those are opt-in upgrades for cross-network reach.
+
+> **❓ Decide:** approve these (or amend) — they anchor the design.
+
+---
+
+## 2. The loop
+
+```mermaid
+flowchart TB
+  A[Desktop: pick base] --> B[SSH step: pick keys from your machine]
+  B --> C[Build USB: keys + sshd + firewall + no-sleep + beacon + buildId]
+  C --> D[Boot the Ally, walk away]
+  D --> E[Ally first-logon: install + start beacon]
+  E --> F[Beacon broadcasts buildId+MAC+IP+status on the LAN]
+  G[Desktop sits listening] --> H[Match buildId -> show device + live status]
+  F -.-> H
+  H --> I[Verify button -> SSH in -> confirm modules]
+  I --> J[Write ~/.ssh/config alias -> 'ssh ally' forever]
+```
+
+Eight steps, zero on-device interaction: **pick keys → build → walk away → watch it appear → it self-verifies → `ssh ally`.**
+
+---
+
+## 3. Components
+
+### 3.1 Host SSH integration (replaces the paste-a-key field)
+bootible inspects the **desktop** (the machine it's running on):
+- **OpenSSH client present?** (needed to SSH in later — inbox on Win11, usually). If not, offer to add it.
+- **Keys present?** Enumerate `~/.ssh/*.pub` (and optionally `ssh-add -L` agent keys). Show them in a **multi-select** — the user ticks which public keys to authorise on the device.
+- **No keys?** Offer to generate one (`ssh-keygen -t ed25519`).
+- **Fallback:** a "paste a key" option for a key that lives on another machine.
+
+Reading `~/.ssh/*.pub` is safe — public keys aren't secrets, private keys are never touched. (Verified feasible: the dev desktop already has `id_rsa.pub`, `authorized_keys.txt`, etc.)
+
+### 3.2 Build payload additions
+The USB build gains, beyond the base bundle:
+- The **selected public keys** → `%ProgramData%\ssh\administrators_authorized_keys` (admin account) with the locked ACL (the existing `ssh-key` module logic).
+- **OpenSSH Server via winget** (`Microsoft.OpenSSH.Preview`) — *not* the DISM/FoD path, which can stall (learned the hard way). ▶ Rec: switch the `ssh-key` module to winget.
+- **Firewall rule** opening TCP 22 inbound.
+- **No-sleep on AC** (already shipped in the power module).
+- A **beacon agent** (a small startup script).
+- A **buildId** — a random token generated at build time, baked into the USB, known to the desktop.
+
+### 3.3 Beacon protocol
+The beacon agent runs at first logon (startup task) and broadcasts a small UDP datagram on the LAN every few seconds:
+
+| Field | Purpose |
+|-------|---------|
+| `buildId` | The token the desktop baked — proves "this is the device *I* built", not just *a* bootible device |
+| `mac` | Stable device handle across reboots/IP changes (user's explicit ask) |
+| `ip` | Current address, for the SSH connection |
+| `hostname` | For the `.local` alias |
+| `status` | `installing` / `configuring` / `done` (+ optional progress) — drives the desktop's live view |
+
+▶ Rec: UDP broadcast to the subnet on a fixed bootible port — dead simple to emit (a few lines of PowerShell) and to listen for (a UDP socket in the Electron main process). mDNS (`_bootible._tcp.local`) is a nicer-but-heavier alternative; the `.local` *hostname* (for the SSH alias) we get for free from Windows' built-in mDNS regardless.
+
+### 3.4 Desktop listener + discovery
+While the user waits, bootible opens a UDP listener and shows a "waiting for your device" screen. On a datagram whose `buildId` matches the one it baked: show the device, its live `status`, and a **Verify** button. (bootible adds its own inbound firewall rule for the listener on first run.)
+
+### 3.5 Verify
+**Verify** → bootible SSHes in with the selected key (no prompts) → runs read-only checks (modules applied? Steam installed? restore points? `bootstrap.log` tail) → shows a green/amber report. The "did it actually work" step, from the desktop.
+
+### 3.6 Frictionless SSH alias (the "no username/password" guarantee)
+On successful verify, bootible writes a **managed block** into the desktop's `~/.ssh/config`:
+
+```
+# >>> bootible managed: ally >>>
+Host ally
+  HostName ally.local
+  User <account bootible created>
+  IdentityFile ~/.ssh/<selected key>
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+# <<< bootible managed: ally <<<
+```
+
+Then **`ssh ally`** needs no username, password, IP, or key path. `HostName` uses the device's `.local` mDNS name so it survives IP changes; if `.local` doesn't resolve on a given network, bootible falls back to the beacon-tracked IP. The block is delimited and idempotent — bootible only ever touches its own section, never the user's existing hosts.
+
+---
+
+## 4. Cross-network fallbacks (opt-in, nobody required to have them)
+LAN broadcast and mDNS only cross the **same subnet/VLAN**. Default is the LAN beacon (works for the common case — same home network). For reaching a device on a different network:
+- **bootible.dev phone-home** — the beacon also POSTs to a bootible.dev endpoint; the desktop subscribes. Needs the (unbuilt) backend + an account. Privacy: sends MAC/IP to a server.
+- **Tailscale** — bootible joins the device to the user's tailnet at first boot; reachable by name anywhere. Zero-config for those who already run it.
+
+Beacon-first; these are upgrades, never prerequisites.
+
+---
+
+## 5. Constraints & caveats (honest)
+
+| Constraint | Handling |
+|-----------|----------|
+| Broadcast/mDNS = same subnet only | Default for the common case; Tailscale/cloud for cross-network. State it in the UI ("waiting on this network"). |
+| Desktop must be *listening* when the device comes up | The "waiting for your device" screen *is* the listener; it can also catch a device that boots later. |
+| Desktop firewall for the UDP listener | bootible adds its own inbound rule (one-time, needs elevation). |
+| Host-key trust on first connect | `accept-new` in the alias; optionally capture the host key during verify and pin it to `known_hosts`. |
+| Editing `~/.ssh/config` safely | Delimited bootible-managed block, idempotent; never clobber the user's existing entries. |
+| sshd FoD install can stall | Use winget OpenSSH, not DISM/FoD (learned on hardware). |
+
+---
+
+## 6. Trade-offs & alternatives
+
+- **Beacon vs cloud-first** — beacon (LAN) chosen as default: no account, no backend, no privacy export, works offline. Cloud is the opt-in for cross-network.
+- **MAC as identity vs a pure buildId** — using *both*: buildId proves "my build", MAC is the durable handle the user asked for. (A buildId alone would also work and avoids broadcasting the hardware MAC, but the user wants MAC-based identity and it's already LAN-visible via ARP.)
+- **Pick-from-your-keys vs paste** — picking is the default (the keys are already on the machine); paste stays as a fallback for off-machine keys.
+
+---
+
+## 7. Build order
+
+1. **`ssh-key` → winget OpenSSH + firewall** — harden the existing module (kills the FoD-stall class of failure). Small, immediate.
+2. **Host SSH key-picker UI** — detect client/keys, multi-select, generate-if-none, paste fallback. Replaces the paste field.
+3. **Beacon agent + buildId** (device side) + **desktop UDP listener + waiting screen**.
+4. **Verify step** — SSH in, run checks, report.
+5. **SSH config alias writer** — the `ssh <name>` payoff.
+6. **(Later)** cross-network fallbacks (Tailscale join; bootible.dev phone-home when the backend exists).
+
+Steps 1–2 stand alone and improve the current build immediately. 3–5 are the discovery+verify loop. 6 is opt-in reach.
