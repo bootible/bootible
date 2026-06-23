@@ -140,7 +140,7 @@ describe("allyCatalog", () => {
     expect(calls).toEqual([]);
   });
 
-  it("ssh-key installs OpenSSH and authorises the key when one is given", () => {
+  it("ssh-key installs OpenSSH via winget, opens the firewall, authorises the key", () => {
     const ssh = allyCatalog.find((m) => m.id === "ssh-key");
     const calls: string[][] = [];
     const result = ssh?.apply(
@@ -158,15 +158,25 @@ describe("allyCatalog", () => {
       },
     );
     expect(result?.status).toBe("applied");
-    // installs the OpenSSH server capability
-    expect(calls.some((c) => c[0] === "dism.exe" && c.join(" ").includes("OpenSSH.Server"))).toBe(
+    // installs OpenSSH via winget (NOT the dism/FoD path that can stall)
+    expect(calls).toContainEqual([
+      "winget",
+      "install",
+      "--id",
+      "Microsoft.OpenSSH.Preview",
+      "--accept-source-agreements",
+      "--accept-package-agreements",
+      "--silent",
+    ]);
+    expect(calls.some((c) => c[0] === "dism.exe")).toBe(false);
+    // opens the firewall for inbound SSH on TCP 22
+    expect(calls.some((c) => c[0] === "powershell" && c.join(" ").includes("LocalPort 22"))).toBe(
       true,
     );
-    // enables the service via sc.exe (not the sc=Set-Content alias)
-    expect(calls).toContainEqual(["sc.exe", "config", "sshd", "start=", "auto"]);
     // writes the key into administrators_authorized_keys with a locked ACL
-    const keyWrite = calls.find((c) => c[0] === "powershell");
-    expect(keyWrite?.join(" ")).toContain("administrators_authorized_keys");
+    const keyWrite = calls.find(
+      (c) => c[0] === "powershell" && c.join(" ").includes("administrators_authorized_keys"),
+    );
     expect(keyWrite?.join(" ")).toContain("ssh-ed25519 AAAAC3Nz gavin@nerdz");
     expect(keyWrite?.join(" ")).toContain("icacls");
   });

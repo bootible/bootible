@@ -266,21 +266,28 @@ const xboxFullscreen: BootibleModule = {
 };
 
 /**
- * SSH access — enable the OpenSSH server and authorise the user's public key so
- * they can SSH into the device later. The key is plain config data (public keys
- * aren't secrets), read from settings.ssh_public_key; skips cleanly when none is
- * given. For an admin account, Windows OpenSSH reads
+ * SSH access — install the OpenSSH server, open the firewall, and authorise the
+ * user's public key so they can SSH into the device later. The key is plain
+ * config data (public keys aren't secrets), read from settings.ssh_public_key;
+ * skips cleanly when none is given.
+ *
+ * OpenSSH comes from winget (Microsoft.OpenSSH.Preview), NOT the dism
+ * /Add-Capability Feature-on-Demand path: the FoD pulls from Windows Update and
+ * can stall indefinitely (hit live on hardware), which would hang the whole
+ * first-logon bootstrap. winget downloads from GitHub and can't stall that way.
+ *
+ * For an admin account, Windows OpenSSH reads
  * %ProgramData%\ssh\administrators_authorized_keys (not the user's ~/.ssh) and
- * requires the file's ACL be restricted to Administrators + SYSTEM — handled
- * here, the documented Windows OpenSSH gotcha.
+ * requires the file's ACL be restricted to Administrators + SYSTEM — the
+ * documented Windows OpenSSH gotcha, handled here.
  */
 const sshKey: BootibleModule = {
   id: "ssh-key",
   name: "SSH access",
   group: "system",
   description:
-    "Turn on the OpenSSH server and authorise your public key, so you can SSH into the device later.",
-  changes: "OpenSSH Server + authorized key",
+    "Install the OpenSSH server, open the firewall, and authorise your public key — so you can SSH into the device later.",
+  changes: "OpenSSH Server (winget) + firewall + authorized key",
   apply(ctx, exec) {
     const settings = (ctx.config.settings ?? {}) as Record<string, unknown>;
     const key = typeof settings.ssh_public_key === "string" ? settings.ssh_public_key.trim() : "";
@@ -288,13 +295,38 @@ const sshKey: BootibleModule = {
       return { status: "skipped", detail: "no SSH public key provided" };
     }
     const actions: string[] = [];
-    // Install the OpenSSH server (Feature on Demand — pulls from Windows Update).
-    exec(["dism.exe", "/Online", "/Add-Capability", "/CapabilityName:OpenSSH.Server~~~~0.0.1.0"]);
-    actions.push("install OpenSSH.Server");
-    // Auto-start and start the service.
-    exec(["sc.exe", "config", "sshd", "start=", "auto"]);
-    exec(["net", "start", "sshd"]);
-    actions.push("enable + start sshd");
+    // Install OpenSSH via winget (downloads from GitHub — no FoD/Windows-Update
+    // stall that could hang the bootstrap).
+    exec([
+      "winget",
+      "install",
+      "--id",
+      "Microsoft.OpenSSH.Preview",
+      "--accept-source-agreements",
+      "--accept-package-agreements",
+      "--silent",
+    ]);
+    actions.push("install OpenSSH (winget)");
+    // Register the sshd service if the package didn't, then auto-start + start it.
+    exec([
+      "powershell",
+      "-Command",
+      "if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) { " +
+        "$s = Get-ChildItem 'C:\\Program Files\\OpenSSH*' -Filter install-sshd.ps1 -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1; " +
+        "if ($s) { & $s.FullName } }; " +
+        "Set-Service sshd -StartupType Automatic -ErrorAction SilentlyContinue; " +
+        "Start-Service sshd -ErrorAction SilentlyContinue",
+    ]);
+    actions.push("register + start sshd");
+    // Open the firewall for inbound SSH (the standalone install often skips this).
+    exec([
+      "powershell",
+      "-Command",
+      "if (-not (Get-NetFirewallRule -Name bootible-sshd -ErrorAction SilentlyContinue)) { " +
+        "New-NetFirewallRule -Name bootible-sshd -DisplayName 'OpenSSH Server (bootible)' " +
+        "-Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null }",
+    ]);
+    actions.push("open firewall TCP 22");
     // Authorise the key for admin SSH: write administrators_authorized_keys and
     // lock its ACL to Administrators + SYSTEM (required, or sshd ignores it).
     const escaped = key.replace(/'/g, "''");
