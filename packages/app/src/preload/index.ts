@@ -25,8 +25,10 @@ export interface UsbBuildRequest {
   staticIp?: { ip: string; prefix?: number; gateway?: string; dns?: string };
   /** Windows edition (Pro unlocks RDP host). */
   edition?: "home" | "pro";
-  /** Enable Remote Desktop (Pro only). */
-  enableRdp?: boolean;
+  /** Remote-access tools to install/enable on the device. */
+  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
+  /** Streaming apps to also install on this desktop (the host). */
+  remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
@@ -131,8 +133,11 @@ const api = {
     ipcRenderer.invoke("device:verify", ip),
   suggestNetwork: (): Promise<{ prefix: number; gateway: string; subnet: string } | null> =>
     ipcRenderer.invoke("network:suggest"),
-  installHostStreaming: (): Promise<{ ok: boolean; output: string }> =>
-    ipcRenderer.invoke("host:install-streaming"),
+  installHostStreaming: (which: {
+    sunshine?: boolean;
+    moonlight?: boolean;
+  }): Promise<{ ok: boolean; output: string }> =>
+    ipcRenderer.invoke("host:install-streaming", which),
   onBeaconDevice: (cb: (device: DiscoveredDevice) => void): void => {
     ipcRenderer.on("beacon:device", (_e, device: DiscoveredDevice) => cb(device));
   },

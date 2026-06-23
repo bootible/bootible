@@ -508,10 +508,24 @@ export const allyCatalog: BootibleModule[] = [
     "Valve.Steam",
   ]),
   appInstall(
-    "streaming",
-    "Game streaming",
-    "Install Sunshine (the streaming SERVER — shares this device's screen), Moonlight (the CLIENT — view another machine here) and Chiaki-ng. Stream games to or from the handheld, plus PlayStation.",
-    ["LizardByte.Sunshine", "MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
+    "sunshine",
+    "Sunshine",
+    "Streaming SERVER — shares this device's screen so you can view and control it from another machine.",
+    ["LizardByte.Sunshine"],
+    "system",
+  ),
+  appInstall(
+    "moonlight",
+    "Moonlight",
+    "Streaming CLIENT — view and play from another machine (your gaming PC, or another handheld) here.",
+    ["MoonlightGameStreamingProject.Moonlight"],
+    "system",
+  ),
+  appInstall(
+    "chiaki",
+    "PlayStation Remote Play",
+    "Stream your PS4 / PS5 games to the handheld with Chiaki-ng.",
+    ["Streetpea.Chiaki-ng"],
   ),
   appInstall(
     "armoury-crate",

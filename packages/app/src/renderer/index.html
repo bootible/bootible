@@ -376,68 +376,87 @@
         <!-- ───────────────────── ACCOUNT (USB method) ───────────────────── -->
         <main class="view setup" data-view="account">
           <div class="setup-head">
-            <p class="eyebrow">Windows account</p>
-            <h1 class="setup-title">How will you sign in?</h1>
-            <p class="setup-sub">
-              The one thing Windows won't let us fully automate. Pick how the
-              Ally's account is set up.
-            </p>
+            <p class="eyebrow">Account &amp; access</p>
+            <h1 class="setup-title">Account &amp; access</h1>
+            <p class="setup-sub">Pick how it signs in, then name it and choose how you'll reach it.</p>
           </div>
 
-          <div class="setup-body">
-            <div class="snaps">
+          <div class="account-body">
+            <div class="snaps snaps-row">
               <button class="snap is-sel" type="button" data-account="local" aria-pressed="true">
                 <span class="snap-radio" aria-hidden="true"></span>
                 <span class="group-main">
                   <span class="group-name">Local account</span>
-                  <span class="group-desc">Full zero-touch — no sign-in prompts. Add a Microsoft account in the Xbox app later for Game Pass.</span>
+                  <span class="group-desc">Full zero-touch — no sign-in prompts. Add a Microsoft account later.</span>
                 </span>
                 <span class="group-meta"><span class="group-tag">zero-touch</span></span>
               </button>
-
               <button class="snap" type="button" data-account="microsoft" aria-pressed="false">
                 <span class="snap-radio" aria-hidden="true"></span>
                 <span class="group-main">
                   <span class="group-name">Microsoft account</span>
-                  <span class="group-desc">Setup pauses once for your sign-in (it can't be pre-filled), then continues on its own.</span>
+                  <span class="group-desc">Setup pauses once for your sign-in, then continues on its own.</span>
                 </span>
                 <span class="group-meta"><span class="group-tag">one prompt</span></span>
               </button>
             </div>
 
-            <aside class="summary" aria-label="Account details">
+            <div class="config-panel">
+              <div class="cfg-row">
+                <div class="field">
+                  <label class="field-label" for="device-hostname">Device name <span class="muted">(for SSH)</span></label>
+                  <input class="field-input" id="device-hostname" type="text" placeholder="my-handheld" autocomplete="off" spellcheck="false" />
+                </div>
+                <div class="field">
+                  <label class="field-label" for="static-ip">Static IP <span class="muted">(optional)</span></label>
+                  <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
+                </div>
+              </div>
+              <div class="cfg-row">
+                <div class="field">
+                  <label class="field-label">Windows edition</label>
+                  <div class="edition-pick">
+                    <label class="edition-opt"><input type="radio" name="edition" id="edition-home" checked /><span>Home</span></label>
+                    <label class="edition-opt"><input type="radio" name="edition" id="edition-pro" /><span>Pro</span></label>
+                  </div>
+                </div>
+                <div class="field" data-when="local">
+                  <label class="field-label" for="acct-user">Username</label>
+                  <input class="field-input" id="acct-user" type="text" value="ally" autocomplete="off" spellcheck="false" />
+                </div>
+              </div>
+
               <div class="field">
-                <label class="field-label" for="device-hostname">Device name <span class="muted">(for SSH — e.g. vengeance-ally)</span></label>
-                <input class="field-input" id="device-hostname" type="text" placeholder="vengeance-ally" autocomplete="off" spellcheck="false" />
+                <label class="field-label">Remote access <span class="muted">— install on the device</span></label>
+                <label class="ra-row">
+                  <input type="checkbox" id="ra-sunshine" />
+                  <span class="ra-name">Sunshine</span><span class="ra-role">server — shares this device</span>
+                  <span class="ra-i" title="Sunshine — streaming server. Shares this device's screen so you can view and control it from another machine (e.g. your desktop).">i</span>
+                </label>
+                <label class="ra-host" data-host="sunshine" hidden><input type="checkbox" id="ra-sunshine-host" /> Also set up Sunshine on this PC (host)</label>
+                <label class="ra-row">
+                  <input type="checkbox" id="ra-moonlight" />
+                  <span class="ra-name">Moonlight</span><span class="ra-role">client — view another machine</span>
+                  <span class="ra-i" title="Moonlight — streaming client. View and play from another machine (your gaming PC, or another handheld) here.">i</span>
+                </label>
+                <label class="ra-host" data-host="moonlight" hidden><input type="checkbox" id="ra-moonlight-host" /> Also set up Moonlight on this PC (host)</label>
+                <label class="ra-row" id="ra-rdp-row">
+                  <input type="checkbox" id="ra-rdp" disabled />
+                  <span class="ra-name">Windows Remote Desktop</span><span class="ra-role">mstsc — full desktop</span>
+                  <span class="ra-req">needs Pro</span>
+                  <span class="ra-i" title="Microsoft Remote Desktop — the full Windows desktop via mstsc. Windows Pro only; switch the edition to Pro to enable it.">i</span>
+                </label>
               </div>
-              <div class="field" data-when="local">
-                <label class="field-label" for="acct-user">Username</label>
-                <input class="field-input" id="acct-user" type="text" value="ally" autocomplete="off" spellcheck="false" />
+
+              <div class="field">
+                <label class="field-label">SSH access <span class="muted">(optional — pick keys from this PC)</span></label>
+                <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
+                <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>
               </div>
+
               <div class="field" data-when="local">
                 <label class="field-label" for="acct-pass">Password <span class="muted">(optional)</span></label>
                 <input class="field-input" id="acct-pass" type="password" placeholder="leave blank for none" autocomplete="off" />
-              </div>
-              <div class="field">
-                <label class="field-label" for="static-ip">Static IP <span class="muted">(optional — always reachable at one address)</span></label>
-                <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
-              </div>
-              <div class="field">
-                <label class="field-label">Windows edition</label>
-                <div class="edition-pick">
-                  <label class="edition-opt"><input type="radio" name="edition" id="edition-home" checked /><span>Home</span></label>
-                  <label class="edition-opt"><input type="radio" name="edition" id="edition-pro" /><span>Pro</span></label>
-                </div>
-                <p class="remote-note" id="remote-note"></p>
-                <label class="rdp-toggle" id="rdp-toggle" hidden>
-                  <input type="checkbox" id="enable-rdp" />
-                  <span>Enable Microsoft Remote Desktop (mstsc into the device)</span>
-                </label>
-              </div>
-              <div class="field">
-                <label class="field-label">SSH access <span class="muted">(optional)</span></label>
-                <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
-                <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>
               </div>
 
               <div class="summary-actions">
@@ -447,7 +466,7 @@
                 <button class="btn-ghost" type="button" data-back>Back</button>
               </div>
               <p class="readout-foot">Stored only in the answer file on your USB.</p>
-            </aside>
+            </div>
           </div>
         </main>
 
@@ -464,7 +483,7 @@
             <aside class="readout wifi-form" aria-label="WiFi details">
               <div class="field">
                 <label class="field-label" for="wifi-ssid">Network name (SSID)</label>
-                <input class="field-input" id="wifi-ssid" type="text" placeholder="e.g. NerdzNet" autocomplete="off" spellcheck="false" />
+                <input class="field-input" id="wifi-ssid" type="text" placeholder="e.g. HomeWiFi" autocomplete="off" spellcheck="false" />
               </div>
               <div class="field">
                 <label class="field-label" for="wifi-pass">Password</label>
@@ -575,9 +594,6 @@
           </div>
           <div class="watch-list"><p class="muted">Listening on the network…</p></div>
           <div class="watch-host">
-            <button class="btn-ghost" type="button" id="host-streaming">
-              Set up streaming on this PC <span class="muted">— Sunshine (server) + Moonlight (client)</span>
-            </button>
             <pre class="host-streaming-result" hidden></pre>
           </div>
           <div class="bundle-back">

@@ -1419,26 +1419,111 @@ body[data-view="account"] .summary::before {
   accent-color: var(--amber);
 }
 
-.remote-note {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--dim);
-  margin: 0 0 10px;
-  padding-left: 10px;
-  border-left: 2px solid var(--line);
+/* account screen layout: selector row on top, full-width config panel below */
+.account-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 940px;
 }
 
-.rdp-toggle {
+.snaps-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.config-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px 28px;
+}
+
+.cfg-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+
+.config-panel .field {
+  margin-bottom: 18px;
+}
+
+/* remote-access checkboxes */
+.ra-row {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 14px;
+  gap: 11px;
+  padding: 11px 14px;
+  background: #0e0f12;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-bottom: 8px;
   cursor: pointer;
 }
 
-.rdp-toggle input {
+.ra-row input {
   accent-color: var(--amber);
+  width: 17px;
+  height: 17px;
   flex: 0 0 auto;
+}
+
+.ra-row.is-disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ra-name {
+  font-size: 15px;
+}
+
+.ra-role {
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.ra-req {
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  color: var(--dim);
+  margin-left: auto;
+}
+
+.ra-i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--dim);
+  color: var(--dim);
+  font-size: 11px;
+  font-style: italic;
+  font-family: Georgia, serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+}
+
+.ra-row .ra-req + .ra-i,
+.ra-name ~ .ra-i:last-child {
+  margin-left: auto;
+}
+
+.ra-host {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 10px 30px;
+  font-size: 13px;
+  color: var(--mut, #9aa0a8);
+  cursor: pointer;
+}
+
+.ra-host input {
+  accent-color: var(--amber);
 }
 
 .watch-host {

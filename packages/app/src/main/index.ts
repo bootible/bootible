@@ -225,14 +225,21 @@ function getHostSshKeys(): HostSshKey[] {
   }
 }
 
-/** Install the streaming pair on THIS desktop (the host) so it can serve games
- *  to / view the handheld. Sunshine = server, Moonlight = client. winget,
- *  best-effort. Returns a short per-app status line. */
-function installHostStreaming(): { ok: boolean; output: string } {
+/** Install the chosen streaming apps on THIS desktop (the host). Sunshine =
+ *  server, Moonlight = client. winget, best-effort; returns per-app status. */
+function installHostStreaming(which: { sunshine?: boolean; moonlight?: boolean }): {
+  ok: boolean;
+  output: string;
+} {
   const apps = [
-    { id: "LizardByte.Sunshine", role: "Sunshine (server)" },
-    { id: "MoonlightGameStreamingProject.Moonlight", role: "Moonlight (client)" },
-  ];
+    { id: "LizardByte.Sunshine", role: "Sunshine (server)", on: !!which.sunshine },
+    {
+      id: "MoonlightGameStreamingProject.Moonlight",
+      role: "Moonlight (client)",
+      on: !!which.moonlight,
+    },
+  ].filter((a) => a.on);
+  if (apps.length === 0) return { ok: true, output: "nothing selected for this PC" };
   const lines: string[] = [];
   let ok = true;
   for (const app of apps) {
@@ -365,8 +372,10 @@ export interface UsbBuildRequest {
   staticIp?: StaticIp;
   /** Windows edition to install. Pro unlocks RDP host. Default home. */
   edition?: "home" | "pro";
-  /** Enable Remote Desktop (only effective on Pro). */
-  enableRdp?: boolean;
+  /** Which remote-access tools to install/enable on the device. */
+  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
+  /** Which of the streaming pair to also install on THIS desktop (the host). */
+  remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -575,7 +584,7 @@ type BuildChoice = {
   sshPublicKeys?: string[];
   staticIp?: StaticIp;
   edition?: "home" | "pro";
-  enableRdp?: boolean;
+  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
 };
 
 /** The non-empty, trimmed SSH public keys from a build choice. */
@@ -592,8 +601,10 @@ function resolveModules(req: BuildChoice): string[] {
   for (const id of req.modules) ids.add(id);
   if (chosenKeys(req).length > 0) ids.add("ssh-key");
   if (req.staticIp?.ip) ids.add("static-ip");
-  // RDP host only works on Pro, so only include it when both are chosen.
-  if (req.edition === "pro" && req.enableRdp) ids.add("remote-desktop");
+  if (req.remoteAccess?.sunshine) ids.add("sunshine");
+  if (req.remoteAccess?.moonlight) ids.add("moonlight");
+  // RDP host only works on Pro, so only enable it when both are chosen.
+  if (req.edition === "pro" && req.remoteAccess?.rdp) ids.add("remote-desktop");
   return [...ids];
 }
 
@@ -1004,7 +1015,11 @@ app.whenReady().then(() => {
   ipcMain.handle("discovery:stop", () => stopDiscovery());
   ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
   ipcMain.handle("network:suggest", () => suggestNetwork());
-  ipcMain.handle("host:install-streaming", () => installHostStreaming());
+  ipcMain.handle(
+    "host:install-streaming",
+    (_event, which: { sunshine?: boolean; moonlight?: boolean }) =>
+      installHostStreaming(which ?? {}),
+  );
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, req: BuildChoice) => {

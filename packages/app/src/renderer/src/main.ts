@@ -60,7 +60,8 @@ interface UsbBuildRequest {
   hostname?: string;
   staticIp?: StaticIp;
   edition?: "home" | "pro";
-  enableRdp?: boolean;
+  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
+  remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
@@ -165,7 +166,10 @@ interface BootibleApi {
   onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
   verifyDevice(ip: string): Promise<{ reachable: boolean; output: string; alias?: string }>;
   suggestNetwork(): Promise<{ prefix: number; gateway: string; subnet: string } | null>;
-  installHostStreaming(): Promise<{ ok: boolean; output: string }>;
+  installHostStreaming(which: {
+    sunshine?: boolean;
+    moonlight?: boolean;
+  }): Promise<{ ok: boolean; output: string }>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -472,17 +476,16 @@ function renderSshKeys(): void {
   );
 }
 
-/** Spell out the remote-access options for the chosen edition, and show the RDP
- *  toggle only on Pro (Home can't host RDP). */
-function updateRemoteNote(): void {
+/** The Windows RDP checkbox is only usable on Pro (Home can't host RDP), so grey
+ *  it out on Home and clear it. */
+function updateEditionState(): void {
   const pro = document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
-  const note = document.querySelector<HTMLElement>("#remote-note");
-  if (note) {
-    note.textContent = pro
-      ? "Reach it three ways: SSH (terminal), Sunshine + Moonlight (screen streaming), and Microsoft Remote Desktop (mstsc). Pro is what unlocks RDP."
-      : "Reach it two ways on Home: SSH (terminal) and Sunshine + Moonlight (screen streaming) — both work on any edition. Microsoft Remote Desktop (RDP) needs Pro.";
+  const rdp = document.querySelector<HTMLInputElement>("#ra-rdp");
+  if (rdp) {
+    rdp.disabled = !pro;
+    if (!pro) rdp.checked = false;
   }
-  document.querySelector("#rdp-toggle")?.toggleAttribute("hidden", !pro);
+  document.querySelector("#ra-rdp-row")?.classList.toggle("is-disabled", !pro);
 }
 
 /** Fetch the host's SSH public keys and pre-select them all the first time. */
@@ -499,7 +502,7 @@ async function hydrateSshKeys(): Promise<void> {
     sshHydrated = true;
   }
   renderSshKeys();
-  updateRemoteNote();
+  updateEditionState();
   // Pre-fill the static IP hint from this PC's subnet (so the user types one host).
   if (!netSuggestion && api.suggestNetwork) {
     try {
@@ -1072,10 +1075,17 @@ function gatherUsbRequest(): UsbBuildRequest {
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
   const modules = selectedBaseId ? [] : selectedModuleIds();
-  const edition = document.querySelector<HTMLInputElement>("#edition-pro")?.checked
-    ? "pro"
-    : "home";
-  const enableRdp = document.querySelector<HTMLInputElement>("#enable-rdp")?.checked ?? false;
+  const checked = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.checked ?? false;
+  const edition = checked("#edition-pro") ? "pro" : "home";
+  const remoteAccess = {
+    sunshine: checked("#ra-sunshine"),
+    moonlight: checked("#ra-moonlight"),
+    rdp: checked("#ra-rdp"),
+  };
+  const remoteAccessHost = {
+    sunshine: checked("#ra-sunshine-host"),
+    moonlight: checked("#ra-moonlight-host"),
+  };
   return {
     modules,
     baseId: selectedBaseId || undefined,
@@ -1083,7 +1093,8 @@ function gatherUsbRequest(): UsbBuildRequest {
     hostname,
     staticIp,
     edition,
-    enableRdp,
+    remoteAccess,
+    remoteAccessHost,
     account,
     wifi,
   };
@@ -1197,8 +1208,9 @@ async function startUsbWrite(): Promise<void> {
     message: "Preparing — accept the Windows admin (UAC) prompt…",
     status: "running",
   });
+  const req = gatherUsbRequest();
   const result = await api.writeUsb({
-    ...gatherUsbRequest(),
+    ...req,
     diskNumber: usbState.disk,
     isoPath: usbState.isoPath || undefined,
     isoId: usbState.isoId || undefined,
@@ -1210,7 +1222,10 @@ async function startUsbWrite(): Promise<void> {
       message: "Couldn't start the write — no device to build for.",
       status: "error",
     });
+    return;
   }
+  // Set up the host side of streaming in the background, if the user opted in.
+  if (req.remoteAccessHost) void maybeInstallHostStreaming(req.remoteAccessHost);
 }
 
 function onUsbProgress(event: UsbProgress): void {
@@ -1306,25 +1321,24 @@ window.bootible?.onBeaconDevice?.((d) => {
   renderDiscovered();
 });
 
-// Set up the streaming pair on this desktop (Sunshine server + Moonlight client).
-document.addEventListener("click", (event) => {
-  const btn = (event.target as HTMLElement).closest<HTMLButtonElement>("#host-streaming");
-  if (!btn) return;
-  btn.disabled = true;
-  btn.textContent = "Installing on this PC…";
-  void (async () => {
-    const result = (await window.bootible?.installHostStreaming?.()) ?? {
-      ok: false,
-      output: "no bridge",
-    };
-    const out = document.querySelector<HTMLElement>(".host-streaming-result");
-    if (out) {
-      out.textContent = result.output;
-      out.hidden = false;
-    }
-    btn.textContent = "Streaming set up on this PC";
-  })();
-});
+/** If the user opted to also set up streaming on this PC, do it (winget) and
+ *  show the result on the watch screen. Driven by the account-screen choices. */
+async function maybeInstallHostStreaming(which: {
+  sunshine?: boolean;
+  moonlight?: boolean;
+}): Promise<void> {
+  if (!which.sunshine && !which.moonlight) return;
+  const out = document.querySelector<HTMLElement>(".host-streaming-result");
+  if (out) {
+    out.textContent = "Setting up streaming on this PC…";
+    out.hidden = false;
+  }
+  const result = (await window.bootible?.installHostStreaming?.(which)) ?? {
+    ok: false,
+    output: "no bridge",
+  };
+  if (out) out.textContent = result.output;
+}
 
 // Verify a discovered device over SSH (key auth, no prompts).
 document.addEventListener("click", (event) => {
@@ -1360,7 +1374,14 @@ document.addEventListener("change", (event) => {
     if (target.checked) selectedKeyIds.add(target.dataset.keyId);
     else selectedKeyIds.delete(target.dataset.keyId);
   }
-  if (target.id === "edition-home" || target.id === "edition-pro") updateRemoteNote();
+  if (target.id === "edition-home" || target.id === "edition-pro") updateEditionState();
+  // Reveal the "also on this PC" host option when a streaming app is ticked.
+  if (target.id === "ra-sunshine" || target.id === "ra-moonlight") {
+    const app = target.id === "ra-sunshine" ? "sunshine" : "moonlight";
+    document
+      .querySelector(`.ra-host[data-host="${app}"]`)
+      ?.toggleAttribute("hidden", !(target as HTMLInputElement).checked);
+  }
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
 });
 

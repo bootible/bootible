@@ -310,10 +310,9 @@ describe("newly-real modules", () => {
     expect(ids).toEqual(["BenjaminLSR.HandheldCompanion", "Nefarius.HidHide"]);
   });
 
-  it("emudeck installs its prerequisites; streaming installs the clients", () => {
-    const emudeck = allyCatalog.find((m) => m.id === "emudeck");
-    const streaming = allyCatalog.find((m) => m.id === "streaming");
-    const grab = (m?: (typeof allyCatalog)[number]) => {
+  it("emudeck installs prereqs; sunshine/moonlight/chiaki are separate installs", () => {
+    const grab = (id: string) => {
+      const m = allyCatalog.find((mod) => mod.id === id);
       const calls: string[][] = [];
       m?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
         calls.push(cmd);
@@ -321,12 +320,10 @@ describe("newly-real modules", () => {
       });
       return calls.map((c) => c[3]);
     };
-    expect(grab(emudeck)).toEqual(["Git.Git", "Python.Python.3.12"]);
-    expect(grab(streaming)).toEqual([
-      "LizardByte.Sunshine",
-      "MoonlightGameStreamingProject.Moonlight",
-      "Streetpea.Chiaki-ng",
-    ]);
+    expect(grab("emudeck")).toEqual(["Git.Git", "Python.Python.3.12"]);
+    expect(grab("sunshine")).toEqual(["LizardByte.Sunshine"]);
+    expect(grab("moonlight")).toEqual(["MoonlightGameStreamingProject.Moonlight"]);
+    expect(grab("chiaki")).toEqual(["Streetpea.Chiaki-ng"]);
   });
 
   it("every module carries a description", () => {
