@@ -2,6 +2,8 @@ export { allyExecutor } from "./ally-executor";
 export { allyBundles, allyCatalog } from "./ally-modules";
 export type { DeviceSummary, SystemInfo } from "./app-view";
 export { deviceSummary, prettyOs, selectDevice } from "./app-view";
+export type { AppEntry, AppGroup } from "./apps";
+export { APP_GROUPS, appWingetIds } from "./apps";
 export type {
   AccountMode,
   AutounattendConfig,

@@ -1,3 +1,4 @@
+import { getSelectedAppCommands } from "./apps";
 import type { Bundle } from "./bundles";
 import { getDisplayTweakCommands } from "./display";
 import type { BootibleModule, ModuleGroup, ModuleState } from "./modules";
@@ -549,6 +550,26 @@ const sunshineCreds: BootibleModule = {
   },
 };
 
+/** Install the apps the user picked in the app-picker (settings.selected_apps =
+ *  app slugs from apps.ts). Each resolves to a winget install. */
+const selectedApps: BootibleModule = {
+  id: "apps",
+  name: "Apps",
+  group: "apps",
+  description: "Install the apps you chose in the app picker.",
+  changes: "winget install (your picks)",
+  apply(ctx, exec) {
+    const selected = ((ctx.config.settings ?? {}) as Record<string, unknown>).selected_apps as
+      | string[]
+      | undefined;
+    const commands = selected?.length ? getSelectedAppCommands(selected) : [];
+    if (commands.length === 0) {
+      return { status: "skipped", detail: "no apps selected" };
+    }
+    return { status: "applied", actions: runCommands(exec, commands) };
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -604,6 +625,7 @@ export const allyCatalog: BootibleModule[] = [
     ["Asus.ArmouryCrate"],
     "system",
   ),
+  selectedApps,
   sshKey,
   remoteDesktop,
   steamBigPicture,
