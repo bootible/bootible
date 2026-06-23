@@ -18,6 +18,10 @@ export interface UsbBuildSpec {
   account: AccountMode;
   wifi?: { ssid: string; password: string };
   computerName?: string;
+  /** Host path of a wallpaper image to stage onto the device (binary copy). */
+  wallpaperPath?: string;
+  /** Host path of a lock-screen image to stage onto the device (binary copy). */
+  lockscreenPath?: string;
   /** Windows display language — MUST match the UI language of the ISO being
    *  installed (see languages.ts). Omitted → autounattend default (en-GB). */
   uiLanguage?: string;
@@ -28,10 +32,26 @@ export interface UsbBuildSpec {
   buildId?: string;
 }
 
-/** A file to write onto the USB, by path relative to the USB root. */
+/** A file to write onto the USB, by path relative to the USB root. When
+ *  `copyFrom` is set, the staging step copies that host file verbatim (binary)
+ *  instead of writing `content` — used for personalization images. */
 export interface BundleFile {
   path: string;
   content: string;
+  copyFrom?: string;
+}
+
+/** The on-USB and on-device filename for a personalization image, preserving
+ *  the source extension (jpg/png/bmp) so Windows renders it. */
+function imageFilename(prefix: "wallpaper" | "lockscreen", hostPath: string): string {
+  const dot = hostPath.lastIndexOf(".");
+  const ext = dot >= 0 ? hostPath.slice(dot).toLowerCase() : ".jpg";
+  return `${prefix}${ext.length >= 2 && ext.length <= 5 ? ext : ".jpg"}`;
+}
+
+/** Where a staged personalization image lands on the installed system. */
+export function imageDevicePath(prefix: "wallpaper" | "lockscreen", hostPath: string): string {
+  return `C:\\bootible\\${imageFilename(prefix, hostPath)}`;
 }
 
 function readme(spec: UsbBuildSpec): string {
@@ -103,6 +123,21 @@ export function buildUsbBundle(
       path: "sources/$OEM$/$1/bootible/beacon.ps1",
       content: generateBeaconScript({ buildId: spec.buildId }),
     });
+  }
+
+  // Personalization images — copied verbatim into C:\bootible so the wallpaper /
+  // lockscreen modules can point the PersonalizationCSP keys at them.
+  for (const [prefix, src] of [
+    ["wallpaper", spec.wallpaperPath],
+    ["lockscreen", spec.lockscreenPath],
+  ] as const) {
+    if (src) {
+      files.push({
+        path: `sources/$OEM$/$1/bootible/${imageFilename(prefix, src)}`,
+        content: "",
+        copyFrom: src,
+      });
+    }
   }
 
   return files;

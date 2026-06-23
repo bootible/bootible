@@ -62,6 +62,10 @@ interface UsbBuildRequest {
   edition?: "home" | "pro";
   remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
   remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
+  sunshineUser?: string;
+  sunshinePass?: string;
+  wallpaperPath?: string;
+  lockscreenPath?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
@@ -170,6 +174,7 @@ interface BootibleApi {
     sunshine?: boolean;
     moonlight?: boolean;
   }): Promise<{ ok: boolean; output: string }>;
+  browseImage(): Promise<string | null>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -551,6 +556,8 @@ let hostSshKeys: HostSshKey[] = [];
 const selectedKeyIds = new Set<string>();
 let netSuggestion: { prefix: number; gateway: string; subnet: string } | null = null;
 let intendedStaticIp = "";
+let wallpaperPath = "";
+let lockscreenPath = "";
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -1095,6 +1102,10 @@ function gatherUsbRequest(): UsbBuildRequest {
     edition,
     remoteAccess,
     remoteAccessHost,
+    sunshineUser: val("#sunshine-user") || undefined,
+    sunshinePass: val("#sunshine-pass") || undefined,
+    wallpaperPath: wallpaperPath || undefined,
+    lockscreenPath: lockscreenPath || undefined,
     account,
     wifi,
   };
@@ -1340,6 +1351,24 @@ async function maybeInstallHostStreaming(which: {
   if (out) out.textContent = result.output;
 }
 
+// Pick a wallpaper / lock-screen image from this PC.
+document.addEventListener("click", (event) => {
+  const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
+    "#pick-wallpaper, #pick-lockscreen",
+  );
+  if (!btn) return;
+  const isWall = btn.id === "pick-wallpaper";
+  void (async () => {
+    const path = await window.bootible?.browseImage?.();
+    if (!path) return;
+    const name = path.split(/[\\/]/).pop() ?? path;
+    if (isWall) wallpaperPath = path;
+    else lockscreenPath = path;
+    const label = document.querySelector(isWall ? "#wallpaper-name" : "#lockscreen-name");
+    if (label) label.textContent = name;
+  })();
+});
+
 // Verify a discovered device over SSH (key auth, no prompts).
 document.addEventListener("click", (event) => {
   const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(".watch-verify");
@@ -1375,12 +1404,15 @@ document.addEventListener("change", (event) => {
     else selectedKeyIds.delete(target.dataset.keyId);
   }
   if (target.id === "edition-home" || target.id === "edition-pro") updateEditionState();
-  // Reveal the "also on this PC" host option when a streaming app is ticked.
+  // Reveal the "also on this PC" host option (and Sunshine login fields) when a
+  // streaming app is ticked.
   if (target.id === "ra-sunshine" || target.id === "ra-moonlight") {
     const app = target.id === "ra-sunshine" ? "sunshine" : "moonlight";
-    document
-      .querySelector(`.ra-host[data-host="${app}"]`)
-      ?.toggleAttribute("hidden", !(target as HTMLInputElement).checked);
+    const on = (target as HTMLInputElement).checked;
+    document.querySelector(`.ra-host[data-host="${app}"]`)?.toggleAttribute("hidden", !on);
+    if (app === "sunshine") {
+      document.querySelector('.ra-creds[data-host="sunshine"]')?.toggleAttribute("hidden", !on);
+    }
   }
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
 });

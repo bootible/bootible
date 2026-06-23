@@ -233,6 +233,59 @@ describe("allyCatalog", () => {
     expect(ps).toContain("10.90.101.1");
   });
 
+  it("wallpaper + lockscreen skip without an image, set PersonalizationCSP with one", () => {
+    const run = (id: string, settings?: Record<string, unknown>) => {
+      const mod = allyCatalog.find((m) => m.id === id);
+      const calls: string[][] = [];
+      const res = mod?.apply(
+        { device, config: { schema: 2, device: "rog-ally", settings } },
+        (cmd) => {
+          calls.push(cmd);
+          return "";
+        },
+      );
+      return { res, joined: calls.map((c) => c.join(" ")) };
+    };
+    expect(run("wallpaper").res?.status).toBe("skipped");
+    expect(run("lockscreen").res?.status).toBe("skipped");
+    const wp = run("wallpaper", { wallpaper_path: "C:\\bootible\\wallpaper.png" });
+    expect(wp.res?.status).toBe("applied");
+    expect(
+      wp.joined.some((c) => c.includes("DesktopImagePath") && c.includes("wallpaper.png")),
+    ).toBe(true);
+    expect(wp.joined.some((c) => c.includes("DesktopImageStatus"))).toBe(true);
+    const ls = run("lockscreen", { lockscreen_path: "C:\\bootible\\lockscreen.jpg" });
+    expect(
+      ls.joined.some((c) => c.includes("LockScreenImagePath") && c.includes("lockscreen.jpg")),
+    ).toBe(true);
+  });
+
+  it("sunshine-creds skips without creds, runs --creds when set", () => {
+    const mod = allyCatalog.find((m) => m.id === "sunshine-creds");
+    expect(mod?.apply({ device, config: { schema: 2, device: "rog-ally" } }, () => "").status).toBe(
+      "skipped",
+    );
+    const calls: string[][] = [];
+    const res = mod?.apply(
+      {
+        device,
+        config: {
+          schema: 2,
+          device: "rog-ally",
+          settings: { sunshine_user: "bootible", sunshine_pass: "hunter2" },
+        },
+      },
+      (cmd) => {
+        calls.push(cmd);
+        return "";
+      },
+    );
+    expect(res?.status).toBe("applied");
+    const creds = calls.find((c) => c.includes("--creds"));
+    expect(creds).toContain("bootible");
+    expect(creds).toContain("hunter2");
+  });
+
   it("remote-desktop enables RDP via fDenyTSConnections + firewall", () => {
     const rdp = allyCatalog.find((m) => m.id === "remote-desktop");
     expect(rdp).toBeDefined();

@@ -1526,6 +1526,44 @@ body[data-view="account"] .summary::before {
   accent-color: var(--amber);
 }
 
+.ra-creds {
+  margin: 4px 0 12px 30px;
+}
+
+.ra-warn {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--amber);
+  margin: 8px 0 0;
+}
+
+.img-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.img-btn {
+  background: #0e0f12;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.img-btn:hover {
+  border-color: rgba(246, 166, 35, 0.55);
+}
+
+.img-name {
+  font-family: "Space Mono", monospace;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
 .watch-host {
   margin-top: 20px;
   width: 100%;

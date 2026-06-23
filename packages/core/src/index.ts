@@ -16,7 +16,7 @@ export { BEACON_PORT, generateBeaconScript } from "./beacon";
 export type { BootstrapOptions } from "./bootstrap";
 export { generateBootstrapScript } from "./bootstrap";
 export type { BundleFile, UsbBuildSpec } from "./bundle";
-export { buildUsbBundle } from "./bundle";
+export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
 export { bundleModules } from "./bundles";
 export type {

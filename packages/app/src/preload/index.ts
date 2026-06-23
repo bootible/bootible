@@ -29,6 +29,12 @@ export interface UsbBuildRequest {
   remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
   /** Streaming apps to also install on this desktop (the host). */
   remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
+  /** Sunshine web-UI login to pre-set. */
+  sunshineUser?: string;
+  sunshinePass?: string;
+  /** Host image paths for the device wallpaper / lock screen. */
+  wallpaperPath?: string;
+  lockscreenPath?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
@@ -138,6 +144,7 @@ const api = {
     moonlight?: boolean;
   }): Promise<{ ok: boolean; output: string }> =>
     ipcRenderer.invoke("host:install-streaming", which),
+  browseImage: (): Promise<string | null> => ipcRenderer.invoke("image:browse"),
   onBeaconDevice: (cb: (device: DiscoveredDevice) => void): void => {
     ipcRenderer.on("beacon:device", (_e, device: DiscoveredDevice) => cb(device));
   },

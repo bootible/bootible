@@ -434,6 +434,13 @@
                   <span class="ra-i" title="Sunshine — streaming server. Shares this device's screen so you can view and control it from another machine (e.g. your desktop).">i</span>
                 </label>
                 <label class="ra-host" data-host="sunshine" hidden><input type="checkbox" id="ra-sunshine-host" /> Also set up Sunshine on this PC (host)</label>
+                <div class="ra-creds" data-host="sunshine" hidden>
+                  <div class="cfg-row">
+                    <div class="field"><label class="field-label" for="sunshine-user">Sunshine username</label><input class="field-input" id="sunshine-user" type="text" placeholder="e.g. admin" autocomplete="off" spellcheck="false" /></div>
+                    <div class="field"><label class="field-label" for="sunshine-pass">Sunshine password</label><input class="field-input" id="sunshine-pass" type="text" autocomplete="off" spellcheck="false" /></div>
+                  </div>
+                  <p class="ra-warn">⚠ Save these somewhere safe (your password manager). They're baked into the build and can't be recovered from bootible.</p>
+                </div>
                 <label class="ra-row">
                   <input type="checkbox" id="ra-moonlight" />
                   <span class="ra-name">Moonlight</span><span class="ra-role">client — view another machine</span>
@@ -452,6 +459,18 @@
                 <label class="field-label">SSH access <span class="muted">(optional — pick keys from this PC)</span></label>
                 <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
                 <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>
+              </div>
+
+              <div class="field">
+                <label class="field-label">Personalize <span class="muted">(optional — images for this device)</span></label>
+                <div class="img-pick">
+                  <button class="img-btn" type="button" id="pick-wallpaper">Choose wallpaper…</button>
+                  <span class="img-name" id="wallpaper-name"></span>
+                </div>
+                <div class="img-pick">
+                  <button class="img-btn" type="button" id="pick-lockscreen">Choose lock screen…</button>
+                  <span class="img-name" id="lockscreen-name"></span>
+                </div>
               </div>
 
               <div class="field" data-when="local">

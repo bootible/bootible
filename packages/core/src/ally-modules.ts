@@ -479,6 +479,72 @@ const remoteDesktop: BootibleModule = {
   },
 };
 
+/** Point a PersonalizationCSP image slot at a staged file. Works on Home (the
+ *  old Group-Policy wallpaper keys don't). Shared by wallpaper + lock screen. */
+function personalizationImage(exec: Exec, slot: "Desktop" | "LockScreen", path: string): void {
+  const key = "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PersonalizationCSP";
+  exec(["reg", "add", key, "/v", `${slot}ImagePath`, "/t", "REG_SZ", "/d", path, "/f"]);
+  exec(["reg", "add", key, "/v", `${slot}ImageUrl`, "/t", "REG_SZ", "/d", path, "/f"]);
+  exec(["reg", "add", key, "/v", `${slot}ImageStatus`, "/t", "REG_DWORD", "/d", "1", "/f"]);
+}
+
+/** Desktop wallpaper — set from an image bootible staged into C:\bootible. */
+const wallpaper: BootibleModule = {
+  id: "wallpaper",
+  name: "Desktop wallpaper",
+  group: "system",
+  description: "Set the desktop background to your own image.",
+  changes: "PersonalizationCSP DesktopImage",
+  apply(ctx, exec) {
+    const path = ((ctx.config.settings ?? {}) as Record<string, unknown>).wallpaper_path as
+      | string
+      | undefined;
+    if (!path) return { status: "skipped", detail: "no wallpaper image set" };
+    personalizationImage(exec, "Desktop", path);
+    return { status: "applied", actions: [`wallpaper -> ${path}`] };
+  },
+};
+
+/** Lock screen — set from an image bootible staged into C:\bootible. */
+const lockscreen: BootibleModule = {
+  id: "lockscreen",
+  name: "Lock screen image",
+  group: "system",
+  description: "Set the lock screen to your own image.",
+  changes: "PersonalizationCSP LockScreenImage",
+  apply(ctx, exec) {
+    const path = ((ctx.config.settings ?? {}) as Record<string, unknown>).lockscreen_path as
+      | string
+      | undefined;
+    if (!path) return { status: "skipped", detail: "no lock screen image set" };
+    personalizationImage(exec, "LockScreen", path);
+    return { status: "applied", actions: [`lock screen -> ${path}`] };
+  },
+};
+
+/** Sunshine web-UI login — set the username/password so there's no first-run
+ *  setup. Runs after the sunshine install; restarts the service so it takes. */
+const sunshineCreds: BootibleModule = {
+  id: "sunshine-creds",
+  name: "Sunshine login",
+  group: "system",
+  description: "Set the Sunshine web-UI username and password (no first-run setup).",
+  changes: "sunshine --creds",
+  apply(ctx, exec) {
+    const settings = (ctx.config.settings ?? {}) as Record<string, unknown>;
+    const user = settings.sunshine_user as string | undefined;
+    const pass = settings.sunshine_pass as string | undefined;
+    if (!user || !pass) return { status: "skipped", detail: "no Sunshine credentials set" };
+    exec(["C:\\Program Files\\Sunshine\\sunshine.exe", "--creds", user, pass]);
+    exec([
+      "powershell",
+      "-Command",
+      "Restart-Service SunshineService -ErrorAction SilentlyContinue",
+    ]);
+    return { status: "applied", actions: ["set Sunshine web-UI login"] };
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -538,6 +604,9 @@ export const allyCatalog: BootibleModule[] = [
   remoteDesktop,
   steamBigPicture,
   xboxFullscreen,
+  wallpaper,
+  lockscreen,
+  sunshineCreds,
   health,
   staticIp,
   planned(

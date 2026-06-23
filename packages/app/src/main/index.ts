@@ -34,6 +34,7 @@ import {
   type GroupSummary,
   generateBootstrapScript,
   groupCatalog,
+  imageDevicePath,
   KEYBOARD_REGIONS,
   keyboardRegionById,
   loadRegistry,
@@ -376,6 +377,12 @@ export interface UsbBuildRequest {
   remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
   /** Which of the streaming pair to also install on THIS desktop (the host). */
   remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
+  /** Sunshine web-UI login to pre-set (when Sunshine is installed). */
+  sunshineUser?: string;
+  sunshinePass?: string;
+  /** Host image paths to stage as the device's wallpaper / lock screen. */
+  wallpaperPath?: string;
+  lockscreenPath?: string;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -585,6 +592,10 @@ type BuildChoice = {
   staticIp?: StaticIp;
   edition?: "home" | "pro";
   remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
+  sunshineUser?: string;
+  sunshinePass?: string;
+  wallpaperPath?: string;
+  lockscreenPath?: string;
 };
 
 /** The non-empty, trimmed SSH public keys from a build choice. */
@@ -605,6 +616,12 @@ function resolveModules(req: BuildChoice): string[] {
   if (req.remoteAccess?.moonlight) ids.add("moonlight");
   // RDP host only works on Pro, so only enable it when both are chosen.
   if (req.edition === "pro" && req.remoteAccess?.rdp) ids.add("remote-desktop");
+  // Sunshine login only makes sense once Sunshine is installed.
+  if (req.remoteAccess?.sunshine && req.sunshineUser && req.sunshinePass) {
+    ids.add("sunshine-creds");
+  }
+  if (req.wallpaperPath) ids.add("wallpaper");
+  if (req.lockscreenPath) ids.add("lockscreen");
   return [...ids];
 }
 
@@ -614,6 +631,15 @@ function buildSettings(req: BuildChoice): Record<string, unknown> {
   const keys = chosenKeys(req);
   if (keys.length > 0) settings.ssh_public_keys = keys;
   if (req.staticIp?.ip) settings.static_ip = req.staticIp;
+  if (req.remoteAccess?.sunshine && req.sunshineUser && req.sunshinePass) {
+    settings.sunshine_user = req.sunshineUser;
+    settings.sunshine_pass = req.sunshinePass;
+  }
+  // The modules read the ON-DEVICE path; the image itself is staged by bundle.ts.
+  if (req.wallpaperPath) settings.wallpaper_path = imageDevicePath("wallpaper", req.wallpaperPath);
+  if (req.lockscreenPath) {
+    settings.lockscreen_path = imageDevicePath("lockscreen", req.lockscreenPath);
+  }
   return settings;
 }
 
@@ -657,6 +683,8 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
     buildId: lastBuildId,
     computerName: lastBuildHostname || undefined,
     edition: req.edition === "pro" ? "Windows 11 Pro" : "Windows 11 Home",
+    wallpaperPath: req.wallpaperPath,
+    lockscreenPath: req.lockscreenPath,
   };
 
   const stagingPath = join(app.getPath("temp"), "bootible-usb-bundle");
@@ -664,6 +692,11 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
   for (const file of buildUsbBundle(spec, profile.executor)) {
     const dest = join(stagingPath, file.path);
     mkdirSync(dirname(dest), { recursive: true });
+    if (file.copyFrom) {
+      // Binary asset (wallpaper / lock screen) \u2014 copy the host file verbatim.
+      copyFileSync(file.copyFrom, dest);
+      continue;
+    }
     // .ps1 files get a UTF-8 BOM so the Ally's Windows PowerShell 5.1 reads any
     // non-ASCII (em-dashes in copy) correctly instead of as ANSI mojibake.
     const content = dest.endsWith(".ps1") ? "\uFEFF" + file.content : file.content;
@@ -1015,6 +1048,14 @@ app.whenReady().then(() => {
   ipcMain.handle("discovery:stop", () => stopDiscovery());
   ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
   ipcMain.handle("network:suggest", () => suggestNetwork());
+  ipcMain.handle("image:browse", async () => {
+    const r = await dialog.showOpenDialog({
+      title: "Choose an image",
+      properties: ["openFile"],
+      filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "bmp"] }],
+    });
+    return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+  });
   ipcMain.handle(
     "host:install-streaming",
     (_event, which: { sunshine?: boolean; moonlight?: boolean }) =>
