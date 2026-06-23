@@ -225,6 +225,45 @@ function getHostSshKeys(): HostSshKey[] {
   }
 }
 
+/** Install the streaming pair on THIS desktop (the host) so it can serve games
+ *  to / view the handheld. Sunshine = server, Moonlight = client. winget,
+ *  best-effort. Returns a short per-app status line. */
+function installHostStreaming(): { ok: boolean; output: string } {
+  const apps = [
+    { id: "LizardByte.Sunshine", role: "Sunshine (server)" },
+    { id: "MoonlightGameStreamingProject.Moonlight", role: "Moonlight (client)" },
+  ];
+  const lines: string[] = [];
+  let ok = true;
+  for (const app of apps) {
+    try {
+      execFileSync(
+        "winget",
+        [
+          "install",
+          "--id",
+          app.id,
+          "--accept-source-agreements",
+          "--accept-package-agreements",
+          "--silent",
+        ],
+        { encoding: "utf8", timeout: 300000 },
+      );
+      lines.push(`${app.role}: installed`);
+    } catch (error) {
+      const e = error as { status?: number };
+      // winget exits non-zero when already installed; treat that as fine.
+      if (e.status === 0x8a15002b || e.status === -1978335189) {
+        lines.push(`${app.role}: already installed`);
+      } else {
+        lines.push(`${app.role}: see winget`);
+        ok = false;
+      }
+    }
+  }
+  return { ok, output: lines.join("\n") };
+}
+
 /** Generate a passwordless ed25519 keypair for hands-free SSH, when the user has
  *  none. Returns its public key (added to the picker), or null if ssh-keygen
  *  isn't available. */
@@ -324,6 +363,10 @@ export interface UsbBuildRequest {
   hostname?: string;
   /** Optional fixed IP so the device is always reachable at the same address. */
   staticIp?: StaticIp;
+  /** Windows edition to install. Pro unlocks RDP host. Default home. */
+  edition?: "home" | "pro";
+  /** Enable Remote Desktop (only effective on Pro). */
+  enableRdp?: boolean;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -531,6 +574,8 @@ type BuildChoice = {
   baseId?: string;
   sshPublicKeys?: string[];
   staticIp?: StaticIp;
+  edition?: "home" | "pro";
+  enableRdp?: boolean;
 };
 
 /** The non-empty, trimmed SSH public keys from a build choice. */
@@ -547,6 +592,8 @@ function resolveModules(req: BuildChoice): string[] {
   for (const id of req.modules) ids.add(id);
   if (chosenKeys(req).length > 0) ids.add("ssh-key");
   if (req.staticIp?.ip) ids.add("static-ip");
+  // RDP host only works on Pro, so only include it when both are chosen.
+  if (req.edition === "pro" && req.enableRdp) ids.add("remote-desktop");
   return [...ids];
 }
 
@@ -598,6 +645,7 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
     locale: region.locale,
     buildId: lastBuildId,
     computerName: lastBuildHostname || undefined,
+    edition: req.edition === "pro" ? "Windows 11 Pro" : "Windows 11 Home",
   };
 
   const stagingPath = join(app.getPath("temp"), "bootible-usb-bundle");
@@ -956,6 +1004,7 @@ app.whenReady().then(() => {
   ipcMain.handle("discovery:stop", () => stopDiscovery());
   ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
   ipcMain.handle("network:suggest", () => suggestNetwork());
+  ipcMain.handle("host:install-streaming", () => installHostStreaming());
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, req: BuildChoice) => {

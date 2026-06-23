@@ -423,6 +423,14 @@
                 <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
               </div>
               <div class="field">
+                <label class="field-label">Windows edition</label>
+                <div class="edition-pick">
+                  <label class="edition-opt"><input type="radio" name="edition" id="edition-home" checked /> Home</label>
+                  <label class="edition-opt"><input type="radio" name="edition" id="edition-pro" /> Pro <span class="muted">(unlocks Remote Desktop)</span></label>
+                </div>
+                <label class="rdp-toggle" id="rdp-toggle" hidden><input type="checkbox" id="enable-rdp" /> Enable Remote Desktop — <code>mstsc</code> into the device</label>
+              </div>
+              <div class="field">
                 <label class="field-label">SSH access <span class="muted">(optional)</span></label>
                 <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
                 <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>
@@ -562,6 +570,12 @@
             </p>
           </div>
           <div class="watch-list"><p class="muted">Listening on the network…</p></div>
+          <div class="watch-host">
+            <button class="btn-ghost" type="button" id="host-streaming">
+              Set up streaming on this PC <span class="muted">— Sunshine (server) + Moonlight (client)</span>
+            </button>
+            <pre class="host-streaming-result" hidden></pre>
+          </div>
           <div class="bundle-back">
             <button class="btn-ghost" type="button" data-go="home">Done</button>
           </div>

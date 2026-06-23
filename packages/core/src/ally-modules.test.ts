@@ -233,6 +233,19 @@ describe("allyCatalog", () => {
     expect(ps).toContain("10.90.101.1");
   });
 
+  it("remote-desktop enables RDP via fDenyTSConnections + firewall", () => {
+    const rdp = allyCatalog.find((m) => m.id === "remote-desktop");
+    expect(rdp).toBeDefined();
+    const calls: string[][] = [];
+    const result = rdp?.apply({ device, config: { schema: 2, device: "rog-ally" } }, (cmd) => {
+      calls.push(cmd);
+      return "";
+    });
+    expect(result?.status).toBe("applied");
+    expect(calls.some((c) => c.includes("fDenyTSConnections"))).toBe(true);
+    expect(calls.some((c) => c.join(" ").includes("Remote Desktop"))).toBe(true);
+  });
+
   it("applies display/GPU tweaks via reg add", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();
@@ -310,6 +323,7 @@ describe("newly-real modules", () => {
     };
     expect(grab(emudeck)).toEqual(["Git.Git", "Python.Python.3.12"]);
     expect(grab(streaming)).toEqual([
+      "LizardByte.Sunshine",
       "MoonlightGameStreamingProject.Moonlight",
       "Streetpea.Chiaki-ng",
     ]);

@@ -23,6 +23,10 @@ export interface UsbBuildRequest {
   hostname?: string;
   /** Optional fixed IP for the device. */
   staticIp?: { ip: string; prefix?: number; gateway?: string; dns?: string };
+  /** Windows edition (Pro unlocks RDP host). */
+  edition?: "home" | "pro";
+  /** Enable Remote Desktop (Pro only). */
+  enableRdp?: boolean;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
@@ -127,6 +131,8 @@ const api = {
     ipcRenderer.invoke("device:verify", ip),
   suggestNetwork: (): Promise<{ prefix: number; gateway: string; subnet: string } | null> =>
     ipcRenderer.invoke("network:suggest"),
+  installHostStreaming: (): Promise<{ ok: boolean; output: string }> =>
+    ipcRenderer.invoke("host:install-streaming"),
   onBeaconDevice: (cb: (device: DiscoveredDevice) => void): void => {
     ipcRenderer.on("beacon:device", (_e, device: DiscoveredDevice) => cb(device));
   },

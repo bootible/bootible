@@ -431,6 +431,54 @@ const staticIp: BootibleModule = {
   },
 };
 
+/**
+ * Remote Desktop (RDP) — enable the Windows RDP host so the user can `mstsc` into
+ * the device. Only meaningful on Windows Pro (Home can't host RDP), so it's only
+ * included when the build chose Pro + opted in. Sets fDenyTSConnections=0 and
+ * opens the Remote Desktop firewall group.
+ */
+const remoteDesktop: BootibleModule = {
+  id: "remote-desktop",
+  name: "Remote Desktop (RDP)",
+  group: "system",
+  description:
+    "Turn on Windows Remote Desktop so you can mstsc into the device (Windows Pro only).",
+  changes: "fDenyTSConnections + firewall",
+  apply(_ctx, exec) {
+    exec([
+      "reg",
+      "add",
+      "HKLM\\System\\CurrentControlSet\\Control\\Terminal Server",
+      "/v",
+      "fDenyTSConnections",
+      "/t",
+      "REG_DWORD",
+      "/d",
+      "0",
+      "/f",
+    ]);
+    exec([
+      "powershell",
+      "-Command",
+      "Enable-NetFirewallRule -DisplayGroup 'Remote Desktop' -ErrorAction SilentlyContinue",
+    ]);
+    return { status: "applied", actions: ["enable RDP + firewall"] };
+  },
+  check(_ctx, exec) {
+    return /0x0/.test(
+      exec([
+        "reg",
+        "query",
+        "HKLM\\System\\CurrentControlSet\\Control\\Terminal Server",
+        "/v",
+        "fDenyTSConnections",
+      ]),
+    )
+      ? "applied"
+      : "pending";
+  },
+};
+
 /** The ROG Ally / Windows module catalog, in run order. */
 export const allyCatalog: BootibleModule[] = [
   power,
@@ -462,8 +510,8 @@ export const allyCatalog: BootibleModule[] = [
   appInstall(
     "streaming",
     "Game streaming",
-    "Install Moonlight + Chiaki-ng to stream from your gaming PC or PlayStation.",
-    ["MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
+    "Install Sunshine (the streaming SERVER — shares this device's screen), Moonlight (the CLIENT — view another machine here) and Chiaki-ng. Stream games to or from the handheld, plus PlayStation.",
+    ["LizardByte.Sunshine", "MoonlightGameStreamingProject.Moonlight", "Streetpea.Chiaki-ng"],
   ),
   appInstall(
     "armoury-crate",
@@ -473,6 +521,7 @@ export const allyCatalog: BootibleModule[] = [
     "system",
   ),
   sshKey,
+  remoteDesktop,
   steamBigPicture,
   xboxFullscreen,
   health,

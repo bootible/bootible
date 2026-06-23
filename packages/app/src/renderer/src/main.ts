@@ -59,6 +59,8 @@ interface UsbBuildRequest {
   sshPublicKeys?: string[];
   hostname?: string;
   staticIp?: StaticIp;
+  edition?: "home" | "pro";
+  enableRdp?: boolean;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
@@ -163,6 +165,7 @@ interface BootibleApi {
   onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
   verifyDevice(ip: string): Promise<{ reachable: boolean; output: string; alias?: string }>;
   suggestNetwork(): Promise<{ prefix: number; gateway: string; subnet: string } | null>;
+  installHostStreaming(): Promise<{ ok: boolean; output: string }>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -1055,12 +1058,18 @@ function gatherUsbRequest(): UsbBuildRequest {
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
   const modules = selectedBaseId ? [] : selectedModuleIds();
+  const edition = document.querySelector<HTMLInputElement>("#edition-pro")?.checked
+    ? "pro"
+    : "home";
+  const enableRdp = document.querySelector<HTMLInputElement>("#enable-rdp")?.checked ?? false;
   return {
     modules,
     baseId: selectedBaseId || undefined,
     sshPublicKeys: sshPublicKeys.length ? sshPublicKeys : undefined,
     hostname,
     staticIp,
+    edition,
+    enableRdp,
     account,
     wifi,
   };
@@ -1283,6 +1292,26 @@ window.bootible?.onBeaconDevice?.((d) => {
   renderDiscovered();
 });
 
+// Set up the streaming pair on this desktop (Sunshine server + Moonlight client).
+document.addEventListener("click", (event) => {
+  const btn = (event.target as HTMLElement).closest<HTMLButtonElement>("#host-streaming");
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = "Installing on this PC…";
+  void (async () => {
+    const result = (await window.bootible?.installHostStreaming?.()) ?? {
+      ok: false,
+      output: "no bridge",
+    };
+    const out = document.querySelector<HTMLElement>(".host-streaming-result");
+    if (out) {
+      out.textContent = result.output;
+      out.hidden = false;
+    }
+    btn.textContent = "Streaming set up on this PC";
+  })();
+});
+
 // Verify a discovered device over SSH (key auth, no prompts).
 document.addEventListener("click", (event) => {
   const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(".watch-verify");
@@ -1316,6 +1345,11 @@ document.addEventListener("change", (event) => {
   if (target instanceof HTMLInputElement && target.dataset.keyId) {
     if (target.checked) selectedKeyIds.add(target.dataset.keyId);
     else selectedKeyIds.delete(target.dataset.keyId);
+  }
+  if (target.id === "edition-home" || target.id === "edition-pro") {
+    // RDP host only works on Pro — show the toggle only then.
+    const pro = document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
+    document.querySelector("#rdp-toggle")?.toggleAttribute("hidden", !pro);
   }
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
 });
