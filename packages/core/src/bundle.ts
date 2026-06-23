@@ -1,4 +1,5 @@
 import { type AccountMode, generateAutounattend, generateWifiProfileXml } from "./autounattend";
+import { generateBeaconScript } from "./beacon";
 import { generateBootstrapScript } from "./bootstrap";
 import { type BootibleConfig, serializeConfig } from "./config";
 import type { Executor } from "./orchestrator";
@@ -22,6 +23,9 @@ export interface UsbBuildSpec {
   uiLanguage?: string;
   /** Region/keyboard BCP-47 locale. Omitted → autounattend default (en-NZ). */
   locale?: string;
+  /** Build token for LAN discovery. When set, a beacon agent is staged that
+   *  broadcasts this id so the desktop can find the device. */
+  buildId?: string;
 }
 
 /** A file to write onto the USB, by path relative to the USB root. */
@@ -90,6 +94,14 @@ export function buildUsbBundle(
     files.push({
       path: "sources/$OEM$/$$/Setup/Files/wifi.xml",
       content: generateWifiProfileXml(spec.wifi.ssid, spec.wifi.password),
+    });
+  }
+
+  if (spec.buildId) {
+    // Staged beside bootstrap.ps1; the bootstrap launches it (Test-Path guard).
+    files.push({
+      path: "sources/$OEM$/$1/bootible/beacon.ps1",
+      content: generateBeaconScript({ buildId: spec.buildId }),
     });
   }
 

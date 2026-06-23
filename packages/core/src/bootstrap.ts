@@ -79,11 +79,26 @@ foreach ($i in 1..24) {
 if ($wingetExe) { Set-Alias -Name winget -Value $wingetExe -Scope Global; Write-Bootible "winget ready: $wingetExe" }
 else { Write-Bootible 'winget did not become available; app installs may fail' }
 
+# Discovery: mark status and start the LAN beacon (if staged) so the desktop can
+# find this device while it configures. The beacon reads $BootibleRoot\\status.txt.
+'configuring' | Set-Content "$BootibleRoot\\status.txt"
+if (Test-Path "$BootibleRoot\\beacon.ps1") {
+  try {
+    $beaconArgs = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \`"$BootibleRoot\\beacon.ps1\`""
+    $beaconAction = New-ScheduledTaskAction -Execute 'powershell' -Argument $beaconArgs
+    $beaconTrigger = New-ScheduledTaskTrigger -AtLogOn
+    Register-ScheduledTask -TaskName 'BootibleBeacon' -Force -RunLevel Highest -Action $beaconAction -Trigger $beaconTrigger | Out-Null
+    Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',"$BootibleRoot\\beacon.ps1"
+    Write-Bootible 'beacon started'
+  } catch { Write-Bootible "  beacon failed: $_" }
+}
+
 Write-Bootible 'bootible onboard starting'
 
 ${steps}
 
 Write-Bootible 'bootible onboard complete'
+'done' | Set-Content "$BootibleRoot\\status.txt"
 "bootible configured $(Get-Date -Format o)" | Set-Content "$BootibleRoot\\receipt.txt"
 `;
 }

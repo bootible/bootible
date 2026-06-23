@@ -54,6 +54,15 @@ describe("buildUsbBundle", () => {
     ).toBe(true);
   });
 
+  it("stages the beacon agent only when a buildId is given", () => {
+    const without = buildUsbBundle(base, allyExecutor);
+    expect(without.some((f) => f.path.endsWith("beacon.ps1"))).toBe(false);
+    const withId = buildUsbBundle({ ...base, buildId: "abc123" }, allyExecutor);
+    const beacon = withId.find((f) => f.path.endsWith("beacon.ps1"));
+    expect(beacon?.path).toContain("$OEM$/$1/bootible");
+    expect(beacon?.content).toContain("abc123");
+  });
+
   it("bakes the chosen UI language + region into the answer file (so it matches the ISO)", () => {
     const auto = buildUsbBundle(
       { ...base, uiLanguage: "en-US", locale: "en-AU" },
