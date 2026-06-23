@@ -1240,6 +1240,56 @@ body[data-view="account"] .summary::before {
   margin-top: 8px;
 }
 
+/* ───────────────────── SSH key-picker ───────────────────── */
+.ssh-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ssh-key-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.ssh-key-check {
+  accent-color: var(--amber);
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.ssh-key-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ssh-key-label {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ssh-key-type {
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.ssh-paste {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+}
+
 .method-card:hover {
   border-color: #3a3f48;
   transform: translateY(-1px);

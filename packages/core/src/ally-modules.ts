@@ -290,8 +290,14 @@ const sshKey: BootibleModule = {
   changes: "OpenSSH Server (winget) + firewall + authorized key",
   apply(ctx, exec) {
     const settings = (ctx.config.settings ?? {}) as Record<string, unknown>;
-    const key = typeof settings.ssh_public_key === "string" ? settings.ssh_public_key.trim() : "";
-    if (!key) {
+    // One or more authorised public keys. Accepts an array (the host key-picker)
+    // or a single string (legacy / paste); both normalise to a clean list.
+    const raw = settings.ssh_public_keys ?? settings.ssh_public_key;
+    const keys = (Array.isArray(raw) ? raw : [raw])
+      .filter((k): k is string => typeof k === "string")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+    if (keys.length === 0) {
       return { status: "skipped", detail: "no SSH public key provided" };
     }
     const actions: string[] = [];
@@ -327,17 +333,18 @@ const sshKey: BootibleModule = {
         "-Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null }",
     ]);
     actions.push("open firewall TCP 22");
-    // Authorise the key for admin SSH: write administrators_authorized_keys and
-    // lock its ACL to Administrators + SYSTEM (required, or sshd ignores it).
-    const escaped = key.replace(/'/g, "''");
+    // Authorise the keys for admin SSH: write administrators_authorized_keys (one
+    // key per line, via a PS array literal so it stays a single bootstrap line)
+    // and lock its ACL to Administrators + SYSTEM (required, or sshd ignores it).
+    const arrayLiteral = keys.map((k) => `'${k.replace(/'/g, "''")}'`).join(",");
     exec([
       "powershell",
       "-Command",
       `$f="$env:ProgramData\\ssh\\administrators_authorized_keys"; ` +
-        `Set-Content -Path $f -Value '${escaped}' -Encoding ascii; ` +
+        `Set-Content -Path $f -Value @(${arrayLiteral}) -Encoding ascii; ` +
         `icacls $f /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F'`,
     ]);
-    actions.push("authorise public key");
+    actions.push(`authorise ${keys.length} public key${keys.length === 1 ? "" : "s"}`);
     return { status: "applied", actions };
   },
   check(_ctx, exec) {

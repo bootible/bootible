@@ -415,8 +415,9 @@
                 <input class="field-input" id="acct-pass" type="password" placeholder="leave blank for none" autocomplete="off" />
               </div>
               <div class="field">
-                <label class="field-label" for="ssh-key">SSH public key <span class="muted">(optional)</span></label>
-                <textarea class="field-input" id="ssh-key" rows="3" placeholder="ssh-ed25519 AAAA… — paste to enable SSH into the device" autocomplete="off" spellcheck="false"></textarea>
+                <label class="field-label">SSH access <span class="muted">(optional)</span></label>
+                <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
+                <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>
               </div>
 
               <div class="summary-actions">

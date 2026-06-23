@@ -1,5 +1,14 @@
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   type AccountMode,
@@ -168,6 +177,74 @@ function getBundles(): Bundle[] {
   return profileFor(targetDevice())?.bundles ?? [];
 }
 
+// ── host SSH integration (the key-picker replaces paste-a-key) ───────────────
+
+export interface HostSshKey {
+  /** The .pub filename, used as a stable id in the picker. */
+  id: string;
+  /** Human label — the key's comment, or the filename. */
+  label: string;
+  /** Key type (ssh-ed25519, ssh-rsa, …). */
+  type: string;
+  /** The full public-key line — exactly what gets authorised on the device. */
+  publicKey: string;
+}
+
+function sshDir(): string {
+  return join(homedir(), ".ssh");
+}
+
+function readPubKey(dir: string, file: string): HostSshKey | null {
+  try {
+    const content = readFileSync(join(dir, file), "utf8").trim();
+    const parts = content.split(/\s+/);
+    if (parts.length < 2) return null; // not a key line
+    const type = parts[0] ?? "";
+    const comment = parts.slice(2).join(" ");
+    return { id: file, label: comment || file, type, publicKey: content };
+  } catch {
+    return null;
+  }
+}
+
+/** Enumerate the user's SSH public keys on THIS machine (~/.ssh/*.pub) — the
+ *  picker source. Public keys only; private keys are never read. */
+function getHostSshKeys(): HostSshKey[] {
+  try {
+    const dir = sshDir();
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir)
+      .filter((f) => f.endsWith(".pub"))
+      .map((f) => readPubKey(dir, f))
+      .filter((k): k is HostSshKey => k !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Generate a passwordless ed25519 keypair for hands-free SSH, when the user has
+ *  none. Returns its public key (added to the picker), or null if ssh-keygen
+ *  isn't available. */
+function generateHostSshKey(comment: string): HostSshKey | null {
+  try {
+    const dir = sshDir();
+    mkdirSync(dir, { recursive: true });
+    const path = join(dir, "id_ed25519_bootible");
+    if (!existsSync(`${path}.pub`)) {
+      execFileSync(
+        "ssh-keygen",
+        ["-t", "ed25519", "-f", path, "-N", "", "-C", comment || "bootible"],
+        {
+          stdio: "ignore",
+        },
+      );
+    }
+    return readPubKey(dir, "id_ed25519_bootible.pub");
+  } catch {
+    return null;
+  }
+}
+
 /** The base catalog (page after device summary) — the experience the handheld
  *  boots into. Projects just what the renderer needs. */
 function getBases(): Array<Pick<Base, "id" | "label" | "description" | "tag" | "recommended">> {
@@ -238,8 +315,8 @@ export interface UsbBuildRequest {
   /** Chosen base id (raw / steam-bp / xbox / full-rog). Resolves to the base's
    *  shell + software floor, unioned with the universal floor and the modifiers. */
   baseId?: string;
-  /** The user's SSH public key (plain data); enables the ssh-key module. */
-  sshPublicKey?: string;
+  /** The user's chosen SSH public keys (plain data); enables the ssh-key module. */
+  sshPublicKeys?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -250,23 +327,29 @@ export interface UsbBuildRequest {
 }
 
 /** The base + modifier choices that resolve to a final module set. */
-type BuildChoice = { modules: string[]; baseId?: string; sshPublicKey?: string };
+type BuildChoice = { modules: string[]; baseId?: string; sshPublicKeys?: string[] };
+
+/** The non-empty, trimmed SSH public keys from a build choice. */
+function chosenKeys(req: BuildChoice): string[] {
+  return (req.sshPublicKeys ?? []).map((k) => k.trim()).filter((k) => k.length > 0);
+}
 
 /** The final module-id set for a build: the base's resolved floor (shell +
  *  software + universal tuning) unioned with the user's modifier picks, plus the
- *  ssh-key module when a key is supplied. */
+ *  ssh-key module when at least one key is supplied. */
 function resolveModules(req: BuildChoice): string[] {
   const base = baseById(req.baseId);
   const ids = new Set<string>(base ? baseModuleIds(base) : []);
   for (const id of req.modules) ids.add(id);
-  if (req.sshPublicKey?.trim()) ids.add("ssh-key");
+  if (chosenKeys(req).length > 0) ids.add("ssh-key");
   return [...ids];
 }
 
-/** The settings bag, with the SSH public key folded in when provided. */
+/** The settings bag, with the SSH public keys folded in when provided. */
 function buildSettings(req: BuildChoice): Record<string, unknown> {
-  return req.sshPublicKey?.trim()
-    ? { ...RECOMMENDED_SETTINGS, ssh_public_key: req.sshPublicKey.trim() }
+  const keys = chosenKeys(req);
+  return keys.length > 0
+    ? { ...RECOMMENDED_SETTINGS, ssh_public_keys: keys }
     : RECOMMENDED_SETTINGS;
 }
 
@@ -651,6 +734,8 @@ app.whenReady().then(() => {
   ipcMain.handle("catalog:get", () => getCatalog());
   ipcMain.handle("bundles:get", () => getBundles());
   ipcMain.handle("bases:get", () => getBases());
+  ipcMain.handle("ssh:host-keys", () => getHostSshKeys());
+  ipcMain.handle("ssh:generate-key", (_event, comment: string) => generateHostSshKey(comment));
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, req: BuildChoice) => {

@@ -181,6 +181,30 @@ describe("allyCatalog", () => {
     expect(keyWrite?.join(" ")).toContain("icacls");
   });
 
+  it("ssh-key authorises multiple keys (the host picker) in one authorized_keys", () => {
+    const ssh = allyCatalog.find((m) => m.id === "ssh-key");
+    const calls: string[][] = [];
+    ssh?.apply(
+      {
+        device,
+        config: {
+          schema: 2,
+          device: "rog-ally",
+          settings: { ssh_public_keys: ["ssh-ed25519 AAAAkey1 a@x", "ssh-rsa AAAAkey2 b@y"] },
+        },
+      },
+      (cmd) => {
+        calls.push(cmd);
+        return "";
+      },
+    );
+    const keyWrite = calls.find(
+      (c) => c[0] === "powershell" && c.join(" ").includes("administrators_authorized_keys"),
+    );
+    expect(keyWrite?.join(" ")).toContain("ssh-ed25519 AAAAkey1 a@x");
+    expect(keyWrite?.join(" ")).toContain("ssh-rsa AAAAkey2 b@y");
+  });
+
   it("applies display/GPU tweaks via reg add", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();

@@ -49,7 +49,7 @@ interface ProvisionResult {
 interface UsbBuildRequest {
   modules: string[];
   baseId?: string;
-  sshPublicKey?: string;
+  sshPublicKeys?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
@@ -62,6 +62,13 @@ interface BaseOption {
   description: string;
   tag?: string;
   recommended?: boolean;
+}
+
+interface HostSshKey {
+  id: string;
+  label: string;
+  type: string;
+  publicKey: string;
 }
 
 interface ModuleStateReport {
@@ -131,6 +138,8 @@ interface BootibleApi {
   getDevices(platformId: string): Promise<DeviceOption[]>;
   selectDevice(id: string): Promise<DeviceSummary | null>;
   getBases(): Promise<BaseOption[]>;
+  getHostSshKeys(): Promise<HostSshKey[]>;
+  generateHostSshKey(comment: string): Promise<HostSshKey | null>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -143,7 +152,7 @@ interface BootibleApi {
   exportConfig(req: {
     modules: string[];
     baseId?: string;
-    sshPublicKey?: string;
+    sshPublicKeys?: string[];
   }): Promise<{ path: string } | null>;
   buildUsb(req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null>;
   openPath(path: string): Promise<string>;
@@ -210,6 +219,7 @@ function syncFromHash(): void {
   show(view);
   if (view === "platform") void hydratePlatforms();
   if (view === "base") void hydrateBases();
+  if (view === "account") void hydrateSshKeys();
   if (view === "review") {
     setApplyLabel();
     renderReviewPlan();
@@ -400,6 +410,53 @@ async function hydrateBases(): Promise<void> {
   list.replaceChildren(...bases.map(baseCard));
 }
 
+// ── host SSH key-picker (account screen) ────────────────────────────────────
+let sshHydrated = false;
+
+/** Render the host's SSH keys as a multi-select, or an empty/generate state. */
+function renderSshKeys(): void {
+  const list = document.querySelector<HTMLElement>("#ssh-key-list");
+  if (!list) return;
+  if (hostSshKeys.length === 0) {
+    const empty = el("p", "muted ssh-empty", "No SSH keys found on this PC. ");
+    const gen = el("button", "linkbtn", "Generate one") as HTMLButtonElement;
+    gen.type = "button";
+    gen.id = "ssh-generate";
+    empty.append(gen);
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(
+    ...hostSshKeys.map((k) => {
+      const row = el("label", "ssh-key-row") as HTMLLabelElement;
+      const cb = el("input", "ssh-key-check") as HTMLInputElement;
+      cb.type = "checkbox";
+      cb.dataset.keyId = k.id;
+      cb.checked = selectedKeyIds.has(k.id);
+      const meta = el("span", "ssh-key-meta");
+      meta.append(el("span", "ssh-key-label", k.label), el("span", "ssh-key-type", k.type));
+      row.append(cb, meta);
+      return row;
+    }),
+  );
+}
+
+/** Fetch the host's SSH public keys and pre-select them all the first time. */
+async function hydrateSshKeys(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getHostSshKeys) return;
+  try {
+    hostSshKeys = await api.getHostSshKeys();
+  } catch {
+    hostSshKeys = [];
+  }
+  if (!sshHydrated) {
+    for (const k of hostSshKeys) selectedKeyIds.add(k.id);
+    sshHydrated = true;
+  }
+  renderSshKeys();
+}
+
 // Card clicks on the platform / devices / base pages.
 document.addEventListener("click", (event) => {
   const card = (event.target as HTMLElement).closest<HTMLElement>("[data-pick]");
@@ -434,6 +491,8 @@ const GROUP_TAGS: Record<string, string> = {
 let catalog: GroupSummary[] = [];
 let deviceName = "ROG Ally X";
 let selectedBaseId = "";
+let hostSshKeys: HostSshKey[] = [];
+const selectedKeyIds = new Set<string>();
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -908,7 +967,7 @@ async function runExport(): Promise<void> {
   const result = await api.exportConfig({
     modules,
     baseId: req.baseId,
-    sshPublicKey: req.sshPublicKey,
+    sshPublicKeys: req.sshPublicKeys,
   });
   if (!result) return; // cancelled
 
@@ -940,11 +999,20 @@ function gatherUsbRequest(): UsbBuildRequest {
       : { mode };
   const ssid = val("#wifi-ssid");
   const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
-  const sshPublicKey = val("#ssh-key") || undefined;
+  // Chosen keys from the picker + anything pasted into the fallback box.
+  const picked = hostSshKeys.filter((k) => selectedKeyIds.has(k.id)).map((k) => k.publicKey);
+  const pasted = val("#ssh-paste");
+  const sshPublicKeys = [...picked, ...(pasted ? [pasted] : [])];
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
   const modules = selectedBaseId ? [] : selectedModuleIds();
-  return { modules, baseId: selectedBaseId || undefined, sshPublicKey, account, wifi };
+  return {
+    modules,
+    baseId: selectedBaseId || undefined,
+    sshPublicKeys: sshPublicKeys.length ? sshPublicKeys : undefined,
+    account,
+    wifi,
+  };
 }
 
 // ── in-app USB writer screen ────────────────────────────────────────────────
@@ -1101,6 +1169,10 @@ document.addEventListener("change", (event) => {
   if (target.id === "region-select") {
     usbState.regionId = (target as HTMLSelectElement).value;
   }
+  if (target instanceof HTMLInputElement && target.dataset.keyId) {
+    if (target.checked) selectedKeyIds.add(target.dataset.keyId);
+    else selectedKeyIds.delete(target.dataset.keyId);
+  }
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
 });
 
@@ -1123,6 +1195,17 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("#disk-refresh")) {
     void refreshDisks();
+    return;
+  }
+
+  if (target.closest("#ssh-generate")) {
+    void (async () => {
+      const created = await window.bootible?.generateHostSshKey?.(`${deviceName} via bootible`);
+      if (!created) return;
+      if (!hostSshKeys.some((k) => k.id === created.id)) hostSshKeys.push(created);
+      selectedKeyIds.add(created.id);
+      renderSshKeys();
+    })();
     return;
   }
 
