@@ -12,6 +12,9 @@ export interface AppEntry {
   name: string;
   /** winget package id installed on the device. */
   wingetId: string;
+  /** Install source — omit for the default winget source; "msstore" for
+   *  Microsoft Store-only apps (product-id installs). */
+  source?: "msstore";
   /** On by default when its group is enabled (the v1 recommended set). */
   recommended?: boolean;
 }
@@ -40,12 +43,14 @@ export const APP_GROUPS: AppGroup[] = [
     ],
   },
   {
+    // Edge ships with Windows, so it's not listed here (use "Disable Edge" in the
+    // floor debloat if you don't want it). Safari has no Windows version.
     id: "browsers",
     label: "Browsers",
     apps: [
       { id: "firefox", name: "Firefox", wingetId: "Mozilla.Firefox" },
       { id: "chrome", name: "Chrome", wingetId: "Google.Chrome" },
-      { id: "edge", name: "Edge", wingetId: "Microsoft.Edge" },
+      { id: "opera", name: "Opera", wingetId: "Opera.Opera" },
     ],
   },
   {
@@ -54,6 +59,7 @@ export const APP_GROUPS: AppGroup[] = [
     apps: [
       { id: "discord", name: "Discord", wingetId: "Discord.Discord" },
       { id: "signal", name: "Signal", wingetId: "OpenWhisperSystems.Signal" },
+      { id: "telegram", name: "Telegram", wingetId: "Telegram.TelegramDesktop" },
     ],
   },
   {
@@ -62,6 +68,15 @@ export const APP_GROUPS: AppGroup[] = [
     apps: [
       { id: "vlc", name: "VLC", wingetId: "VideoLAN.VLC" },
       { id: "spotify", name: "Spotify", wingetId: "Spotify.Spotify" },
+      { id: "applemusic", name: "Apple Music", wingetId: "9PFHDD62MXS1", source: "msstore" },
+    ],
+  },
+  {
+    id: "ai",
+    label: "AI tools",
+    apps: [
+      { id: "claude", name: "Claude", wingetId: "Anthropic.Claude" },
+      { id: "chatgpt", name: "ChatGPT", wingetId: "9NT1R1C2HH7J", source: "msstore" },
     ],
   },
   {
@@ -104,7 +119,11 @@ export const APP_GROUPS: AppGroup[] = [
       },
       { id: "hidhide", name: "HidHide", wingetId: "Nefarius.HidHide" },
       { id: "ds4windows", name: "DS4Windows", wingetId: "Ryochan7.DS4Windows" },
+      { id: "razersynapse", name: "Razer Synapse 4", wingetId: "RazerInc.RazerInstaller.Synapse4" },
+      { id: "8bitdo", name: "8BitDo Ultimate Software", wingetId: "8BitDo.UltimateSoftwareV2" },
       { id: "vortex", name: "Vortex Mod Manager", wingetId: "NexusMods.Vortex" },
+      { id: "curseforge", name: "CurseForge", wingetId: "Overwolf.CurseForge" },
+      { id: "modrinth", name: "Modrinth", wingetId: "Modrinth.ModrinthApp" },
     ],
   },
   {
@@ -125,6 +144,11 @@ export const APP_GROUPS: AppGroup[] = [
     apps: [
       { id: "tailscale", name: "Tailscale", wingetId: "Tailscale.Tailscale" },
       { id: "protonvpn", name: "ProtonVPN", wingetId: "Proton.ProtonVPN" },
+      { id: "nordvpn", name: "NordVPN", wingetId: "NordSecurity.NordVPN" },
+      { id: "expressvpn", name: "ExpressVPN", wingetId: "ExpressVPN.ExpressVPN" },
+      { id: "surfshark", name: "Surfshark", wingetId: "Surfshark.Surfshark" },
+      { id: "cyberghost", name: "CyberGhost", wingetId: "CyberGhost.CyberGhost" },
+      { id: "tunnelbear", name: "TunnelBear", wingetId: "TunnelBear.TunnelBear" },
     ],
   },
   {
@@ -158,7 +182,26 @@ export function appWingetIds(selected: string[]): string[] {
   return selected.map((id) => BY_ID.get(id)?.wingetId).filter((w): w is string => Boolean(w));
 }
 
-/** winget install command arrays for the selected app slugs. */
+/** Install command arrays for the selected app slugs — default winget source, or
+ *  `--source msstore` for Store-only apps. */
 export function getSelectedAppCommands(selected: string[]): string[][] {
-  return getWingetInstallCommands(appWingetIds(selected));
+  return selected
+    .map((id) => BY_ID.get(id))
+    .filter((a): a is AppEntry => Boolean(a))
+    .map((a) =>
+      a.source === "msstore"
+        ? [
+            "winget",
+            "install",
+            "--id",
+            a.wingetId,
+            "--source",
+            "msstore",
+            "--accept-source-agreements",
+            "--accept-package-agreements",
+            "--silent",
+          ]
+        : (getWingetInstallCommands([a.wingetId])[0] ?? []),
+    )
+    .filter((c) => c.length > 0);
 }

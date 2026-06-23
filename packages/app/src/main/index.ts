@@ -171,7 +171,7 @@ interface PlanModule {
 
 /** Optional, non-account modules the review/customise screen lets you add on top
  *  of a base. (Most software now lives in the app-picker; `apps` is its row.) */
-const CUSTOMISE_EXTRAS = ["apps", "emudeck", "xbox-fullscreen"];
+const CUSTOMISE_EXTRAS = ["apps", "emudeck"];
 
 /** The review/customise plan for a base: the always-on floor, what the base
  *  adds, and the optional extras — each with display info from the catalog. */

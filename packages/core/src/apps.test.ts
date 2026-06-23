@@ -54,4 +54,11 @@ describe("app catalog", () => {
     const cmds = getSelectedAppCommands(["git"]);
     expect(cmds[0]?.slice(0, 4)).toEqual(["winget", "install", "--id", "Git.Git"]);
   });
+
+  it("Store-only apps install via --source msstore", () => {
+    const cmds = getSelectedAppCommands(["chatgpt"]);
+    expect(cmds[0]).toContain("--source");
+    expect(cmds[0]).toContain("msstore");
+    expect(cmds[0]).toContain("9NT1R1C2HH7J");
+  });
 });
