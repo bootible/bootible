@@ -70,6 +70,8 @@ The USB build gains, beyond the base bundle:
 - **OpenSSH Server via winget** (`Microsoft.OpenSSH.Preview`) — *not* the DISM/FoD path, which can stall (learned the hard way). ▶ Rec: switch the `ssh-key` module to winget.
 - **Firewall rule** opening TCP 22 inbound.
 - **No-sleep on AC** (already shipped in the power module).
+- A **user-set hostname** → the autounattend `<ComputerName>` (field already exists). It drives the beacon's `hostname`, the `<hostname>.local` mDNS name, and the SSH alias (`Host <hostname>`). Validate to Windows rules (≤15 chars, alphanumeric + hyphen, no spaces). Default suggested from the device + a short build suffix.
+- **Optional static IP** (see §3.7) — intended IP/mask/gateway/DNS, baked in; the beacon confirms it.
 - A **beacon agent** (a small startup script).
 - A **buildId** — a random token generated at build time, baked into the USB, known to the desktop.
 
@@ -93,20 +95,28 @@ While the user waits, bootible opens a UDP listener and shows a "waiting for you
 **Verify** → bootible SSHes in with the selected key (no prompts) → runs read-only checks (modules applied? Steam installed? restore points? `bootstrap.log` tail) → shows a green/amber report. The "did it actually work" step, from the desktop.
 
 ### 3.6 Frictionless SSH alias (the "no username/password" guarantee)
-On successful verify, bootible writes a **managed block** into the desktop's `~/.ssh/config`:
+On successful verify, bootible writes a **managed block** into the desktop's `~/.ssh/config`, keyed on the user-set hostname:
 
 ```
-# >>> bootible managed: ally >>>
-Host ally
-  HostName ally.local
+# >>> bootible managed: vengeance-ally >>>
+Host vengeance-ally
+  HostName <static IP if set+confirmed, else vengeance-ally.local>
   User <account bootible created>
   IdentityFile ~/.ssh/<selected key>
   IdentitiesOnly yes
   StrictHostKeyChecking accept-new
-# <<< bootible managed: ally <<<
+# <<< bootible managed: vengeance-ally <<<
 ```
 
-Then **`ssh ally`** needs no username, password, IP, or key path. `HostName` uses the device's `.local` mDNS name so it survives IP changes; if `.local` doesn't resolve on a given network, bootible falls back to the beacon-tracked IP. The block is delimited and idempotent — bootible only ever touches its own section, never the user's existing hosts.
+Then **`ssh vengeance-ally`** needs no username, password, IP, or key path. `HostName` resolution, most-stable first: a **confirmed static IP** (§3.7) → the device's **`.local` mDNS name** (survives DHCP changes) → the **beacon-tracked IP** as a last resort. The block is delimited and idempotent — bootible only ever touches its own section, never the user's existing hosts.
+
+### 3.7 Optional static IP, beacon-confirmed
+The user may set a static IP at build time (bootible pre-fills mask/gateway/DNS from the desktop's own network). It's baked in and applied at first logon (`Set-NetIPAddress`/`netsh` on the Wi-Fi adapter). The **beacon still broadcasts the device's *actual* IP**, which makes the static IP self-verifying:
+
+- **beacon IP == intended** → static IP applied. ✓
+- **beacon IP != intended** → it fell back to DHCP; the static config didn't take. Because the beacon reported the *real* address, bootible can **SSH in via that address and re-apply** (or surface it for one click). A bad static IP therefore **cannot strand the device** — the beacon is always the ground truth for where it actually is.
+
+This is the general pattern: the beacon reports *actual* state, bootible reconciles against *intended* state. For now it reconciles IP; the same channel could verify more later. **❓ Decide:** IP-conflict avoidance (suggest an address outside the DHCP pool) is best-effort — the beacon + reconcile is the real safety net, so we can keep the picker simple and let the loop catch problems.
 
 ---
 
@@ -129,6 +139,8 @@ Beacon-first; these are upgrades, never prerequisites.
 | Host-key trust on first connect | `accept-new` in the alias; optionally capture the host key during verify and pin it to `known_hosts`. |
 | Editing `~/.ssh/config` safely | Delimited bootible-managed block, idempotent; never clobber the user's existing entries. |
 | sshd FoD install can stall | Use winget OpenSSH, not DISM/FoD (learned on hardware). |
+| A bad static IP could strand the device | It can't — the beacon always broadcasts the *real* IP, so a failed static config is detected and re-applied over SSH (§3.7). |
+| Hostname validity | Validate to Windows rules (≤15 chars, alphanumeric + hyphen) before baking into `<ComputerName>`. |
 
 ---
 
@@ -146,7 +158,8 @@ Beacon-first; these are upgrades, never prerequisites.
 2. **Host SSH key-picker UI** — detect client/keys, multi-select, generate-if-none, paste fallback. Replaces the paste field.
 3. **Beacon agent + buildId** (device side) + **desktop UDP listener + waiting screen**.
 4. **Verify step** — SSH in, run checks, report.
-5. **SSH config alias writer** — the `ssh <name>` payoff.
-6. **(Later)** cross-network fallbacks (Tailscale join; bootible.dev phone-home when the backend exists).
+5. **SSH config alias writer** — keyed on the user-set **hostname**; the `ssh <name>` payoff. (Hostname build-field rides along here — it sets `<ComputerName>` and the alias.)
+6. **Optional static IP, beacon-confirmed** — the build field, first-logon apply, and the beacon-reconcile/self-heal loop (§3.7).
+7. **(Later)** cross-network fallbacks (Tailscale join; bootible.dev phone-home when the backend exists).
 
-Steps 1–2 stand alone and improve the current build immediately. 3–5 are the discovery+verify loop. 6 is opt-in reach.
+Steps 1–2 stand alone and improve the current build immediately. 3–5 are the discovery+verify loop (with the hostname). 6 layers static-IP on top. 7 is opt-in reach.
