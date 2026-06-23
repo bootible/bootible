@@ -46,11 +46,19 @@ interface ProvisionResult {
   skipped: number;
 }
 
+interface StaticIp {
+  ip: string;
+  prefix?: number;
+  gateway?: string;
+  dns?: string;
+}
+
 interface UsbBuildRequest {
   modules: string[];
   baseId?: string;
   sshPublicKeys?: string[];
   hostname?: string;
+  staticIp?: StaticIp;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
@@ -154,6 +162,7 @@ interface BootibleApi {
   stopDiscovery(): Promise<void>;
   onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
   verifyDevice(ip: string): Promise<{ reachable: boolean; output: string; alias?: string }>;
+  suggestNetwork(): Promise<{ prefix: number; gateway: string; subnet: string } | null>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -474,6 +483,14 @@ async function hydrateSshKeys(): Promise<void> {
     sshHydrated = true;
   }
   renderSshKeys();
+  // Pre-fill the static IP hint from this PC's subnet (so the user types one host).
+  if (!netSuggestion && api.suggestNetwork) {
+    try {
+      netSuggestion = await api.suggestNetwork();
+    } catch {}
+    const input = document.querySelector<HTMLInputElement>("#static-ip");
+    if (input && netSuggestion) input.placeholder = `${netSuggestion.subnet}50  (optional)`;
+  }
 }
 
 // Card clicks on the platform / devices / base pages.
@@ -512,6 +529,8 @@ let deviceName = "ROG Ally X";
 let selectedBaseId = "";
 let hostSshKeys: HostSshKey[] = [];
 const selectedKeyIds = new Set<string>();
+let netSuggestion: { prefix: number; gateway: string; subnet: string } | null = null;
+let intendedStaticIp = "";
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -1023,6 +1042,16 @@ function gatherUsbRequest(): UsbBuildRequest {
   const pasted = val("#ssh-paste");
   const sshPublicKeys = [...picked, ...(pasted ? [pasted] : [])];
   const hostname = val("#device-hostname") || undefined;
+  const staticIpVal = val("#static-ip");
+  const staticIp: StaticIp | undefined = staticIpVal
+    ? {
+        ip: staticIpVal,
+        prefix: netSuggestion?.prefix ?? 24,
+        gateway: netSuggestion?.gateway,
+        dns: netSuggestion?.gateway,
+      }
+    : undefined;
+  intendedStaticIp = staticIp?.ip ?? "";
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
   const modules = selectedBaseId ? [] : selectedModuleIds();
@@ -1031,6 +1060,7 @@ function gatherUsbRequest(): UsbBuildRequest {
     baseId: selectedBaseId || undefined,
     sshPublicKeys: sshPublicKeys.length ? sshPublicKeys : undefined,
     hostname,
+    staticIp,
     account,
     wifi,
   };
@@ -1210,6 +1240,20 @@ function renderDiscovered(): void {
       );
       const detail = [d.ip, d.mine ? "this is your build" : ""].filter(Boolean).join(" · ");
       card.append(head, el("div", "watch-meta muted", detail));
+
+      // Static-IP reconciliation: the beacon's actual IP vs what we asked for.
+      if (d.mine && intendedStaticIp) {
+        const ok = d.ip === intendedStaticIp;
+        card.append(
+          el(
+            "div",
+            `watch-reconcile ${ok ? "ok" : "warn"}`,
+            ok
+              ? `✓ static IP ${intendedStaticIp} applied`
+              : `⚠ wanted ${intendedStaticIp} but it's on ${d.ip} (static IP didn't take — still reachable here)`,
+          ),
+        );
+      }
 
       const verify = el("button", "btn-ghost watch-verify", "Verify over SSH") as HTMLButtonElement;
       verify.type = "button";

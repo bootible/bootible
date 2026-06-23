@@ -205,6 +205,34 @@ describe("allyCatalog", () => {
     expect(keyWrite?.join(" ")).toContain("ssh-rsa AAAAkey2 b@y");
   });
 
+  it("static-ip skips without config, and sets New-NetIPAddress when given", () => {
+    const mod = allyCatalog.find((m) => m.id === "static-ip");
+    expect(mod).toBeDefined();
+    expect(mod?.apply({ device, config: { schema: 2, device: "rog-ally" } }, () => "").status).toBe(
+      "skipped",
+    );
+    const calls: string[][] = [];
+    const result = mod?.apply(
+      {
+        device,
+        config: {
+          schema: 2,
+          device: "rog-ally",
+          settings: { static_ip: { ip: "10.90.101.50", prefix: 24, gateway: "10.90.101.1" } },
+        },
+      },
+      (cmd) => {
+        calls.push(cmd);
+        return "";
+      },
+    );
+    expect(result?.status).toBe("applied");
+    const ps = calls.find((c) => c[0] === "powershell")?.join(" ") ?? "";
+    expect(ps).toContain("New-NetIPAddress");
+    expect(ps).toContain("10.90.101.50");
+    expect(ps).toContain("10.90.101.1");
+  });
+
   it("applies display/GPU tweaks via reg add", () => {
     const display = allyCatalog.find((m) => m.id === "display");
     expect(display).toBeDefined();

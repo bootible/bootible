@@ -1384,6 +1384,20 @@ body[data-view="account"] .summary::before {
   color: #39d98a;
 }
 
+.watch-reconcile {
+  margin-top: 8px;
+  font-family: "Space Mono", monospace;
+  font-size: 12.5px;
+}
+
+.watch-reconcile.ok {
+  color: #39d98a;
+}
+
+.watch-reconcile.warn {
+  color: var(--amber);
+}
+
 .method-card:hover {
   border-color: #3a3f48;
   transform: translateY(-1px);

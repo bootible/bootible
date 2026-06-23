@@ -419,6 +419,10 @@
                 <input class="field-input" id="acct-pass" type="password" placeholder="leave blank for none" autocomplete="off" />
               </div>
               <div class="field">
+                <label class="field-label" for="static-ip">Static IP <span class="muted">(optional — always reachable at one address)</span></label>
+                <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="field">
                 <label class="field-label">SSH access <span class="muted">(optional)</span></label>
                 <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
                 <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>

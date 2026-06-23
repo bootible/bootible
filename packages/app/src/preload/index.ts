@@ -21,6 +21,8 @@ export interface UsbBuildRequest {
   sshPublicKeys?: string[];
   /** Device hostname — computer name, .local name, and SSH alias. */
   hostname?: string;
+  /** Optional fixed IP for the device. */
+  staticIp?: { ip: string; prefix?: number; gateway?: string; dns?: string };
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
@@ -123,6 +125,8 @@ const api = {
   stopDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:stop"),
   verifyDevice: (ip: string): Promise<{ reachable: boolean; output: string; alias?: string }> =>
     ipcRenderer.invoke("device:verify", ip),
+  suggestNetwork: (): Promise<{ prefix: number; gateway: string; subnet: string } | null> =>
+    ipcRenderer.invoke("network:suggest"),
   onBeaconDevice: (cb: (device: DiscoveredDevice) => void): void => {
     ipcRenderer.on("beacon:device", (_e, device: DiscoveredDevice) => cb(device));
   },

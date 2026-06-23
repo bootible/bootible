@@ -10,7 +10,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import {
   type AccountMode,
@@ -322,6 +322,8 @@ export interface UsbBuildRequest {
   sshPublicKeys?: string[];
   /** Device hostname — sets the computer name, the .local name, and the SSH alias. */
   hostname?: string;
+  /** Optional fixed IP so the device is always reachable at the same address. */
+  staticIp?: StaticIp;
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -499,8 +501,37 @@ function stopDiscovery(): void {
   }
 }
 
+export interface StaticIp {
+  ip: string;
+  prefix?: number;
+  gateway?: string;
+  dns?: string;
+}
+
+/** This desktop's subnet, to pre-fill a sensible static IP for the device:
+ *  prefix + gateway guess + the subnet prefix to type a host into. */
+function suggestNetwork(): { prefix: number; gateway: string; subnet: string } | null {
+  for (const list of Object.values(networkInterfaces())) {
+    for (const ni of list ?? []) {
+      if (ni.family === "IPv4" && !ni.internal && !ni.address.startsWith("169.254.")) {
+        const prefix = ni.netmask
+          .split(".")
+          .reduce((n, oct) => n + ((Number(oct) >>> 0).toString(2).match(/1/g)?.length ?? 0), 0);
+        const [a, b, c] = ni.address.split(".");
+        return { prefix, gateway: `${a}.${b}.${c}.1`, subnet: `${a}.${b}.${c}.` };
+      }
+    }
+  }
+  return null;
+}
+
 /** The base + modifier choices that resolve to a final module set. */
-type BuildChoice = { modules: string[]; baseId?: string; sshPublicKeys?: string[] };
+type BuildChoice = {
+  modules: string[];
+  baseId?: string;
+  sshPublicKeys?: string[];
+  staticIp?: StaticIp;
+};
 
 /** The non-empty, trimmed SSH public keys from a build choice. */
 function chosenKeys(req: BuildChoice): string[] {
@@ -515,15 +546,17 @@ function resolveModules(req: BuildChoice): string[] {
   const ids = new Set<string>(base ? baseModuleIds(base) : []);
   for (const id of req.modules) ids.add(id);
   if (chosenKeys(req).length > 0) ids.add("ssh-key");
+  if (req.staticIp?.ip) ids.add("static-ip");
   return [...ids];
 }
 
-/** The settings bag, with the SSH public keys folded in when provided. */
+/** The settings bag, with the SSH keys and static IP folded in when provided. */
 function buildSettings(req: BuildChoice): Record<string, unknown> {
+  const settings: Record<string, unknown> = { ...RECOMMENDED_SETTINGS };
   const keys = chosenKeys(req);
-  return keys.length > 0
-    ? { ...RECOMMENDED_SETTINGS, ssh_public_keys: keys }
-    : RECOMMENDED_SETTINGS;
+  if (keys.length > 0) settings.ssh_public_keys = keys;
+  if (req.staticIp?.ip) settings.static_ip = req.staticIp;
+  return settings;
 }
 
 /** Assemble the USB bundle (autounattend + bootstrap + config + wifi) into a
@@ -922,6 +955,7 @@ app.whenReady().then(() => {
   ipcMain.handle("discovery:start", (event) => startDiscovery(event.sender));
   ipcMain.handle("discovery:stop", () => stopDiscovery());
   ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
+  ipcMain.handle("network:suggest", () => suggestNetwork());
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, req: BuildChoice) => {
