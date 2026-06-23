@@ -119,6 +119,8 @@ const api = {
     ipcRenderer.invoke("ssh:generate-key", comment),
   startDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:start"),
   stopDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:stop"),
+  verifyDevice: (ip: string): Promise<{ reachable: boolean; output: string }> =>
+    ipcRenderer.invoke("device:verify", ip),
   onBeaconDevice: (cb: (device: DiscoveredDevice) => void): void => {
     ipcRenderer.on("beacon:device", (_e, device: DiscoveredDevice) => cb(device));
   },

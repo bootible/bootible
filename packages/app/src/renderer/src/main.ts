@@ -152,6 +152,7 @@ interface BootibleApi {
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
   onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
+  verifyDevice(ip: string): Promise<{ reachable: boolean; output: string }>;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -1178,6 +1179,8 @@ window.bootible?.onUsbProgress?.(onUsbProgress);
 
 // ── device discovery (watch screen) ─────────────────────────────────────────
 const discovered = new Map<string, DiscoveredDevice>();
+// Verify results survive the 5s beacon re-renders, keyed by device IP.
+const verifyResults = new Map<string, { reachable: boolean; output: string }>();
 
 /** Render the discovered devices, the build we just made first. */
 function renderDiscovered(): void {
@@ -1204,6 +1207,22 @@ function renderDiscovered(): void {
       );
       const detail = [d.ip, d.mine ? "this is your build" : ""].filter(Boolean).join(" · ");
       card.append(head, el("div", "watch-meta muted", detail));
+
+      const verify = el("button", "btn-ghost watch-verify", "Verify over SSH") as HTMLButtonElement;
+      verify.type = "button";
+      verify.dataset.verifyIp = d.ip;
+      card.append(verify);
+
+      const result = verifyResults.get(d.ip);
+      if (result) {
+        card.append(
+          el(
+            "pre",
+            `watch-result ${result.reachable ? "ok" : "fail"}`,
+            result.reachable ? result.output : `Couldn't reach it: ${result.output}`,
+          ),
+        );
+      }
       return card;
     }),
   );
@@ -1212,6 +1231,24 @@ function renderDiscovered(): void {
 window.bootible?.onBeaconDevice?.((d) => {
   discovered.set(d.buildId || d.mac, d);
   renderDiscovered();
+});
+
+// Verify a discovered device over SSH (key auth, no prompts).
+document.addEventListener("click", (event) => {
+  const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(".watch-verify");
+  if (!btn) return;
+  const ip = btn.dataset.verifyIp ?? "";
+  if (!ip) return;
+  btn.textContent = "Checking…";
+  btn.disabled = true;
+  void (async () => {
+    const result = (await window.bootible?.verifyDevice?.(ip)) ?? {
+      reachable: false,
+      output: "no bridge",
+    };
+    verifyResults.set(ip, result);
+    renderDiscovered();
+  })();
 });
 
 // Writer-screen interactions (ISO source, disk pick, confirm, write).

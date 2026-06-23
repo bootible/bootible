@@ -332,6 +332,56 @@ export interface UsbBuildRequest {
 /** The build token baked into the most recent USB; matched against beacons so we
  *  know which discovered device is the one we just built. */
 let lastBuildId = "";
+/** Remembered from the last build so Verify can SSH in with no prompts: the local
+ *  account name and the private key matching a chosen public key. */
+let lastBuildUsername = "";
+let lastBuildIdentity = "";
+
+/** The private-key path on this machine matching one of the chosen public keys
+ *  (so Verify can authenticate), or "" to let ssh use its default identities. */
+function identityForKeys(keys: string[]): string {
+  if (keys.length === 0) return "";
+  const hostKeys = getHostSshKeys();
+  for (const k of keys) {
+    const match = hostKeys.find((h) => h.publicKey.trim() === k.trim());
+    if (match?.id.endsWith(".pub")) {
+      const priv = join(sshDir(), match.id.slice(0, -4));
+      if (existsSync(priv)) return priv;
+    }
+  }
+  return "";
+}
+
+/** Verify a discovered device over SSH (key auth, no prompts): read its status
+ *  + receipt to confirm the configure ran. Returns the raw output, or the error
+ *  if unreachable. */
+function verifyDevice(ip: string): { reachable: boolean; output: string } {
+  const target = `${lastBuildUsername || "ally"}@${ip}`;
+  // cmd-friendly remote command — no nested quoting through ssh -> cmd.
+  const remote =
+    "type C:\\bootible\\status.txt 2>nul & echo. & type C:\\bootible\\receipt.txt 2>nul";
+  const args = [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+    "-o",
+    "ConnectTimeout=8",
+    ...(lastBuildIdentity ? ["-i", lastBuildIdentity, "-o", "IdentitiesOnly=yes"] : []),
+    target,
+    remote,
+  ];
+  try {
+    const output = execFileSync("ssh", args, { encoding: "utf8", timeout: 20000 });
+    return { reachable: true, output: output.trim() };
+  } catch (error) {
+    const e = error as { stdout?: Buffer | string; stderr?: Buffer | string; message?: string };
+    return {
+      reachable: false,
+      output: String(e.stderr ?? e.stdout ?? e.message ?? "connection failed").trim(),
+    };
+  }
+}
 
 // ── device discovery (the beacon listener) ───────────────────────────────────
 
@@ -445,6 +495,9 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
   // A fresh build token, baked into the beacon, so the desktop recognises the
   // exact device it built when it announces itself on the LAN.
   lastBuildId = randomBytes(6).toString("hex");
+  // Remember how to SSH in for Verify (local account name + matching private key).
+  lastBuildUsername = account.mode === "local" ? account.username || "ally" : "";
+  lastBuildIdentity = identityForKeys(chosenKeys(req));
   const spec: UsbBuildSpec = {
     device,
     config,
@@ -809,6 +862,7 @@ app.whenReady().then(() => {
   ipcMain.handle("ssh:generate-key", (_event, comment: string) => generateHostSshKey(comment));
   ipcMain.handle("discovery:start", (event) => startDiscovery(event.sender));
   ipcMain.handle("discovery:stop", () => stopDiscovery());
+  ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, req: BuildChoice) => {

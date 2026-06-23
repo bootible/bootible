@@ -1350,6 +1350,33 @@ body[data-view="account"] .summary::before {
   margin-top: 6px;
 }
 
+.watch-verify {
+  margin-top: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  width: auto;
+}
+
+.watch-result {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border-left: 3px solid var(--dim);
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.watch-result.ok {
+  border-left-color: #39d98a;
+}
+
+.watch-result.fail {
+  border-left-color: #e5564a;
+}
+
 .method-card:hover {
   border-color: #3a3f48;
   transform: translateY(-1px);
