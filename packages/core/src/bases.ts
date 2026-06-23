@@ -48,24 +48,17 @@ export const BASES: Base[] = [
     shell: "steam-bigpicture",
     software: ["steam"],
     tag: "steam",
-  },
-  {
-    id: "xbox",
-    label: "Clean Xbox handheld",
-    description:
-      "Boots into the Xbox console-style full-screen experience, with the hardware fully working — but none of the ASUS software/bloat.",
-    shell: "xbox-fullscreen",
-    software: [],
-    tag: "recommended",
     recommended: true,
   },
   {
     id: "full-rog",
     label: "Full ROG, stripped",
     description:
-      "The factory feel — Armoury Crate plus the Xbox shell — but debloated and tuned by bootible, so it's the OG experience better than stock.",
-    shell: "xbox-fullscreen",
-    software: ["armoury-crate"],
+      "The genuine factory experience (Armoury Crate SE + the ROG stack), debloated and tuned by bootible. NOT a clean install — you restore the factory image (ASUS Cloud Recovery), then bootible runs a strip/tune script on top.",
+    // Restore-then-strip flow, not a clean-install base: the factory image brings
+    // its own shell + Armoury Crate; bootible only strips + tunes on top.
+    shell: null,
+    software: [],
     tag: "factory",
   },
 ];
