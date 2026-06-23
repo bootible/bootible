@@ -118,6 +118,25 @@ The user may set a static IP at build time (bootible pre-fills mask/gateway/DNS 
 
 This is the general pattern: the beacon reports *actual* state, bootible reconciles against *intended* state. For now it reconciles IP; the same channel could verify more later. **❓ Decide:** IP-conflict avoidance (suggest an address outside the DHCP pool) is best-effort — the beacon + reconcile is the real safety net, so we can keep the picker simple and let the loop catch problems.
 
+### 3.8 Remote access — three clearly-labelled options
+Once the device is reachable (§3.6), *how* you get in is the user's choice. The discovery / alias / static-IP plumbing serves all three; they differ only in what's installed and the edition.
+
+| Method | Gives you | Edition | Reach |
+|--------|-----------|---------|-------|
+| **SSH** | Terminal | any | `ssh <hostname>` (always set up) |
+| **Remote Desktop (RDP)** | Full Windows GUI | **Pro only** | `mstsc <hostname>` — an *enable Remote Desktop* toggle that **appears only when the user picked Pro** (edition picker; Home default) |
+| **Streaming (Sunshine ↔ Moonlight)** | Live screen + controller/KB/mouse | any (incl. Home) | bidirectional — see below |
+
+**Streaming pair — install both on both, label them by role.** Sunshine and Moonlight are two halves of one link, and which box is which depends on direction. To keep it flexible *and* avoid making newcomers reason about it, bootible offers **both apps on the ROG** *and* **both apps on the host** (the desktop it runs on — it winget-installs locally, check-then-install). Either direction then works with no reconfig:
+- **Play your PC games on the handheld:** host = **Sunshine (server)**, handheld = **Moonlight (client)**.
+- **See/control the handheld from your desk:** handheld = **Sunshine (server)**, desk = **Moonlight (client)** — the GUI-on-Home answer when RDP isn't available.
+
+**Labelling is a build requirement, not a nicety.** Everywhere these appear:
+- **Sunshine — streaming *server*** (shares *this* machine's screen).
+- **Moonlight — streaming *client*** (view *another* machine here).
+
+This extends the device `streaming` module (currently Moonlight + Chiaki) to also install **Sunshine** on the ROG, and adds a **host-side install** step (Sunshine + Moonlight on the desktop, check-then-install) — the same host-integration pattern as the SSH key-picker (§3.1).
+
 ---
 
 ## 4. Cross-network fallbacks (opt-in, nobody required to have them)
@@ -160,6 +179,7 @@ Beacon-first; these are upgrades, never prerequisites.
 4. **Verify step** — SSH in, run checks, report.
 5. **SSH config alias writer** — keyed on the user-set **hostname**; the `ssh <name>` payoff. (Hostname build-field rides along here — it sets `<ComputerName>` and the alias.)
 6. **Optional static IP, beacon-confirmed** — the build field, first-logon apply, and the beacon-reconcile/self-heal loop (§3.7).
-7. **(Later)** cross-network fallbacks (Tailscale join; bootible.dev phone-home when the backend exists).
+7. **Remote-access methods** (§3.8) — edition picker (Home default / Pro); RDP enable-toggle gated on Pro; extend the device `streaming` module to add Sunshine; host-side install of Sunshine + Moonlight (check-then-install); server/client labelling throughout.
+8. **(Later)** cross-network fallbacks (Tailscale join; bootible.dev phone-home when the backend exists).
 
-Steps 1–2 stand alone and improve the current build immediately. 3–5 are the discovery+verify loop (with the hostname). 6 layers static-IP on top. 7 is opt-in reach.
+Steps 1–2 stand alone and improve the current build immediately. 3–5 are the discovery+verify loop (with the hostname). 6 layers static-IP on top. 7 is the choose-how-you-reach-it layer. 8 is opt-in reach.
