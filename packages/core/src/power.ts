@@ -22,12 +22,19 @@ export function getPowerConfigCommands(opts: PowerOptions): string[][] {
 
   if (opts.sleepMode === "hibernate") {
     commands.push(["/hibernate", "on"]);
+    // Plugged in (AC): never sleep OR hibernate, so downloads, installs and
+    // Windows Update aren't interrupted while charging. The unattended-sleep
+    // timeout (which fires during background activity with no user present) is
+    // zeroed too — it's the usual cause of "it slept mid-download".
     commands.push(["/change", "standby-timeout-ac", "0"]);
+    commands.push(["/change", "hibernate-timeout-ac", "0"]);
+    commands.push(["/setacvalueindex", "SCHEME_CURRENT", "SUB_SLEEP", "UNATTENDSLEEP", "0"]);
+    needsActivate = true;
+    // On battery (DC): never sleep, but hibernate after the idle time so it
+    // doesn't drain in your bag.
     commands.push(["/change", "standby-timeout-dc", "0"]);
     if (opts.hibernateAfterMinutes && opts.hibernateAfterMinutes > 0) {
-      const n = String(opts.hibernateAfterMinutes);
-      commands.push(["/change", "hibernate-timeout-ac", n]);
-      commands.push(["/change", "hibernate-timeout-dc", n]);
+      commands.push(["/change", "hibernate-timeout-dc", String(opts.hibernateAfterMinutes)]);
     }
   }
 
