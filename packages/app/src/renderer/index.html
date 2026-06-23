@@ -425,10 +425,14 @@
               <div class="field">
                 <label class="field-label">Windows edition</label>
                 <div class="edition-pick">
-                  <label class="edition-opt"><input type="radio" name="edition" id="edition-home" checked /> Home</label>
-                  <label class="edition-opt"><input type="radio" name="edition" id="edition-pro" /> Pro <span class="muted">(unlocks Remote Desktop)</span></label>
+                  <label class="edition-opt"><input type="radio" name="edition" id="edition-home" checked /><span>Home</span></label>
+                  <label class="edition-opt"><input type="radio" name="edition" id="edition-pro" /><span>Pro</span></label>
                 </div>
-                <label class="rdp-toggle" id="rdp-toggle" hidden><input type="checkbox" id="enable-rdp" /> Enable Remote Desktop — <code>mstsc</code> into the device</label>
+                <p class="remote-note" id="remote-note"></p>
+                <label class="rdp-toggle" id="rdp-toggle" hidden>
+                  <input type="checkbox" id="enable-rdp" />
+                  <span>Enable Microsoft Remote Desktop (mstsc into the device)</span>
+                </label>
               </div>
               <div class="field">
                 <label class="field-label">SSH access <span class="muted">(optional)</span></label>

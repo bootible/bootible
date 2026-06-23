@@ -472,6 +472,19 @@ function renderSshKeys(): void {
   );
 }
 
+/** Spell out the remote-access options for the chosen edition, and show the RDP
+ *  toggle only on Pro (Home can't host RDP). */
+function updateRemoteNote(): void {
+  const pro = document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
+  const note = document.querySelector<HTMLElement>("#remote-note");
+  if (note) {
+    note.textContent = pro
+      ? "Reach it three ways: SSH (terminal), Sunshine + Moonlight (screen streaming), and Microsoft Remote Desktop (mstsc). Pro is what unlocks RDP."
+      : "Reach it two ways on Home: SSH (terminal) and Sunshine + Moonlight (screen streaming) — both work on any edition. Microsoft Remote Desktop (RDP) needs Pro.";
+  }
+  document.querySelector("#rdp-toggle")?.toggleAttribute("hidden", !pro);
+}
+
 /** Fetch the host's SSH public keys and pre-select them all the first time. */
 async function hydrateSshKeys(): Promise<void> {
   const api = window.bootible;
@@ -486,6 +499,7 @@ async function hydrateSshKeys(): Promise<void> {
     sshHydrated = true;
   }
   renderSshKeys();
+  updateRemoteNote();
   // Pre-fill the static IP hint from this PC's subnet (so the user types one host).
   if (!netSuggestion && api.suggestNetwork) {
     try {
@@ -1346,11 +1360,7 @@ document.addEventListener("change", (event) => {
     if (target.checked) selectedKeyIds.add(target.dataset.keyId);
     else selectedKeyIds.delete(target.dataset.keyId);
   }
-  if (target.id === "edition-home" || target.id === "edition-pro") {
-    // RDP host only works on Pro — show the toggle only then.
-    const pro = document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
-    document.querySelector("#rdp-toggle")?.toggleAttribute("hidden", !pro);
-  }
+  if (target.id === "edition-home" || target.id === "edition-pro") updateRemoteNote();
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
 });
 

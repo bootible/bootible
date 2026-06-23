@@ -1400,31 +1400,45 @@ body[data-view="account"] .summary::before {
 
 .edition-pick {
   display: flex;
-  gap: 18px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .edition-opt {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
   font-size: 15px;
+  cursor: pointer;
 }
 
 .edition-opt input {
   accent-color: var(--amber);
 }
 
+.remote-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dim);
+  margin: 0 0 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+
 .rdp-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   font-size: 14px;
-  color: var(--mut, #9aa0a8);
+  cursor: pointer;
 }
 
 .rdp-toggle input {
   accent-color: var(--amber);
+  flex: 0 0 auto;
 }
 
 .watch-host {
