@@ -1,4 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { createSocket, type Socket } from "node:dgram";
 import {
   copyFileSync,
   existsSync,
@@ -14,6 +16,7 @@ import {
   type AccountMode,
   BASES,
   type Base,
+  BEACON_PORT,
   type Bundle,
   baseById,
   baseModuleIds,
@@ -326,6 +329,70 @@ export interface UsbBuildRequest {
   regionId?: string;
 }
 
+/** The build token baked into the most recent USB; matched against beacons so we
+ *  know which discovered device is the one we just built. */
+let lastBuildId = "";
+
+// ── device discovery (the beacon listener) ───────────────────────────────────
+
+export interface DiscoveredDevice {
+  buildId: string;
+  mac: string;
+  ip: string;
+  hostname: string;
+  status: string;
+  /** True when this is the device built by the most recent USB. */
+  mine: boolean;
+}
+
+let beaconSocket: Socket | null = null;
+
+/** Listen for device beacons on the LAN and stream each to the renderer. The
+ *  device broadcasts {bootible, buildId, mac, ip, hostname, status}; we match
+ *  buildId against the last build to flag "mine". */
+function startDiscovery(sender: WebContents): void {
+  if (beaconSocket) return;
+  try {
+    const sock = createSocket({ type: "udp4", reuseAddr: true });
+    sock.on("message", (buf) => {
+      try {
+        const msg = JSON.parse(buf.toString("utf8")) as Record<string, unknown>;
+        if (msg.bootible !== 1) return;
+        const device: DiscoveredDevice = {
+          buildId: String(msg.buildId ?? ""),
+          mac: String(msg.mac ?? ""),
+          ip: String(msg.ip ?? ""),
+          hostname: String(msg.hostname ?? ""),
+          status: String(msg.status ?? ""),
+          mine: lastBuildId !== "" && msg.buildId === lastBuildId,
+        };
+        if (!sender.isDestroyed()) sender.send("beacon:device", device);
+      } catch {
+        // ignore non-JSON / unrelated UDP traffic
+      }
+    });
+    sock.on("error", () => {
+      try {
+        sock.close();
+      } catch {}
+      beaconSocket = null;
+    });
+    sock.bind(BEACON_PORT);
+    beaconSocket = sock;
+  } catch {
+    beaconSocket = null;
+  }
+}
+
+function stopDiscovery(): void {
+  if (beaconSocket) {
+    try {
+      beaconSocket.close();
+    } catch {}
+    beaconSocket = null;
+  }
+}
+
 /** The base + modifier choices that resolve to a final module set. */
 type BuildChoice = { modules: string[]; baseId?: string; sshPublicKeys?: string[] };
 
@@ -375,6 +442,9 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
   // language prompt). Region/keyboard is an independent choice (default NZ).
   const isoOption = ISO_CATALOG.find((o) => o.id === req.isoId);
   const region = keyboardRegionById(req.regionId) ?? defaultKeyboardRegion();
+  // A fresh build token, baked into the beacon, so the desktop recognises the
+  // exact device it built when it announces itself on the LAN.
+  lastBuildId = randomBytes(6).toString("hex");
   const spec: UsbBuildSpec = {
     device,
     config,
@@ -382,6 +452,7 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
     wifi: req.wifi,
     uiLanguage: isoOption?.uiLanguage,
     locale: region.locale,
+    buildId: lastBuildId,
   };
 
   const stagingPath = join(app.getPath("temp"), "bootible-usb-bundle");
@@ -736,6 +807,8 @@ app.whenReady().then(() => {
   ipcMain.handle("bases:get", () => getBases());
   ipcMain.handle("ssh:host-keys", () => getHostSshKeys());
   ipcMain.handle("ssh:generate-key", (_event, comment: string) => generateHostSshKey(comment));
+  ipcMain.handle("discovery:start", (event) => startDiscovery(event.sender));
+  ipcMain.handle("discovery:stop", () => stopDiscovery());
   ipcMain.handle("methods:get", () => getMethods());
   ipcMain.handle("provision:run", (event) => provision(event.sender));
   ipcMain.handle("config:export", (event, req: BuildChoice) => {

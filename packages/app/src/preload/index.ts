@@ -42,6 +42,15 @@ export interface HostSshKey {
   publicKey: string;
 }
 
+export interface DiscoveredDevice {
+  buildId: string;
+  mac: string;
+  ip: string;
+  hostname: string;
+  status: string;
+  mine: boolean;
+}
+
 export interface LanguageOption {
   id: string;
   label: string;
@@ -108,6 +117,11 @@ const api = {
   getHostSshKeys: (): Promise<HostSshKey[]> => ipcRenderer.invoke("ssh:host-keys"),
   generateHostSshKey: (comment: string): Promise<HostSshKey | null> =>
     ipcRenderer.invoke("ssh:generate-key", comment),
+  startDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:start"),
+  stopDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:stop"),
+  onBeaconDevice: (cb: (device: DiscoveredDevice) => void): void => {
+    ipcRenderer.on("beacon:device", (_e, device: DiscoveredDevice) => cb(device));
+  },
   getState: (): Promise<ModuleStateReport[]> => ipcRenderer.invoke("device:state"),
   getMethods: (): Promise<ProvisioningMethod[]> => ipcRenderer.invoke("methods:get"),
   provision: (): Promise<ProvisionResult> => ipcRenderer.invoke("provision:run"),

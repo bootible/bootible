@@ -71,6 +71,15 @@ interface HostSshKey {
   publicKey: string;
 }
 
+interface DiscoveredDevice {
+  buildId: string;
+  mac: string;
+  ip: string;
+  hostname: string;
+  status: string;
+  mine: boolean;
+}
+
 interface ModuleStateReport {
   id: string;
   name: string;
@@ -140,6 +149,9 @@ interface BootibleApi {
   getBases(): Promise<BaseOption[]>;
   getHostSshKeys(): Promise<HostSshKey[]>;
   generateHostSshKey(comment: string): Promise<HostSshKey | null>;
+  startDiscovery(): Promise<void>;
+  stopDiscovery(): Promise<void>;
+  onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
   getLanguages(): Promise<LanguageOption[]>;
   getRegions(): Promise<RegionOption[]>;
   getCatalog(): Promise<GroupSummary[]>;
@@ -182,6 +194,7 @@ const VIEWS = [
   "wifi",
   "review",
   "usbwrite",
+  "watch",
   "connect",
   "provision",
   "done",
@@ -225,6 +238,10 @@ function syncFromHash(): void {
     renderReviewPlan();
   }
   if (view === "usbwrite") void hydrateUsbWrite();
+  if (view === "watch") {
+    void window.bootible?.startDiscovery?.();
+    renderDiscovered();
+  }
   if (view === "provision") startProvision();
 }
 
@@ -1153,9 +1170,49 @@ function onUsbProgress(event: UsbProgress): void {
           ? "Done — boot the Ally from the stick."
           : `${event.pct}% — keep the app open.`;
   }
+  // Once the stick is written, move to watching the network for the device.
+  if (event.status === "done") setTimeout(() => (location.hash = "watch"), 1200);
 }
 
 window.bootible?.onUsbProgress?.(onUsbProgress);
+
+// ── device discovery (watch screen) ─────────────────────────────────────────
+const discovered = new Map<string, DiscoveredDevice>();
+
+/** Render the discovered devices, the build we just made first. */
+function renderDiscovered(): void {
+  const list = document.querySelector<HTMLElement>(".watch-list");
+  if (!list) return;
+  const devices = [...discovered.values()].sort((a, b) => Number(b.mine) - Number(a.mine));
+  if (devices.length === 0) {
+    list.replaceChildren(
+      el(
+        "p",
+        "muted",
+        "Listening on the network — boot your device from the USB and it'll appear here.",
+      ),
+    );
+    return;
+  }
+  list.replaceChildren(
+    ...devices.map((d) => {
+      const card = el("div", `watch-card${d.mine ? " is-mine" : ""}`);
+      const head = el("div", "watch-head");
+      head.append(
+        el("span", "watch-name", d.hostname || d.mac || "device"),
+        el("span", `watch-status status-${d.status}`, d.status),
+      );
+      const detail = [d.ip, d.mine ? "this is your build" : ""].filter(Boolean).join(" · ");
+      card.append(head, el("div", "watch-meta muted", detail));
+      return card;
+    }),
+  );
+}
+
+window.bootible?.onBeaconDevice?.((d) => {
+  discovered.set(d.buildId || d.mac, d);
+  renderDiscovered();
+});
 
 // Writer-screen interactions (ISO source, disk pick, confirm, write).
 document.addEventListener("change", (event) => {

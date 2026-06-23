@@ -89,6 +89,10 @@ body[data-view="base"] .view[data-view="base"] {
   display: flex;
 }
 
+body[data-view="watch"] .view[data-view="watch"] {
+  display: flex;
+}
+
 body[data-view="bundles"] .view[data-view="bundles"] {
   display: flex;
 }
@@ -1288,6 +1292,62 @@ body[data-view="account"] .summary::before {
 .ssh-paste {
   font-family: "Space Mono", monospace;
   font-size: 12px;
+}
+
+/* ───────────────────── watch / discovery ───────────────────── */
+.watch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  margin-top: 16px;
+}
+
+.watch-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.watch-card.is-mine {
+  border-color: rgba(246, 166, 35, 0.55);
+  box-shadow: 0 0 0 1px rgba(246, 166, 35, 0.25);
+}
+
+.watch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.watch-name {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.watch-status {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--dim);
+}
+
+.watch-status.status-done {
+  background: rgba(57, 217, 138, 0.16);
+  color: #39d98a;
+}
+
+.watch-meta {
+  font-family: "Space Mono", monospace;
+  font-size: 13px;
+  margin-top: 6px;
 }
 
 .method-card:hover {
