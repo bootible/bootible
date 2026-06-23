@@ -10,11 +10,17 @@ export interface AppEntry {
   /** Stable slug used in config (settings.selected_apps). */
   id: string;
   name: string;
-  /** winget package id installed on the device. */
-  wingetId: string;
+  /** winget package id installed on the device. Omitted for entries that are
+   *  driven by a bootible module instead (e.g. EmuDeck — see `module`). */
+  wingetId?: string;
+  /** A bootible module id this entry enables instead of a winget install (for
+   *  managers like EmuDeck that aren't a single package). */
+  module?: string;
   /** Install source — omit for the default winget source; "msstore" for
    *  Microsoft Store-only apps (product-id installs). */
   source?: "msstore";
+  /** Short note shown under the entry. */
+  desc?: string;
   /** On by default when its group is enabled (the v1 recommended set). */
   recommended?: boolean;
 }
@@ -134,7 +140,24 @@ export const APP_GROUPS: AppGroup[] = [
     id: "emulators",
     label: "Emulators",
     apps: [
-      { id: "retroarch", name: "RetroArch", wingetId: "Libretro.RetroArch" },
+      {
+        id: "emudeck",
+        name: "EmuDeck",
+        module: "emudeck",
+        desc: "Manager — sets up emulators, cores & folders for you",
+      },
+      {
+        id: "retroarch",
+        name: "RetroArch",
+        wingetId: "Libretro.RetroArch",
+        desc: "Multi-system frontend + cores",
+      },
+      {
+        id: "esde",
+        name: "ES-DE",
+        wingetId: "ES-DE.EmulationStation-DE",
+        desc: "EmulationStation frontend",
+      },
       { id: "dolphin", name: "Dolphin (GameCube / Wii)", wingetId: "DolphinEmulator.Dolphin" },
       { id: "pcsx2", name: "PCSX2 (PS2)", wingetId: "PCSX2Team.PCSX2" },
       { id: "ppsspp", name: "PPSSPP (PSP)", wingetId: "PPSSPPTeam.PPSSPP" },
@@ -143,7 +166,7 @@ export const APP_GROUPS: AppGroup[] = [
       { id: "mgba", name: "mGBA (Game Boy Advance)", wingetId: "JeffreyPfau.mGBA" },
       { id: "melonds", name: "melonDS (Nintendo DS)", wingetId: "melonDS.melonDS" },
     ],
-    note: "Emulators only — bring your own legally-owned, first-party game backups.",
+    note: "Emulators only — bring your own legally-owned, first-party backups. (RetroDeck is Linux-only, no Windows build.)",
   },
   {
     id: "dev",
@@ -192,23 +215,26 @@ export function appWingetIds(selected: string[]): string[] {
 /** Install command arrays for the selected app slugs — default winget source, or
  *  `--source msstore` for Store-only apps. */
 export function getSelectedAppCommands(selected: string[]): string[][] {
-  return selected
-    .map((id) => BY_ID.get(id))
-    .filter((a): a is AppEntry => Boolean(a))
-    .map((a) =>
-      a.source === "msstore"
-        ? [
-            "winget",
-            "install",
-            "--id",
-            a.wingetId,
-            "--source",
-            "msstore",
-            "--accept-source-agreements",
-            "--accept-package-agreements",
-            "--silent",
-          ]
-        : (getWingetInstallCommands([a.wingetId])[0] ?? []),
-    )
-    .filter((c) => c.length > 0);
+  const cmds: string[][] = [];
+  for (const slug of selected) {
+    const a = BY_ID.get(slug);
+    if (!a?.wingetId) continue; // unknown, or a module-driven entry (e.g. EmuDeck)
+    if (a.source === "msstore") {
+      cmds.push([
+        "winget",
+        "install",
+        "--id",
+        a.wingetId,
+        "--source",
+        "msstore",
+        "--accept-source-agreements",
+        "--accept-package-agreements",
+        "--silent",
+      ]);
+    } else {
+      const c = getWingetInstallCommands([a.wingetId])[0];
+      if (c) cmds.push(c);
+    }
+  }
+  return cmds;
 }

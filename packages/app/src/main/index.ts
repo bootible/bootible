@@ -169,9 +169,10 @@ interface PlanModule {
   changes?: string;
 }
 
-/** Optional, non-account modules the review/customise screen lets you add on top
- *  of a base. (Most software now lives in the app-picker; `apps` is its row.) */
-const CUSTOMISE_EXTRAS = ["apps", "emudeck"];
+/** Optional plain-toggle extras on the review/customise screen. (Apps and
+ *  Emulators are their own picker rows, handled in the renderer; EmuDeck lives
+ *  inside the Emulators picker.) */
+const CUSTOMISE_EXTRAS: string[] = [];
 
 /** The review/customise plan for a base: the always-on floor, what the base
  *  adds, and the optional extras — each with display info from the catalog. */
@@ -667,6 +668,8 @@ function resolveModules(req: BuildChoice): string[] {
   }
   if (req.wallpaperPath) ids.add("wallpaper");
   if (req.lockscreenPath) ids.add("lockscreen");
+  // Apps + emulators picked in the pickers install via the `apps` module.
+  if (req.selectedApps?.length) ids.add("apps");
   return [...ids];
 }
 

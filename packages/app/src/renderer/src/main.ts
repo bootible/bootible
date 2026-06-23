@@ -96,7 +96,10 @@ interface BasePlan {
 interface AppEntry {
   id: string;
   name: string;
-  wingetId: string;
+  wingetId?: string;
+  module?: string;
+  source?: "msstore";
+  desc?: string;
   recommended?: boolean;
 }
 
@@ -544,22 +547,49 @@ function renderCustomise(): void {
       ),
     );
   }
-  secs.push(
-    section(
-      "Add extras",
-      basePlan.extras.length,
-      basePlan.extras.map((m) => customiseRow(m, "extra")),
+  const extraRows = basePlan.extras.map((m) => customiseRow(m, "extra"));
+  const counts = pickCounts();
+  extraRows.push(
+    pickerRow("Apps", "Browsers, comms, launchers, dev tools, VPNs & more.", counts.apps, "apps"),
+    pickerRow(
+      "Emulators",
+      "EmuDeck, RetroArch and per-system emulators.",
+      counts.emulators,
+      "emulators",
     ),
   );
+  secs.push(section("Add extras", basePlan.extras.length + 2, extraRows));
   host.replaceChildren(...secs);
   // Running summary.
   const floorOn = basePlan.floor.filter((m) => !disabledModules.has(m.id)).length;
   const baseOn = basePlan.base.filter((m) => !disabledModules.has(m.id)).length;
-  const extrasOn = enabledExtras.size;
+  const extrasOn = enabledExtras.size + selectedApps.size;
   const sum = document.querySelector("#customise-summary");
   if (sum) {
     sum.textContent = `${floorOn + baseOn + extrasOn} things will run · ${floorOn} core · ${baseOn} base · ${extrasOn} extras`;
   }
+}
+
+/** A Review row that opens a picker (Apps / Emulators), showing the live count. */
+function pickerRow(
+  label: string,
+  desc: string,
+  count: number,
+  mode: "apps" | "emulators",
+): HTMLElement {
+  const row = el("div", "cz-row cz-picker");
+  const text = el("div", "cz-text");
+  text.append(el("div", "cz-name", label), el("div", "cz-desc", desc));
+  const pick = el(
+    "button",
+    "cz-applink",
+    `Choose ${label.toLowerCase()} (${count}) →`,
+  ) as HTMLButtonElement;
+  pick.type = "button";
+  pick.dataset.picker = mode;
+  text.append(pick);
+  row.append(text);
+  return row;
 }
 
 /** Fetch the base's plan once per base, then render the customise screen. */
@@ -576,34 +606,56 @@ async function hydrateCustomise(): Promise<void> {
     enabledExtras.clear();
     customiseHydrated = true;
   }
+  // The Apps/Emulators counts need the catalog loaded.
+  if (!appGroups.length && api.getAppGroups) {
+    try {
+      appGroups = await api.getAppGroups();
+    } catch {}
+  }
   renderCustomise();
 }
 
-// ── app picker (collapsible groups) ─────────────────────────────────────────
+// ── app / emulator picker (collapsible groups) ──────────────────────────────
+/** An entry is "on" if its winget pick is selected, or — for a module entry like
+ *  EmuDeck — its module is enabled. */
+function entryOn(a: AppEntry): boolean {
+  return a.module ? enabledExtras.has(a.module) : selectedApps.has(a.id);
+}
+
+/** The groups shown in the current picker mode (Apps = everything but emulators;
+ *  Emulators = just that group). */
+function pickerGroups(): AppGroup[] {
+  return pickerMode === "emulators"
+    ? appGroups.filter((g) => g.id === EMU_GROUP)
+    : appGroups.filter((g) => g.id !== EMU_GROUP);
+}
+
 function appGroupNode(group: AppGroup): HTMLElement {
-  const selectedIn = group.apps.filter((a) => selectedApps.has(a.id)).length;
+  const onCount = group.apps.filter(entryOn).length;
   const details = el("details", "app-group") as HTMLDetailsElement;
-  if (selectedIn > 0) details.open = true;
+  if (onCount > 0 || pickerMode === "emulators") details.open = true;
   const summary = el("summary", "app-group-sum");
   const gcb = el("input", "app-group-check") as HTMLInputElement;
   gcb.type = "checkbox";
   gcb.dataset.group = group.id;
-  gcb.checked = selectedIn === group.apps.length;
-  gcb.indeterminate = selectedIn > 0 && selectedIn < group.apps.length;
+  gcb.checked = onCount === group.apps.length;
+  gcb.indeterminate = onCount > 0 && onCount < group.apps.length;
   summary.append(
     gcb,
     el("span", "app-group-name", group.label),
-    el("span", "app-group-count", `${selectedIn} / ${group.apps.length}`),
+    el("span", "app-group-count", `${onCount} / ${group.apps.length}`),
   );
   const items = el("div", "app-items");
   for (const a of group.apps) {
     const row = el("label", "app-row");
     const cb = el("input", "app-check") as HTMLInputElement;
     cb.type = "checkbox";
-    cb.dataset.app = a.id;
-    cb.checked = selectedApps.has(a.id);
+    if (a.module) cb.dataset.module = a.module;
+    else cb.dataset.app = a.id;
+    cb.checked = entryOn(a);
     const meta = el("span", "app-meta");
-    meta.append(el("span", "app-name", a.name), el("span", "app-id", a.wingetId));
+    meta.append(el("span", "app-name", a.name));
+    meta.append(el("span", "app-id", a.desc ?? a.wingetId ?? ""));
     row.append(cb, meta);
     items.append(row);
   }
@@ -615,10 +667,14 @@ function appGroupNode(group: AppGroup): HTMLElement {
 function renderApps(): void {
   const host = document.querySelector<HTMLElement>("#apps-body");
   if (!host) return;
-  host.replaceChildren(...appGroups.map(appGroupNode));
+  host.replaceChildren(...pickerGroups().map(appGroupNode));
+  fill("apps-title", pickerMode === "emulators" ? "Choose emulators" : "Choose apps");
+  const n = pickerMode === "emulators" ? pickCounts().emulators : pickCounts().apps;
   const count = document.querySelector("#apps-count");
-  if (count)
-    count.textContent = `${selectedApps.size} app${selectedApps.size === 1 ? "" : "s"} selected`;
+  if (count) {
+    const word = pickerMode === "emulators" ? "emulator" : "app";
+    count.textContent = `${n} ${word}${n === 1 ? "" : "s"} selected`;
+  }
 }
 
 async function hydrateApps(): Promise<void> {
@@ -752,6 +808,28 @@ const enabledExtras = new Set<string>(); // ticked optional extras (incl. "apps"
 let appGroups: AppGroup[] = [];
 const selectedApps = new Set<string>();
 let appsHydrated = false;
+let pickerMode: "apps" | "emulators" = "apps";
+const EMU_GROUP = "emulators";
+
+/** Slugs of every emulator entry (so Apps vs Emulators counts can be split). */
+function emulatorSlugs(): Set<string> {
+  return new Set(appGroups.find((g) => g.id === EMU_GROUP)?.apps.map((a) => a.id) ?? []);
+}
+
+/** Whether an emulator entry counts as "on" — winget picks live in selectedApps,
+ *  EmuDeck (a module) lives in enabledExtras. */
+function emuEntryOn(a: AppEntry): boolean {
+  return a.module ? enabledExtras.has(a.module) : selectedApps.has(a.id);
+}
+
+/** Count of picked apps (non-emulators) and emulators, for the Review rows. */
+function pickCounts(): { apps: number; emulators: number } {
+  const emu = emulatorSlugs();
+  const apps = [...selectedApps].filter((s) => !emu.has(s)).length;
+  const emuGroup = appGroups.find((g) => g.id === EMU_GROUP);
+  const emulators = emuGroup ? emuGroup.apps.filter(emuEntryOn).length : 0;
+  return { apps, emulators };
+}
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -1627,33 +1705,27 @@ document.addEventListener("change", (event) => {
     renderCustomise();
   }
   // App-picker: a single app, or a whole group.
+  // A single app pick (winget) or a module-driven entry (e.g. EmuDeck).
   if (target instanceof HTMLInputElement && target.dataset.app) {
     if (target.checked) selectedApps.add(target.dataset.app);
     else selectedApps.delete(target.dataset.app);
-    const details = target.closest<HTMLDetailsElement>("details");
-    const gid = details?.querySelector<HTMLInputElement>(".app-group-check")?.dataset.group;
-    const g = appGroups.find((x) => x.id === gid);
-    if (g && details) {
-      const sel = g.apps.filter((a) => selectedApps.has(a.id)).length;
-      const count = details.querySelector(".app-group-count");
-      if (count) count.textContent = `${sel} / ${g.apps.length}`;
-      const gcb = details.querySelector<HTMLInputElement>(".app-group-check");
-      if (gcb) {
-        gcb.checked = sel === g.apps.length;
-        gcb.indeterminate = sel > 0 && sel < g.apps.length;
-      }
-    }
-    const total = document.querySelector("#apps-count");
-    if (total) {
-      total.textContent = `${selectedApps.size} app${selectedApps.size === 1 ? "" : "s"} selected`;
-    }
+    renderApps();
   }
+  if (target instanceof HTMLInputElement && target.dataset.module) {
+    if (target.checked) enabledExtras.add(target.dataset.module);
+    else enabledExtras.delete(target.dataset.module);
+    renderApps();
+  }
+  // Whole-group tick: select/clear every entry (winget -> selectedApps, module
+  // entries -> enabledExtras).
   if (target instanceof HTMLInputElement && target.dataset.group) {
     const g = appGroups.find((x) => x.id === target.dataset.group);
     if (g) {
       for (const a of g.apps) {
-        if (target.checked) selectedApps.add(a.id);
-        else selectedApps.delete(a.id);
+        const set = a.module ? enabledExtras : selectedApps;
+        const key = a.module ?? a.id;
+        if (target.checked) set.add(key);
+        else set.delete(key);
       }
     }
     renderApps();
@@ -1665,6 +1737,14 @@ document.addEventListener("click", (event) => {
   if ((event.target as HTMLElement).classList?.contains("app-group-check")) {
     event.stopPropagation();
   }
+});
+
+// A Review picker row (Apps / Emulators) opens the picker in the right mode.
+document.addEventListener("click", (event) => {
+  const btn = (event.target as HTMLElement).closest<HTMLElement>("[data-picker]");
+  if (!btn) return;
+  pickerMode = btn.dataset.picker === "emulators" ? "emulators" : "apps";
+  location.hash = "apps";
 });
 
 document.addEventListener("click", (event) => {
