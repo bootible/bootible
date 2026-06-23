@@ -1,4 +1,5 @@
 import type {
+  AppGroup,
   Bundle,
   DeviceSummary,
   GroupSummary,
@@ -6,7 +7,21 @@ import type {
   ProvisioningMethod,
   StepEvent,
 } from "@bootible/core";
+
 import { contextBridge, ipcRenderer } from "electron";
+
+export interface PlanModule {
+  id: string;
+  name: string;
+  description: string;
+  changes?: string;
+}
+
+export interface BasePlan {
+  floor: PlanModule[];
+  base: PlanModule[];
+  extras: PlanModule[];
+}
 
 export interface ProvisionResult {
   applied: number;
@@ -35,6 +50,10 @@ export interface UsbBuildRequest {
   /** Host image paths for the device wallpaper / lock screen. */
   wallpaperPath?: string;
   lockscreenPath?: string;
+  /** Floor/base modules unticked on the review/customise screen. */
+  disabledModules?: string[];
+  /** App slugs picked in the app-picker. */
+  selectedApps?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
@@ -130,6 +149,8 @@ const api = {
   getCatalog: (): Promise<GroupSummary[]> => ipcRenderer.invoke("catalog:get"),
   getBundles: (): Promise<Bundle[]> => ipcRenderer.invoke("bundles:get"),
   getBases: (): Promise<BaseOption[]> => ipcRenderer.invoke("bases:get"),
+  getBasePlan: (baseId: string): Promise<BasePlan> => ipcRenderer.invoke("base:plan", baseId),
+  getAppGroups: (): Promise<AppGroup[]> => ipcRenderer.invoke("apps:groups"),
   getHostSshKeys: (): Promise<HostSshKey[]> => ipcRenderer.invoke("ssh:host-keys"),
   generateHostSshKey: (comment: string): Promise<HostSshKey | null> =>
     ipcRenderer.invoke("ssh:generate-key", comment),

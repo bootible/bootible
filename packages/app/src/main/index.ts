@@ -14,6 +14,8 @@ import { homedir, networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import {
   type AccountMode,
+  APP_GROUPS,
+  type AppGroup,
   BASES,
   type Base,
   BEACON_PORT,
@@ -48,6 +50,7 @@ import {
   type SystemInfo,
   selectDevice,
   serializeConfig,
+  UNIVERSAL_FLOOR,
   type UsbBuildSpec,
 } from "@bootible/core";
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from "electron";
@@ -157,6 +160,38 @@ function selectDeviceById(id: string): DeviceSummary | null {
 /** The provisioning profile (catalog + bundles + executor) for a device. */
 function profileFor(device: DeviceEntry | null): DeviceProfile | null {
   return device ? deviceProfile(device.id) : null;
+}
+
+interface PlanModule {
+  id: string;
+  name: string;
+  description: string;
+  changes?: string;
+}
+
+/** Optional, non-account modules the review/customise screen lets you add on top
+ *  of a base. (Most software now lives in the app-picker; `apps` is its row.) */
+const CUSTOMISE_EXTRAS = ["apps", "emudeck", "xbox-fullscreen"];
+
+/** The review/customise plan for a base: the always-on floor, what the base
+ *  adds, and the optional extras — each with display info from the catalog. */
+function getBasePlan(baseId: string): {
+  floor: PlanModule[];
+  base: PlanModule[];
+  extras: PlanModule[];
+} {
+  const cat = profileFor(targetDevice())?.catalog ?? [];
+  const info = (id: string): PlanModule => {
+    const m = cat.find((x) => x.id === id);
+    return { id, name: m?.name ?? id, description: m?.description ?? "", changes: m?.changes };
+  };
+  const base = baseById(baseId);
+  const baseIds = base ? baseModuleIds(base) : [...UNIVERSAL_FLOOR];
+  return {
+    floor: UNIVERSAL_FLOOR.filter((id) => baseIds.includes(id)).map(info),
+    base: baseIds.filter((id) => !UNIVERSAL_FLOOR.includes(id)).map(info),
+    extras: CUSTOMISE_EXTRAS.filter((id) => !baseIds.includes(id)).map(info),
+  };
 }
 
 /** Project the detected device for the renderer, or null if none matches. */
@@ -383,6 +418,10 @@ export interface UsbBuildRequest {
   /** Host image paths to stage as the device's wallpaper / lock screen. */
   wallpaperPath?: string;
   lockscreenPath?: string;
+  /** Floor/base modules unticked on the review/customise screen. */
+  disabledModules?: string[];
+  /** App slugs picked in the app-picker. */
+  selectedApps?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -596,6 +635,10 @@ type BuildChoice = {
   sunshinePass?: string;
   wallpaperPath?: string;
   lockscreenPath?: string;
+  /** Floor/base modules the user unticked on the review/customise screen. */
+  disabledModules?: string[];
+  /** App slugs picked in the app-picker (settings.selected_apps). */
+  selectedApps?: string[];
 };
 
 /** The non-empty, trimmed SSH public keys from a build choice. */
@@ -610,6 +653,8 @@ function resolveModules(req: BuildChoice): string[] {
   const base = baseById(req.baseId);
   const ids = new Set<string>(base ? baseModuleIds(base) : []);
   for (const id of req.modules) ids.add(id);
+  // The review/customise screen can untick floor + base modules.
+  for (const id of req.disabledModules ?? []) ids.delete(id);
   if (chosenKeys(req).length > 0) ids.add("ssh-key");
   if (req.staticIp?.ip) ids.add("static-ip");
   if (req.remoteAccess?.sunshine) ids.add("sunshine");
@@ -630,6 +675,7 @@ function buildSettings(req: BuildChoice): Record<string, unknown> {
   const settings: Record<string, unknown> = { ...RECOMMENDED_SETTINGS };
   const keys = chosenKeys(req);
   if (keys.length > 0) settings.ssh_public_keys = keys;
+  if (req.selectedApps?.length) settings.selected_apps = req.selectedApps;
   if (req.staticIp?.ip) settings.static_ip = req.staticIp;
   if (req.remoteAccess?.sunshine && req.sunshineUser && req.sunshinePass) {
     settings.sunshine_user = req.sunshineUser;
@@ -699,7 +745,7 @@ function stageUsbBundle(req: UsbBuildRequest): string | null {
     }
     // .ps1 files get a UTF-8 BOM so the Ally's Windows PowerShell 5.1 reads any
     // non-ASCII (em-dashes in copy) correctly instead of as ANSI mojibake.
-    const content = dest.endsWith(".ps1") ? "\uFEFF" + file.content : file.content;
+    const content = dest.endsWith(".ps1") ? `\uFEFF${file.content}` : file.content;
     writeFileSync(dest, content, "utf8");
   }
   return stagingPath;
@@ -1048,6 +1094,8 @@ app.whenReady().then(() => {
   ipcMain.handle("discovery:stop", () => stopDiscovery());
   ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
   ipcMain.handle("network:suggest", () => suggestNetwork());
+  ipcMain.handle("base:plan", (_event, baseId: string) => getBasePlan(baseId));
+  ipcMain.handle("apps:groups", (): AppGroup[] => APP_GROUPS);
   ipcMain.handle("image:browse", async () => {
     const r = await dialog.showOpenDialog({
       title: "Choose an image",

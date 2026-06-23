@@ -80,6 +80,32 @@ interface BaseOption {
   recommended?: boolean;
 }
 
+interface PlanModule {
+  id: string;
+  name: string;
+  description: string;
+  changes?: string;
+}
+
+interface BasePlan {
+  floor: PlanModule[];
+  base: PlanModule[];
+  extras: PlanModule[];
+}
+
+interface AppEntry {
+  id: string;
+  name: string;
+  wingetId: string;
+  recommended?: boolean;
+}
+
+interface AppGroup {
+  id: string;
+  label: string;
+  apps: AppEntry[];
+}
+
 interface HostSshKey {
   id: string;
   label: string;
@@ -163,6 +189,8 @@ interface BootibleApi {
   getDevices(platformId: string): Promise<DeviceOption[]>;
   selectDevice(id: string): Promise<DeviceSummary | null>;
   getBases(): Promise<BaseOption[]>;
+  getBasePlan(baseId: string): Promise<BasePlan>;
+  getAppGroups(): Promise<AppGroup[]>;
   getHostSshKeys(): Promise<HostSshKey[]>;
   generateHostSshKey(comment: string): Promise<HostSshKey | null>;
   startDiscovery(): Promise<void>;
@@ -210,6 +238,8 @@ const VIEWS = [
   "devices",
   "home",
   "base",
+  "customise",
+  "apps",
   "bundles",
   "method",
   "setup",
@@ -255,6 +285,8 @@ function syncFromHash(): void {
   show(view);
   if (view === "platform") void hydratePlatforms();
   if (view === "base") void hydrateBases();
+  if (view === "customise") void hydrateCustomise();
+  if (view === "apps") void hydrateApps();
   if (view === "account") void hydrateSshKeys();
   if (view === "review") {
     setApplyLabel();
@@ -450,6 +482,157 @@ async function hydrateBases(): Promise<void> {
   list.replaceChildren(...bases.map(baseCard));
 }
 
+// ── review & customise screen ───────────────────────────────────────────────
+const FLOOR_WARNING = "Not recommended — every bootible device is meant to be tuned & debloated.";
+
+/** One toggle row on the customise screen. Floor/base are checked by default
+ *  (untick → disabledModules); extras are unchecked (tick → enabledExtras). */
+function customiseRow(m: PlanModule, kind: "floor" | "base" | "extra"): HTMLElement {
+  const isApps = m.id === "apps";
+  const checked = kind === "extra" ? enabledExtras.has(m.id) : !disabledModules.has(m.id);
+  const row = el("div", `cz-row${checked ? "" : " is-off"}`);
+  const cb = el("input", "cz-check") as HTMLInputElement;
+  cb.type = "checkbox";
+  cb.checked = checked;
+  cb.dataset.moduleId = m.id;
+  cb.dataset.kind = kind;
+  const text = el("div", "cz-text");
+  text.append(el("div", "cz-name", m.name));
+  if (m.description) text.append(el("div", "cz-desc", m.description));
+  if (m.changes) text.append(el("div", "cz-chg", m.changes));
+  if (kind === "floor" && !checked) text.append(el("div", "cz-warn", `⚠ ${FLOOR_WARNING}`));
+  if (isApps && checked) {
+    const pick = el(
+      "button",
+      "cz-applink",
+      `Choose apps (${selectedApps.size}) →`,
+    ) as HTMLButtonElement;
+    pick.type = "button";
+    pick.dataset.go = "apps";
+    text.append(pick);
+  }
+  row.append(cb, text);
+  return row;
+}
+
+function section(title: string, count: number, rows: HTMLElement[]): HTMLElement {
+  const sec = el("div", "cz-sec");
+  const head = el("div", "cz-sec-h", title);
+  head.append(el("span", "cz-sec-count", ` · ${count}`));
+  sec.append(head, ...rows);
+  return sec;
+}
+
+function renderCustomise(): void {
+  const host = document.querySelector<HTMLElement>("#customise-body");
+  if (!host || !basePlan) return;
+  const secs: HTMLElement[] = [];
+  secs.push(
+    section(
+      "Always — the floor",
+      basePlan.floor.length,
+      basePlan.floor.map((m) => customiseRow(m, "floor")),
+    ),
+  );
+  if (basePlan.base.length) {
+    secs.push(
+      section(
+        "From your base",
+        basePlan.base.length,
+        basePlan.base.map((m) => customiseRow(m, "base")),
+      ),
+    );
+  }
+  secs.push(
+    section(
+      "Add extras",
+      basePlan.extras.length,
+      basePlan.extras.map((m) => customiseRow(m, "extra")),
+    ),
+  );
+  host.replaceChildren(...secs);
+  // Running summary.
+  const floorOn = basePlan.floor.filter((m) => !disabledModules.has(m.id)).length;
+  const baseOn = basePlan.base.filter((m) => !disabledModules.has(m.id)).length;
+  const extrasOn = enabledExtras.size;
+  const sum = document.querySelector("#customise-summary");
+  if (sum) {
+    sum.textContent = `${floorOn + baseOn + extrasOn} things will run · ${floorOn} core · ${baseOn} base · ${extrasOn} extras`;
+  }
+}
+
+/** Fetch the base's plan once per base, then render the customise screen. */
+async function hydrateCustomise(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getBasePlan || !selectedBaseId) return;
+  if (!customiseHydrated) {
+    try {
+      basePlan = await api.getBasePlan(selectedBaseId);
+    } catch {
+      basePlan = null;
+    }
+    disabledModules.clear();
+    enabledExtras.clear();
+    customiseHydrated = true;
+  }
+  renderCustomise();
+}
+
+// ── app picker (collapsible groups) ─────────────────────────────────────────
+function appGroupNode(group: AppGroup): HTMLElement {
+  const selectedIn = group.apps.filter((a) => selectedApps.has(a.id)).length;
+  const details = el("details", "app-group") as HTMLDetailsElement;
+  if (selectedIn > 0) details.open = true;
+  const summary = el("summary", "app-group-sum");
+  const gcb = el("input", "app-group-check") as HTMLInputElement;
+  gcb.type = "checkbox";
+  gcb.dataset.group = group.id;
+  gcb.checked = selectedIn === group.apps.length;
+  gcb.indeterminate = selectedIn > 0 && selectedIn < group.apps.length;
+  summary.append(
+    gcb,
+    el("span", "app-group-name", group.label),
+    el("span", "app-group-count", `${selectedIn} / ${group.apps.length}`),
+  );
+  const items = el("div", "app-items");
+  for (const a of group.apps) {
+    const row = el("label", "app-row");
+    const cb = el("input", "app-check") as HTMLInputElement;
+    cb.type = "checkbox";
+    cb.dataset.app = a.id;
+    cb.checked = selectedApps.has(a.id);
+    const meta = el("span", "app-meta");
+    meta.append(el("span", "app-name", a.name), el("span", "app-id", a.wingetId));
+    row.append(cb, meta);
+    items.append(row);
+  }
+  details.append(summary, items);
+  return details;
+}
+
+function renderApps(): void {
+  const host = document.querySelector<HTMLElement>("#apps-body");
+  if (!host) return;
+  host.replaceChildren(...appGroups.map(appGroupNode));
+  const count = document.querySelector("#apps-count");
+  if (count)
+    count.textContent = `${selectedApps.size} app${selectedApps.size === 1 ? "" : "s"} selected`;
+}
+
+async function hydrateApps(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getAppGroups) return;
+  if (!appsHydrated) {
+    try {
+      appGroups = await api.getAppGroups();
+    } catch {
+      appGroups = [];
+    }
+    appsHydrated = true;
+  }
+  renderApps();
+}
+
 // ── host SSH key-picker (account screen) ────────────────────────────────────
 let sshHydrated = false;
 
@@ -532,7 +715,8 @@ document.addEventListener("click", (event) => {
     void selectDeviceAndGo(id);
   } else if (card.dataset.pick === "base") {
     selectedBaseId = id;
-    location.hash = "method";
+    customiseHydrated = false; // re-resolve the plan for the newly chosen base
+    location.hash = "customise";
   }
 });
 
@@ -558,6 +742,14 @@ let netSuggestion: { prefix: number; gateway: string; subnet: string } | null = 
 let intendedStaticIp = "";
 let wallpaperPath = "";
 let lockscreenPath = "";
+// Review/customise + app-picker state.
+let basePlan: BasePlan | null = null;
+let customiseHydrated = false;
+const disabledModules = new Set<string>(); // unticked floor/base modules
+const enabledExtras = new Set<string>(); // ticked optional extras (incl. "apps")
+let appGroups: AppGroup[] = [];
+const selectedApps = new Set<string>();
+let appsHydrated = false;
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -1081,7 +1273,9 @@ function gatherUsbRequest(): UsbBuildRequest {
   intendedStaticIp = staticIp?.ip ?? "";
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
-  const modules = selectedBaseId ? [] : selectedModuleIds();
+  // With a base chosen, the customise screen drives the extras (incl. "apps");
+  // the floor/base come from baseId minus disabledModules (resolved in main).
+  const modules = selectedBaseId ? [...enabledExtras] : selectedModuleIds();
   const checked = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.checked ?? false;
   const edition = checked("#edition-pro") ? "pro" : "home";
   const remoteAccess = {
@@ -1106,6 +1300,8 @@ function gatherUsbRequest(): UsbBuildRequest {
     sunshinePass: val("#sunshine-pass") || undefined,
     wallpaperPath: wallpaperPath || undefined,
     lockscreenPath: lockscreenPath || undefined,
+    disabledModules: disabledModules.size ? [...disabledModules] : undefined,
+    selectedApps: selectedApps.size ? [...selectedApps] : undefined,
     account,
     wifi,
   };
@@ -1415,6 +1611,58 @@ document.addEventListener("change", (event) => {
     }
   }
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
+  // Customise screen: a module toggle (floor/base = untick to disable; extra = tick to add).
+  if (target instanceof HTMLInputElement && target.dataset.moduleId) {
+    const id = target.dataset.moduleId;
+    if (target.dataset.kind === "extra") {
+      if (target.checked) enabledExtras.add(id);
+      else enabledExtras.delete(id);
+    } else if (target.checked) {
+      disabledModules.delete(id);
+    } else {
+      disabledModules.add(id);
+    }
+    renderCustomise();
+  }
+  // App-picker: a single app, or a whole group.
+  if (target instanceof HTMLInputElement && target.dataset.app) {
+    if (target.checked) selectedApps.add(target.dataset.app);
+    else selectedApps.delete(target.dataset.app);
+    const details = target.closest<HTMLDetailsElement>("details");
+    const gid = details?.querySelector<HTMLInputElement>(".app-group-check")?.dataset.group;
+    const g = appGroups.find((x) => x.id === gid);
+    if (g && details) {
+      const sel = g.apps.filter((a) => selectedApps.has(a.id)).length;
+      const count = details.querySelector(".app-group-count");
+      if (count) count.textContent = `${sel} / ${g.apps.length}`;
+      const gcb = details.querySelector<HTMLInputElement>(".app-group-check");
+      if (gcb) {
+        gcb.checked = sel === g.apps.length;
+        gcb.indeterminate = sel > 0 && sel < g.apps.length;
+      }
+    }
+    const total = document.querySelector("#apps-count");
+    if (total) {
+      total.textContent = `${selectedApps.size} app${selectedApps.size === 1 ? "" : "s"} selected`;
+    }
+  }
+  if (target instanceof HTMLInputElement && target.dataset.group) {
+    const g = appGroups.find((x) => x.id === target.dataset.group);
+    if (g) {
+      for (const a of g.apps) {
+        if (target.checked) selectedApps.add(a.id);
+        else selectedApps.delete(a.id);
+      }
+    }
+    renderApps();
+  }
+});
+
+// Stop the group checkbox (inside <summary>) from also collapsing the group.
+document.addEventListener("click", (event) => {
+  if ((event.target as HTMLElement).classList?.contains("app-group-check")) {
+    event.stopPropagation();
+  }
 });
 
 document.addEventListener("click", (event) => {

@@ -93,6 +93,14 @@ body[data-view="watch"] .view[data-view="watch"] {
   display: flex;
 }
 
+body[data-view="customise"] .view[data-view="customise"] {
+  display: flex;
+}
+
+body[data-view="apps"] .view[data-view="apps"] {
+  display: flex;
+}
+
 body[data-view="bundles"] .view[data-view="bundles"] {
   display: flex;
 }
@@ -1561,6 +1569,173 @@ body[data-view="account"] .summary::before {
 .img-name {
   font-family: "Space Mono", monospace;
   font-size: 12.5px;
+  color: var(--dim);
+}
+
+/* review & customise */
+.customise-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 28px;
+  max-width: 980px;
+  align-items: start;
+}
+
+.cz-sec {
+  margin-bottom: 4px;
+}
+
+.cz-sec-h {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--mut, #9aa0a8);
+  margin: 0 0 10px;
+}
+
+.cz-sec-count {
+  color: var(--dim);
+}
+
+.cz-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 10px 13px;
+  background: #0e0f12;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-bottom: 8px;
+}
+
+.cz-row.is-off {
+  opacity: 0.6;
+}
+
+.cz-check {
+  margin-top: 3px;
+  accent-color: var(--amber);
+  flex: 0 0 auto;
+}
+
+.cz-name {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.cz-desc {
+  font-size: 12.5px;
+  color: var(--mut, #9aa0a8);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.cz-chg {
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 3px;
+}
+
+.cz-warn {
+  font-size: 12px;
+  color: var(--amber);
+  margin-top: 5px;
+}
+
+.cz-applink {
+  margin-top: 7px;
+  background: rgba(246, 166, 35, 0.12);
+  border: 1px solid rgba(246, 166, 35, 0.4);
+  color: var(--amber);
+  border-radius: 7px;
+  padding: 5px 11px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.customise-foot {
+  margin-top: 18px;
+  max-width: 980px;
+}
+
+.customise-summary {
+  font-size: 13.5px;
+  color: var(--mut, #9aa0a8);
+  margin: 0 0 12px;
+}
+
+/* app picker */
+.apps-body {
+  max-width: 720px;
+}
+
+.app-group {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.app-group-sum {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  background: #0e0f12;
+}
+
+.app-group-sum::-webkit-details-marker {
+  display: none;
+}
+
+.app-group-check {
+  accent-color: var(--amber);
+}
+
+.app-group-name {
+  font-size: 15px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.app-group-count {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.app-items {
+  padding: 6px 14px 12px 40px;
+}
+
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  cursor: pointer;
+}
+
+.app-row input {
+  accent-color: var(--amber);
+}
+
+.app-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-name {
+  font-size: 14px;
+}
+
+.app-id {
+  font-family: "Space Mono", monospace;
+  font-size: 10.5px;
   color: var(--dim);
 }
 

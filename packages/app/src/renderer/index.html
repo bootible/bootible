@@ -80,6 +80,38 @@
           <div class="method-list base-list"></div>
         </main>
 
+        <!-- ───────────────────── REVIEW & CUSTOMISE ───────────────────── -->
+        <main class="view setup" data-view="customise">
+          <div class="setup-head">
+            <p class="eyebrow">Review &amp; customise</p>
+            <h1 class="setup-title">Review &amp; customise</h1>
+            <p class="setup-sub">Everything bootible will do. Untick anything you don't want; add extras (and pick apps) below.</p>
+          </div>
+          <div class="customise-body" id="customise-body"></div>
+          <div class="customise-foot">
+            <p class="customise-summary" id="customise-summary"></p>
+            <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="method">Continue <span class="arrow" aria-hidden="true">→</span></button>
+              <button class="btn-ghost" type="button" data-back>Back</button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── APP PICKER ───────────────────── -->
+        <main class="view setup" data-view="apps">
+          <div class="setup-head">
+            <p class="eyebrow" id="apps-count">0 apps selected</p>
+            <h1 class="setup-title">Choose apps</h1>
+            <p class="setup-sub">Tick a whole group, or expand it and pick individual apps. Each becomes a winget install.</p>
+          </div>
+          <div class="apps-body" id="apps-body"></div>
+          <div class="customise-foot">
+            <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="customise">Done <span class="arrow" aria-hidden="true">→</span></button>
+            </div>
+          </div>
+        </main>
+
         <!-- ───────────────────── BUNDLES (set it up for me) ───────────────────── -->
         <main class="view setup" data-view="bundles">
           <div class="setup-head">
