@@ -35,6 +35,9 @@ import {
   type Exec,
   type GroupSummary,
   generateBootstrapScript,
+  generateStripLauncher,
+  generateStripReadme,
+  generateStripScript,
   groupCatalog,
   imageDevicePath,
   KEYBOARD_REGIONS,
@@ -710,6 +713,52 @@ function buildSettings(req: BuildChoice): Record<string, unknown> {
   return settings;
 }
 
+/** The three Full ROG strip-kit files, generated from the user's config (their
+ *  picked apps + SSH baked in). */
+function buildStripKit(req: UsbBuildRequest): { name: string; content: string; bom: boolean }[] {
+  const device = targetDevice();
+  const modules = resolveModules(req);
+  const config = buildConfig({
+    device: device?.id ?? "rog-ally",
+    modules: modules.length ? modules : undefined,
+    settings: buildSettings(req),
+  });
+  return [
+    { name: "striprog.ps1", content: generateStripScript(config), bom: true },
+    { name: "runstrip.bat", content: generateStripLauncher(), bom: false },
+    { name: "README-restore.txt", content: generateStripReadme(), bom: false },
+  ];
+}
+
+/** Write the strip kit into a target folder (a disk folder or a USB drive root). */
+function writeStripKit(folder: string, req: UsbBuildRequest): void {
+  mkdirSync(folder, { recursive: true });
+  for (const f of buildStripKit(req)) {
+    // .ps1 gets a BOM (PS 5.1 reads em-dashes correctly); .bat stays ASCII.
+    const content = f.bom ? `﻿${f.content}` : f.content;
+    writeFileSync(join(folder, f.name), content, f.name.endsWith(".bat") ? "ascii" : "utf8");
+  }
+}
+
+/** Safely eject a removable drive by letter (Shell "Eject" verb). */
+function ejectUsb(driveLetter: string): { ok: boolean } {
+  const d = driveLetter.replace(/[:\\]/g, "");
+  try {
+    execFileSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        `$s = New-Object -comObject Shell.Application; $s.Namespace(17).ParseName('${d}:').InvokeVerb('Eject')`,
+      ],
+      { timeout: 15000 },
+    );
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** Assemble the USB bundle (autounattend + bootstrap + config + wifi) into a
  *  staging folder. Returns the path, or null if there's no device profile. */
 function stageUsbBundle(req: UsbBuildRequest): string | null {
@@ -1139,6 +1188,28 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
   ipcMain.handle("usb:write", (event, req: UsbWriteRequest) => writeUsb(event.sender, req));
+  // Full ROG strip kit: save the 3 files to a folder, or to a USB drive root.
+  ipcMain.handle("stripkit:disk", async (event, req: UsbBuildRequest) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return null;
+    const r = await dialog.showOpenDialog(win, {
+      title: "Choose a folder for the strip kit",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (r.canceled || !r.filePaths[0]) return null;
+    const dest = join(r.filePaths[0], "bootible-strip-kit");
+    writeStripKit(dest, req);
+    return { path: dest };
+  });
+  ipcMain.handle(
+    "stripkit:usb",
+    (_event, { req, drive }: { req: UsbBuildRequest; drive: string }) => {
+      const root = `${drive.replace(/[:\\]/g, "")}:\\`;
+      writeStripKit(root, req);
+      return { path: root };
+    },
+  );
+  ipcMain.handle("usb:eject", (_event, drive: string) => ejectUsb(drive));
   ipcMain.handle("usb:disks", () => listUsbDisks());
   ipcMain.handle("iso:catalog", () => getIsoCatalog());
   ipcMain.handle("languages:get", () =>

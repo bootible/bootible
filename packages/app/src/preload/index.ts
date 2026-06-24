@@ -185,6 +185,11 @@ const api = {
   browseIso: (): Promise<string | null> => ipcRenderer.invoke("iso:browse"),
   writeUsb: (req: UsbWriteRequest): Promise<{ started: boolean }> =>
     ipcRenderer.invoke("usb:write", req),
+  saveStripKitDisk: (req: UsbBuildRequest): Promise<{ path: string } | null> =>
+    ipcRenderer.invoke("stripkit:disk", req),
+  saveStripKitUsb: (req: UsbBuildRequest, drive: string): Promise<{ path: string }> =>
+    ipcRenderer.invoke("stripkit:usb", { req, drive }),
+  ejectUsb: (drive: string): Promise<{ ok: boolean }> => ipcRenderer.invoke("usb:eject", drive),
   onUsbProgress: (cb: (event: UsbProgress) => void): void => {
     ipcRenderer.on("usb:progress", (_e, event: UsbProgress) => cb(event));
   },

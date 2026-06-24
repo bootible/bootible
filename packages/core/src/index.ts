@@ -85,7 +85,7 @@ export {
   parseSecretRef,
   resolveSecrets,
 } from "./secrets";
-export { generateStripLauncher, generateStripScript } from "./strip";
+export { generateStripLauncher, generateStripReadme, generateStripScript } from "./strip";
 export type { SyncTarget, TargetCapabilities, TargetRole } from "./sync-target";
 export { localTarget } from "./sync-target";
 export type { SchemaValidationResult } from "./validate-schema";

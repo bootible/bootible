@@ -151,6 +151,36 @@ export function generateStripLauncher(): string {
   ].join("\r\n");
 }
 
+/** The restore-and-run guide that ships beside the strip kit. */
+export function generateStripReadme(): string {
+  return [
+    "bootible -- Full ROG strip kit",
+    "==============================",
+    "",
+    'Turns a factory-restored ROG / Xbox Ally into "OG, but debloated + your apps".',
+    "Two steps:",
+    "",
+    "1) RESTORE the factory image (ASUS Cloud Recovery)",
+    "   - Power on, tap F12 at the ROG logo (or Settings -> Recovery -> Advanced",
+    "     startup -> UEFI firmware settings) to enter the BIOS.",
+    "   - Make sure the BIOS clock is correct -- a wrong time blocks Cloud Recovery.",
+    "   - Press the Y button (or F7 -> Advanced) -> ASUS Cloud Recovery.",
+    "   - Connect Wi-Fi, agree, and when it asks to back up your files -> Cancel",
+    "     (you want a fresh machine), then OK to reset. ~1-3 hours, unattended.",
+    "",
+    "2) STRIP + SET UP (this kit)",
+    "   - Copy runstrip.bat + striprog.ps1 onto the restored Ally (or run from USB).",
+    "   - Double-tap runstrip.bat -> tap Yes on the UAC prompt.",
+    "   - It debloats, applies bootible's tuning, installs your chosen apps, and",
+    "     sets up SSH. Done.",
+    "",
+    "Files:",
+    "  runstrip.bat  -- double-tap this (touch-friendly launcher)",
+    "  striprog.ps1  -- the actual strip + setup script",
+    "",
+  ].join("\r\n");
+}
+
 /** The standalone strip/tune script for a factory-restored ROG. */
 export function generateStripScript(config: BootibleConfig): string {
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
