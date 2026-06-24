@@ -45,7 +45,18 @@ const STRIP_APPX = [
 
 /** Win32 apps to silently uninstall, matched on DisplayName (factory trialware +
  *  ASUS extras that don't apply to a handheld). */
-const STRIP_WIN32 = ["McAfee", "Norton", "GlideX", "Live Update", "Microsoft 365", "OneDrive"];
+// Win32 (classic installer) names to strip. "Live Update" is intentionally a
+// no-op on the Ally (its updater is ROG Live Service, kept). Copilot has a Win32
+// entry the Appx removal misses, so we catch both.
+const STRIP_WIN32 = [
+  "McAfee",
+  "Norton",
+  "GlideX",
+  "Live Update",
+  "Microsoft 365",
+  "OneDrive",
+  "Copilot",
+];
 
 /** Never uninstall these, even if a strip pattern would match — the ROG/Full-ROG
  *  essentials and Armoury Crate's own dependencies. */
