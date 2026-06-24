@@ -15,9 +15,11 @@ const config = {
 describe("generateStripScript", () => {
   const script = generateStripScript(config);
 
-  it("requires elevation and takes a restore point first", () => {
+  it("self-elevates (UAC), pauses at the end, and takes a restore point", () => {
     expect(script).toContain("IsInRole");
+    expect(script).toContain("-Verb RunAs"); // self-elevation relaunch
     expect(script).toContain("Checkpoint-Computer");
+    expect(script).toContain("Press Enter to close"); // window stays open on error
   });
 
   it("writes a full inventory before stripping anything", () => {

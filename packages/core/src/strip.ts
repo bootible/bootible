@@ -92,14 +92,20 @@ export function generateStripScript(config: BootibleConfig): string {
 # Applies bootible's floor + a conservative debloat, keeping the ROG essentials.
 # Generated, self-contained PowerShell — no runtime/CLI needed. Run elevated.
 $ErrorActionPreference = 'Continue'
+
+# Self-elevate: if not already Administrator, relaunch this same script elevated
+# (one UAC prompt), so "Run with PowerShell" just works without a flash-and-close.
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
+  try {
+    Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $PSCommandPath + '"')
+  } catch { Write-Host 'Could not elevate. Right-click -> Run with PowerShell, or run from an admin terminal.' -ForegroundColor Red; Read-Host 'Press Enter to close' }
+  exit
+}
+
 $Root = "$env:SystemDrive\\bootible"
 $Log = "$Root\\strip.log"
 New-Item -ItemType Directory -Force -Path $Root | Out-Null
 function Write-Strip($m) { "[$(Get-Date -Format o)] $m" | Tee-Object -FilePath $Log -Append }
-
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
-  Write-Strip 'NOT elevated — re-run this script as Administrator.'; return
-}
 
 # Optional headless SSH: type a GitHub username to pull your public keys from
 # github.com/<user>.keys and set up OpenSSH so you can ssh in afterwards.
@@ -193,5 +199,6 @@ if ($ghUser) {
 Write-Strip 'bootible strip complete'
 "bootible stripped $(Get-Date -Format o)" | Set-Content "$Root\\receipt.txt"
 Write-Strip 'Review C:\\bootible\\inventory-*.txt and send them back so we can tighten the strip list.'
+Read-Host 'Done. Press Enter to close this window'
 `;
 }
