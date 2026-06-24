@@ -99,9 +99,13 @@ function psArray(items: string[]): string {
   return `@(${items.map(psQuote).join(", ")})`;
 }
 
-/** Build the floor command set (power/display/windows-defaults/optimization) the
- *  same way the install bootstrap does, so the strip stays in sync with the app. */
-function floorLines(config: BootibleConfig): string {
+/** Build the module command set the same way the install bootstrap does, so the
+ *  strip stays in sync with the app. Runs the config's selected modules (floor +
+ *  the user's app-picker apps, SSH, EmuDeck, …) in CATALOG order so dependencies
+ *  hold (e.g. sunshine before sunshine-creds). With no modules in the config it
+ *  defaults to the universal floor — the standalone manual-strip behaviour. */
+function moduleLines(config: BootibleConfig): string {
+  const ids = new Set(config.modules?.length ? config.modules : UNIVERSAL_FLOOR);
   const commands: string[][] = [];
   const rec: Exec = (cmd) => {
     commands.push(cmd);
@@ -112,8 +116,8 @@ function floorLines(config: BootibleConfig): string {
     name: "ROG Ally",
     provisioning_models: ["on-device"],
   };
-  for (const id of UNIVERSAL_FLOOR) {
-    allyCatalog.find((m) => m.id === id)?.apply({ device, config }, rec);
+  for (const mod of allyCatalog) {
+    if (ids.has(mod.id)) mod.apply({ device, config }, rec);
   }
   return commands
     .map((cmd) => {
@@ -193,8 +197,10 @@ Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
   Format-Table -AutoSize | Out-String | Set-Content "$Root\\inventory-win32.txt"
 Write-Strip 'inventory written (inventory-appx.txt / inventory-win32.txt)'
 
-# ── FLOOR: power, display, windows-defaults (Copilot/Recall), service trim ──
-${floorLines(config)}
+# ── FLOOR + selected modules (tuning, debloat, and any apps you picked) ──
+# winget's WindowsApps alias may not be on PATH for app installs — add it.
+$env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;$env:PATH"
+${moduleLines(config)}
 
 # ── STRIP Appx (Microsoft inbox bloat + security trialware) ──
 $stripAppx = ${psArray(STRIP_APPX)}

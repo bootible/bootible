@@ -40,6 +40,17 @@ describe("generateStripScript", () => {
     expect(script).toContain("inventory-win32.txt");
   });
 
+  it("installs the user's picked apps when the config carries modules", () => {
+    const withApps = generateStripScript({
+      schema: 2,
+      device: "rog-ally",
+      modules: ["power", "apps"],
+      settings: { sleep_mode: "hibernate", selected_apps: ["vlc"] },
+    });
+    expect(withApps).toContain("VideoLAN.VLC"); // the app-picker install
+    expect(withApps).toContain("powercfg"); // floor still runs
+  });
+
   it("applies the floor (incl. Copilot removal + Recall off)", () => {
     expect(script).toContain("powercfg"); // power floor
     expect(script).toContain("HwSchMode"); // display floor
