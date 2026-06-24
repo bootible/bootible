@@ -35,12 +35,17 @@ const STRIP_APPX = [
   "Microsoft.WindowsFeedbackHub",
   "Microsoft.MixedRealityLink",
   "Microsoft.Windows.DevHome",
+  "Microsoft.OutlookForWindows", // new Outlook
+  "MSTeams", // personal Teams
+  "Microsoft.PowerAutomateDesktop",
+  "Microsoft.OneDriveSync",
   "*LinkedInforWindows*",
+  // Kept on purpose: Microsoft.YourPhone (Phone Link), Xbox/Gaming apps.
 ];
 
 /** Win32 apps to silently uninstall, matched on DisplayName (factory trialware +
  *  ASUS extras that don't apply to a handheld). */
-const STRIP_WIN32 = ["McAfee", "Norton", "GlideX", "Live Update", "Microsoft 365"];
+const STRIP_WIN32 = ["McAfee", "Norton", "GlideX", "Live Update", "Microsoft 365", "OneDrive"];
 
 /** Never uninstall these, even if a strip pattern would match — the ROG/Full-ROG
  *  essentials and Armoury Crate's own dependencies. */
