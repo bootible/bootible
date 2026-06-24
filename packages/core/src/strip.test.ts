@@ -54,12 +54,14 @@ describe("generateStripScript", () => {
     expect(script).toContain("administrators_authorized_keys");
   });
 
-  it("strips trialware but guards the ROG essentials", () => {
+  it("strips trialware + ASUS GlideX (an Appx) but guards the ROG + Xbox essentials", () => {
     expect(script).toContain("McAfee");
     expect(script).toContain("Live Update");
-    // keep-guard must protect Armoury Crate / System Control / MyASUS / Dolby
+    expect(script).toContain("*Glidex*"); // the real factory-image catch
+    // keep-guard protects Armoury Crate / MyASUS / Dolby AND Xbox (gaming handheld)
     expect(script).toContain("Armoury Crate");
     expect(script).toContain("MyASUS");
     expect(script).toContain("Dolby");
+    expect(script).toContain("Xbox");
   });
 });

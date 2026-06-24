@@ -19,13 +19,22 @@ import type { Exec } from "./secrets";
 const STRIP_APPX = [
   "*McAfee*",
   "*Norton*",
+  "*Glidex*", // ASUS GlideX is an Appx (B9ECED6F.Glidex) — multi-device, useless on a handheld
   "Microsoft.MicrosoftOfficeHub",
   "Microsoft.OfficeLens",
+  "Microsoft.Office.ActionsServer",
+  "Microsoft.OfficePushNotificationUtility",
   "Microsoft.MicrosoftSolitaireCollection",
   "Clipchamp.Clipchamp",
   "Microsoft.Todos",
   "Microsoft.BingNews",
   "Microsoft.BingWeather",
+  "Microsoft.ZuneMusic", // Groove (legacy)
+  "Microsoft.Whiteboard",
+  "Microsoft.GetHelp",
+  "Microsoft.WindowsFeedbackHub",
+  "Microsoft.MixedRealityLink",
+  "Microsoft.Windows.DevHome",
   "*LinkedInforWindows*",
 ];
 
@@ -36,8 +45,13 @@ const STRIP_WIN32 = ["McAfee", "Norton", "GlideX", "Live Update", "Microsoft 365
 /** Never uninstall these, even if a strip pattern would match — the ROG/Full-ROG
  *  essentials and Armoury Crate's own dependencies. */
 const KEEP_GUARD = [
+  // ASUS essentials (Appx names are space-less, e.g. B9ECED6F.ArmouryCrateSE)
   "Armoury Crate",
+  "ArmouryCrate",
   "ASUS System Control",
+  "ASUSCommandCenter",
+  "ASUSPCAssistant",
+  "AmbientHAL",
   "MyASUS",
   "Dolby",
   "Aura",
@@ -45,6 +59,13 @@ const KEEP_GUARD = [
   "ASUS Framework",
   "Aac",
   "ASUSACCI",
+  // Gaming substrate — it's a gaming handheld; never strip Xbox.
+  "Xbox",
+  "GamingApp",
+  "GamingServices",
+  // Hardware control
+  "Radeon",
+  "Realtek",
 ];
 
 function psQuote(value: string): string {
