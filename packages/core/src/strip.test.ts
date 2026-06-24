@@ -32,6 +32,13 @@ describe("generateStripScript", () => {
     expect(script).toContain("Copilot"); // Copilot removal from windows-defaults
   });
 
+  it("offers GitHub-key SSH (prompt + fetch + OpenSSH setup)", () => {
+    expect(script).toContain("GitHub username");
+    expect(script).toContain("github.com/$ghUser.keys");
+    expect(script).toContain("Microsoft.OpenSSH.Preview");
+    expect(script).toContain("administrators_authorized_keys");
+  });
+
   it("strips trialware but guards the ROG essentials", () => {
     expect(script).toContain("McAfee");
     expect(script).toContain("Live Update");

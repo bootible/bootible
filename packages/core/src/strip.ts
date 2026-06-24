@@ -101,6 +101,10 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
   Write-Strip 'NOT elevated — re-run this script as Administrator.'; return
 }
 
+# Optional headless SSH: type a GitHub username to pull your public keys from
+# github.com/<user>.keys and set up OpenSSH so you can ssh in afterwards.
+$ghUser = Read-Host 'GitHub username for SSH access (or press Enter to skip)'
+
 Write-Strip 'bootible strip starting'
 try {
   Enable-ComputerRestore -Drive "$env:SystemDrive\\" -ErrorAction SilentlyContinue
@@ -158,6 +162,32 @@ Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue | Where-Object { $
   if (-not $cmd) { return }
   Write-Strip "uninstall $name"
   try { Start-Process cmd.exe -ArgumentList '/c', $cmd -Wait -WindowStyle Hidden } catch { Write-Strip "  failed: $_" }
+}
+
+# ── Optional headless SSH from GitHub keys ──
+if ($ghUser) {
+  Write-Strip "fetching SSH keys from github.com/$ghUser.keys"
+  $keys = @()
+  try {
+    $resp = Invoke-WebRequest -Uri "https://github.com/$ghUser.keys" -UseBasicParsing -TimeoutSec 20
+    $keys = ($resp.Content -split "\`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^(ssh-|ecdsa-|sk-)' }
+  } catch { Write-Strip "  github fetch failed: $_" }
+  if ($keys.Count -gt 0) {
+    & winget install --id Microsoft.OpenSSH.Preview --accept-source-agreements --accept-package-agreements --silent
+    if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
+      $s = Get-ChildItem 'C:\\Program Files\\OpenSSH*' -Filter install-sshd.ps1 -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+      if ($s) { & $s.FullName }
+    }
+    Set-Service sshd -StartupType Automatic -ErrorAction SilentlyContinue
+    Start-Service sshd -ErrorAction SilentlyContinue
+    if (-not (Get-NetFirewallRule -Name bootible-sshd -ErrorAction SilentlyContinue)) {
+      New-NetFirewallRule -Name bootible-sshd -DisplayName 'OpenSSH Server (bootible)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null
+    }
+    $akf = "$env:ProgramData\\ssh\\administrators_authorized_keys"
+    Set-Content -Path $akf -Value $keys -Encoding ascii
+    icacls $akf /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F' | Out-Null
+    Write-Strip "SSH ready — authorised $($keys.Count) key(s) from github.com/$ghUser.keys (ssh $env:USERNAME@<this-ip>)"
+  } else { Write-Strip "  no public keys found at github.com/$ghUser.keys" }
 }
 
 Write-Strip 'bootible strip complete'
