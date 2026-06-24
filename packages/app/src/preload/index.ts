@@ -194,6 +194,7 @@ const api = {
   saveStripKitUsb: (req: UsbBuildRequest, drive: string): Promise<{ path: string }> =>
     ipcRenderer.invoke("stripkit:usb", { req, drive }),
   ejectUsb: (drive: string): Promise<{ ok: boolean }> => ipcRenderer.invoke("usb:eject", drive),
+  formatUsb: (drive: string): Promise<{ ok: boolean }> => ipcRenderer.invoke("usb:format", drive),
   onUsbProgress: (cb: (event: UsbProgress) => void): void => {
     ipcRenderer.on("usb:progress", (_e, event: UsbProgress) => cb(event));
   },

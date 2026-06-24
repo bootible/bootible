@@ -746,6 +746,27 @@ function writeStripKit(folder: string, req: UsbBuildRequest): void {
   }
 }
 
+/** Quick-format a removable drive to exFAT (elevated — one UAC prompt). */
+function formatUsbDrive(driveLetter: string): { ok: boolean } {
+  const d = driveLetter.replace(/[:\\]/g, "");
+  const inner = `Format-Volume -DriveLetter ${d} -FileSystem exFAT -NewFileSystemLabel BOOTIBLE -Confirm:$false`;
+  const innerQuoted = `'${inner.replace(/'/g, "''")}'`;
+  try {
+    execFileSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        `Start-Process powershell -Verb RunAs -Wait -ArgumentList @('-NoProfile','-Command',${innerQuoted})`,
+      ],
+      { timeout: 180000 },
+    );
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** Safely eject a removable drive by letter (Shell "Eject" verb). */
 function ejectUsb(driveLetter: string): { ok: boolean } {
   const d = driveLetter.replace(/[:\\]/g, "");
@@ -1217,6 +1238,7 @@ app.whenReady().then(() => {
     },
   );
   ipcMain.handle("usb:eject", (_event, drive: string) => ejectUsb(drive));
+  ipcMain.handle("usb:format", (_event, drive: string) => formatUsbDrive(drive));
   ipcMain.handle("usb:disks", () => listUsbDisks());
   ipcMain.handle("iso:catalog", () => getIsoCatalog());
   ipcMain.handle("languages:get", () =>

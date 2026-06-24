@@ -246,6 +246,7 @@ interface BootibleApi {
   saveStripKitDisk(req: UsbBuildRequest): Promise<{ path: string } | null>;
   saveStripKitUsb(req: UsbBuildRequest, drive: string): Promise<{ path: string }>;
   ejectUsb(drive: string): Promise<{ ok: boolean }>;
+  formatUsb(drive: string): Promise<{ ok: boolean }>;
 }
 
 declare global {
@@ -261,6 +262,7 @@ const VIEWS = [
   "base",
   "customise",
   "apps",
+  "stripkit",
   "bundles",
   "method",
   "setup",
@@ -308,6 +310,7 @@ function syncFromHash(): void {
   if (view === "base") void hydrateBases();
   if (view === "customise") void hydrateCustomise();
   if (view === "apps") void hydrateApps();
+  if (view === "stripkit") void hydrateStripkit();
   if (view === "account") void hydrateSshKeys();
   if (view === "review") {
     setApplyLabel();
@@ -337,7 +340,9 @@ document.addEventListener("click", (event) => {
   if (method === "usb" || method === "export" || method === "device") {
     document.body.dataset.method = method;
   }
-  const target = trigger.dataset.go;
+  let target = trigger.dataset.go;
+  // Full ROG isn't a clean-install — Continue goes to the strip-kit builder.
+  if (target === "method" && selectedBaseId === "full-rog") target = "stripkit";
   if (target) location.hash = target;
 });
 
@@ -756,6 +761,126 @@ async function hydrateApps(): Promise<void> {
   }
   renderApps();
 }
+
+// ── strip kit (Full ROG): save to disk / USB, format, eject ─────────────────
+let skMode: "disk" | "usb" = "disk";
+let skDisks: UsbDisk[] = [];
+let skSelectedDisk = "";
+
+function setSkStatus(msg: string): void {
+  const s = document.querySelector("#sk-status");
+  if (s) s.textContent = msg;
+}
+
+function setSkMode(mode: "disk" | "usb"): void {
+  skMode = mode;
+  for (const tab of document.querySelectorAll<HTMLElement>(".sk-tab")) {
+    tab.classList.toggle("is-active", tab.dataset.sk === mode);
+  }
+  for (const pane of document.querySelectorAll<HTMLElement>(".sk-pane")) {
+    pane.hidden = pane.dataset.skPane !== mode;
+  }
+}
+
+function renderSkUsbList(): void {
+  const host = document.querySelector<HTMLElement>("#sk-usb-list");
+  if (!host) return;
+  if (!skDisks.length) {
+    host.replaceChildren(
+      el("p", "app-note", "No USB media found — plug one in and reopen this screen."),
+    );
+    return;
+  }
+  host.replaceChildren(
+    ...skDisks.map((d) => {
+      const letter = (d.letters || "").split(/[,\s]+/).filter(Boolean)[0] ?? "";
+      const row = el("label", "sk-usb-row");
+      const radio = el("input", "") as HTMLInputElement;
+      radio.type = "radio";
+      radio.name = "sk-usb";
+      radio.value = letter;
+      radio.checked = skSelectedDisk === letter;
+      radio.disabled = !letter;
+      const meta = el("span", "sk-usb-meta");
+      meta.append(el("span", "sk-usb-name", `${d.name} (${d.sizeGb} GB)`));
+      meta.append(el("span", "app-id", letter || `disk ${d.number} (no drive letter)`));
+      row.append(radio, meta);
+      return row;
+    }),
+  );
+}
+
+async function hydrateStripkit(): Promise<void> {
+  const api = window.bootible;
+  setSkMode(skMode);
+  setSkStatus("");
+  if (api?.getUsbDisks) {
+    try {
+      skDisks = await api.getUsbDisks();
+    } catch {
+      skDisks = [];
+    }
+  }
+  renderSkUsbList();
+}
+
+async function skSaveDisk(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.saveStripKitDisk) return;
+  setSkStatus("Saving…");
+  const res = await api.saveStripKitDisk(gatherUsbRequest());
+  setSkStatus(res ? `✓ Saved strip kit to ${res.path}` : "Cancelled.");
+}
+
+async function skCopyUsb(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.saveStripKitUsb) return;
+  if (!skSelectedDisk) {
+    setSkStatus("Pick a USB drive first.");
+    return;
+  }
+  const format = document.querySelector<HTMLInputElement>("#sk-format")?.checked ?? false;
+  try {
+    if (format && api.formatUsb) {
+      setSkStatus("Formatting (approve the UAC prompt)…");
+      const f = await api.formatUsb(skSelectedDisk);
+      if (!f.ok) setSkStatus("Format failed — copying without it…");
+    }
+    setSkStatus("Copying…");
+    const res = await api.saveStripKitUsb(gatherUsbRequest(), skSelectedDisk);
+    setSkStatus(`✓ Copied to ${res.path} — safe to eject.`);
+  } catch (e) {
+    setSkStatus(`Copy failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+async function skEject(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.ejectUsb || !skSelectedDisk) {
+    setSkStatus("Pick a USB drive first.");
+    return;
+  }
+  const r = await api.ejectUsb(skSelectedDisk);
+  setSkStatus(r.ok ? "✓ Ejected — safe to remove." : "Eject failed — close any open files on it.");
+}
+
+// Strip-kit clicks: tab toggle + the disk/usb/eject buttons.
+document.addEventListener("click", (event) => {
+  const t = event.target as HTMLElement;
+  const tab = t.closest<HTMLElement>(".sk-tab");
+  if (tab?.dataset.sk) {
+    setSkMode(tab.dataset.sk === "usb" ? "usb" : "disk");
+    return;
+  }
+  if (t.closest("#sk-disk-save")) void skSaveDisk();
+  else if (t.closest("#sk-usb-copy")) void skCopyUsb();
+  else if (t.closest("#sk-usb-eject")) void skEject();
+});
+
+document.addEventListener("change", (event) => {
+  const r = event.target as HTMLInputElement;
+  if (r?.name === "sk-usb") skSelectedDisk = r.value;
+});
 
 // ── SSH source: BYO key / GitHub / Both ─────────────────────────────────────
 let sshHydrated = false;

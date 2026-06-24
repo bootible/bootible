@@ -115,6 +115,57 @@
           </div>
         </main>
 
+        <!-- ───────────────────── STRIP KIT (Full ROG) ───────────────────── -->
+        <main class="view setup" data-view="stripkit">
+          <div class="setup-head">
+            <p class="eyebrow">Full ROG</p>
+            <h1 class="setup-title">Build your strip kit</h1>
+            <p class="setup-sub">Your factory ROG, debloated + your apps. Restore the factory image, then run this kit.</p>
+          </div>
+          <div class="sk-body">
+            <details class="sk-guide">
+              <summary>1 · Restore the factory image (ASUS Cloud Recovery)</summary>
+              <ol class="sk-steps">
+                <li>Enter the BIOS: tap <b>F12</b> at the ROG logo (or Settings → Recovery → Advanced startup → UEFI firmware settings).</li>
+                <li>Check the BIOS clock is correct — a wrong time blocks Cloud Recovery.</li>
+                <li>Press <b>Y</b> (or F7 → Advanced) → <b>ASUS Cloud Recovery</b>.</li>
+                <li>Connect Wi-Fi, agree; when asked to back up your files → <b>Cancel</b> (fresh machine), then OK to reset.</li>
+              </ol>
+              <p class="app-note">Full steps also ship in README-restore.txt inside your kit.</p>
+            </details>
+
+            <div class="sk-save">
+              <p class="sk-h">2 · Save the strip kit</p>
+              <div class="sk-toggle">
+                <button class="sk-tab is-active" type="button" data-sk="disk">Save to Disk</button>
+                <button class="sk-tab" type="button" data-sk="usb">Save to USB</button>
+              </div>
+
+              <div class="sk-pane" data-sk-pane="disk">
+                <p class="setup-sub">Pick a folder — bootible drops the 3 files there.</p>
+                <button class="btn-primary" type="button" id="sk-disk-save">Choose folder…</button>
+              </div>
+
+              <div class="sk-pane" data-sk-pane="usb" hidden>
+                <p class="setup-sub">Available USB media:</p>
+                <div class="sk-usb-list" id="sk-usb-list"></div>
+                <label class="sk-format"><input type="checkbox" id="sk-format" /> Format first (exFAT, quick erase)</label>
+                <div class="summary-actions">
+                  <button class="btn-primary" type="button" id="sk-usb-copy">Copy to USB</button>
+                  <button class="btn-ghost" type="button" id="sk-usb-eject">Eject ⏏</button>
+                </div>
+              </div>
+            </div>
+
+            <p class="sk-status" id="sk-status"></p>
+          </div>
+          <div class="customise-foot">
+            <div class="summary-actions">
+              <button class="btn-ghost" type="button" data-back>Back</button>
+            </div>
+          </div>
+        </main>
+
         <!-- ───────────────────── BUNDLES (set it up for me) ───────────────────── -->
         <main class="view setup" data-view="bundles">
           <div class="setup-head">
