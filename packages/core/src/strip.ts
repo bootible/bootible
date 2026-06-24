@@ -94,8 +94,14 @@ export function generateStripLauncher(): string {
   return [
     "@echo off",
     "REM bootible -- double-tap to strip a factory-restored ROG Ally.",
-    "REM Runs strip-rog.ps1 next to this file; it self-elevates (one UAC prompt).",
+    "REM Self-elevates (one UAC prompt), then runs strip-rog.ps1 next to this file.",
+    "net session >nul 2>&1",
+    "if %errorlevel% NEQ 0 (",
+    `  powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"`,
+    "  exit /b",
+    ")",
     'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0strip-rog.ps1"',
+    "pause",
     "",
   ].join("\r\n");
 }

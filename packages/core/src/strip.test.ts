@@ -13,9 +13,11 @@ const config = {
 };
 
 describe("generateStripLauncher", () => {
-  it("is a .bat that runs the sibling strip-rog.ps1 with bypass", () => {
+  it("is a self-elevating .bat that runs the sibling strip-rog.ps1", () => {
     const bat = generateStripLauncher();
     expect(bat).toContain("@echo off");
+    expect(bat).toContain("net session"); // admin check
+    expect(bat).toContain("-Verb RunAs"); // self-elevation
     expect(bat).toContain("-ExecutionPolicy Bypass");
     expect(bat).toContain('"%~dp0strip-rog.ps1"');
     expect(bat).toContain("\r\n"); // Windows line endings for a .bat
