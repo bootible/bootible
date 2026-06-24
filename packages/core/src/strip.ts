@@ -14,49 +14,132 @@ import type { BootibleConfig } from "./config";
 import type { ApplyContext } from "./orchestrator";
 import type { Exec } from "./secrets";
 
-/** Appx packages safe to remove (Microsoft inbox bloat + security trialware).
- *  Wildcards match Get-AppxPackage -AllUsers names. */
-const STRIP_APPX = [
-  "*McAfee*",
-  "*Norton*",
-  "*Glidex*", // ASUS GlideX is an Appx (B9ECED6F.Glidex) — multi-device, useless on a handheld
-  "Microsoft.MicrosoftOfficeHub",
-  "Microsoft.OfficeLens",
-  "Microsoft.Office.ActionsServer",
-  "Microsoft.OfficePushNotificationUtility",
-  "Microsoft.MicrosoftSolitaireCollection",
-  "Clipchamp.Clipchamp",
-  "Microsoft.Todos",
-  "Microsoft.BingNews",
-  "Microsoft.BingWeather",
-  "Microsoft.ZuneMusic", // Groove (legacy)
-  "Microsoft.Whiteboard",
-  "Microsoft.GetHelp",
-  "Microsoft.WindowsFeedbackHub",
-  "Microsoft.MixedRealityLink",
-  "Microsoft.Windows.DevHome",
-  "Microsoft.OutlookForWindows", // new Outlook
-  "MSTeams", // personal Teams
-  "Microsoft.PowerAutomateDesktop",
-  "Microsoft.OneDriveSync",
-  "*LinkedInforWindows*",
-  // Kept on purpose: Microsoft.YourPhone (Phone Link), Xbox/Gaming apps.
+/** One removable app/bundle the user can opt into stripping. `appx` patterns
+ *  match Get-AppxPackage -AllUsers names; `win32` patterns match Uninstall
+ *  DisplayNames. `recommended` is the default-suggested set (still opt-in in the
+ *  UI, and the default the standalone striprog.ps1 strips when nothing's chosen). */
+export interface RemovalEntry {
+  id: string;
+  name: string;
+  appx?: string[];
+  win32?: string[];
+  recommended?: boolean;
+  note?: string;
+}
+
+/** The opt-in removal catalog, built from the real Xbox Ally factory inventory. */
+export const REMOVAL_CATALOG: RemovalEntry[] = [
+  {
+    id: "mcafee",
+    name: "McAfee (trialware)",
+    appx: ["*McAfee*"],
+    win32: ["McAfee"],
+    recommended: true,
+  },
+  {
+    id: "norton",
+    name: "Norton (trialware)",
+    appx: ["*Norton*"],
+    win32: ["Norton"],
+    recommended: true,
+  },
+  {
+    id: "glidex",
+    name: "ASUS GlideX",
+    appx: ["*Glidex*"],
+    win32: ["GlideX"],
+    recommended: true,
+    note: "Multi-device screen share — useless on a handheld.",
+  },
+  {
+    id: "copilot",
+    name: "Copilot (Win32 leftover)",
+    win32: ["Copilot"],
+    recommended: true,
+    note: "The Copilot app is removed by the floor; this clears the Win32 stub too.",
+  },
+  {
+    id: "office-hub",
+    name: "Office hub, Lens + stubs",
+    appx: [
+      "Microsoft.MicrosoftOfficeHub",
+      "Microsoft.OfficeLens",
+      "Microsoft.Office.ActionsServer",
+      "Microsoft.OfficePushNotificationUtility",
+    ],
+    recommended: true,
+  },
+  {
+    id: "microsoft-365",
+    name: "Microsoft 365 (Office)",
+    win32: ["Microsoft 365"],
+    recommended: true,
+  },
+  {
+    id: "solitaire",
+    name: "Solitaire Collection",
+    appx: ["Microsoft.MicrosoftSolitaireCollection"],
+    recommended: true,
+  },
+  { id: "clipchamp", name: "Clipchamp", appx: ["Clipchamp.Clipchamp"], recommended: true },
+  { id: "todos", name: "Microsoft To Do", appx: ["Microsoft.Todos"], recommended: true },
+  { id: "bing-news", name: "Bing News", appx: ["Microsoft.BingNews"], recommended: true },
+  { id: "bing-weather", name: "Bing Weather", appx: ["Microsoft.BingWeather"], recommended: true },
+  { id: "groove", name: "Groove Music", appx: ["Microsoft.ZuneMusic"], recommended: true },
+  { id: "whiteboard", name: "Whiteboard", appx: ["Microsoft.Whiteboard"], recommended: true },
+  { id: "get-help", name: "Get Help", appx: ["Microsoft.GetHelp"], recommended: true },
+  {
+    id: "feedback-hub",
+    name: "Feedback Hub",
+    appx: ["Microsoft.WindowsFeedbackHub"],
+    recommended: true,
+  },
+  {
+    id: "mixed-reality",
+    name: "Mixed Reality Link",
+    appx: ["Microsoft.MixedRealityLink"],
+    recommended: true,
+  },
+  { id: "dev-home", name: "Dev Home", appx: ["Microsoft.Windows.DevHome"], recommended: true },
+  { id: "outlook", name: "New Outlook", appx: ["Microsoft.OutlookForWindows"], recommended: true },
+  { id: "teams", name: "Teams (personal)", appx: ["MSTeams"], recommended: true },
+  {
+    id: "power-automate",
+    name: "Power Automate",
+    appx: ["Microsoft.PowerAutomateDesktop"],
+    recommended: true,
+  },
+  {
+    id: "onedrive",
+    name: "OneDrive",
+    appx: ["Microsoft.OneDriveSync"],
+    win32: ["OneDrive"],
+    recommended: true,
+  },
+  { id: "linkedin", name: "LinkedIn", appx: ["*LinkedInforWindows*"], recommended: true },
+  {
+    id: "phone-link",
+    name: "Phone Link",
+    appx: ["Microsoft.YourPhone"],
+    recommended: false,
+    note: "Handy for calls/notifications — kept unless you tick it.",
+  },
 ];
 
-/** Win32 apps to silently uninstall, matched on DisplayName (factory trialware +
- *  ASUS extras that don't apply to a handheld). */
-// Win32 (classic installer) names to strip. "Live Update" is intentionally a
-// no-op on the Ally (its updater is ROG Live Service, kept). Copilot has a Win32
-// entry the Appx removal misses, so we catch both.
-const STRIP_WIN32 = [
-  "McAfee",
-  "Norton",
-  "GlideX",
-  "Live Update",
-  "Microsoft 365",
-  "OneDrive",
-  "Copilot",
-];
+/** Resolve a removal selection (ids) to {appx, win32} pattern arrays. With no
+ *  selection (standalone striprog.ps1) it defaults to every recommended entry. */
+export function resolveRemovals(ids?: string[]): { appx: string[]; win32: string[] } {
+  const chosen = ids?.length
+    ? REMOVAL_CATALOG.filter((e) => ids.includes(e.id))
+    : REMOVAL_CATALOG.filter((e) => e.recommended);
+  const appx: string[] = [];
+  const win32: string[] = [];
+  for (const e of chosen) {
+    if (e.appx) appx.push(...e.appx);
+    if (e.win32) win32.push(...e.win32);
+  }
+  return { appx, win32 };
+}
 
 /** Never uninstall these, even if a strip pattern would match — the ROG/Full-ROG
  *  essentials and Armoury Crate's own dependencies. */
@@ -183,6 +266,7 @@ export function generateStripReadme(): string {
 
 /** The standalone strip/tune script for a factory-restored ROG. */
 export function generateStripScript(config: BootibleConfig): string {
+  const removals = resolveRemovals(config.settings?.strip_removals as string[] | undefined);
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
 # Applies bootible's floor + a conservative debloat, keeping the ROG essentials.
 # Generated, self-contained PowerShell — no runtime/CLI needed. Run elevated.
@@ -232,8 +316,8 @@ Write-Strip 'inventory written (inventory-appx.txt / inventory-win32.txt)'
 $env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;$env:PATH"
 ${moduleLines(config)}
 
-# ── STRIP Appx (Microsoft inbox bloat + security trialware) ──
-$stripAppx = ${psArray(STRIP_APPX)}
+# ── STRIP Appx (the removals you opted into) ──
+$stripAppx = ${psArray(removals.appx)}
 $keepGuard = ${psArray(KEEP_GUARD)}
 foreach ($pat in $stripAppx) {
   Get-AppxPackage -AllUsers $pat -ErrorAction SilentlyContinue | ForEach-Object {
@@ -250,7 +334,7 @@ foreach ($pat in $stripAppx) {
 
 # ── STRIP Win32 (factory trialware + handheld-irrelevant ASUS extras), with a
 #    keep-guard so Armoury Crate / System Control / MyASUS / Dolby are untouched ──
-$stripWin32 = ${psArray(STRIP_WIN32)}
+$stripWin32 = ${psArray(removals.win32)}
 Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName } | ForEach-Object {
   $name = $_.DisplayName
   $keep = $false; foreach ($k in $keepGuard) { if ($name -like "*$k*") { $keep = $true } }

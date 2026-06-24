@@ -65,14 +65,25 @@ describe("generateStripScript", () => {
     expect(script).toContain("administrators_authorized_keys");
   });
 
-  it("strips trialware + ASUS GlideX (an Appx) but guards the ROG + Xbox essentials", () => {
+  it("strips the recommended set by default + ASUS GlideX, guards the essentials", () => {
     expect(script).toContain("McAfee");
-    expect(script).toContain("Live Update");
     expect(script).toContain("*Glidex*"); // the real factory-image catch
+    expect(script).not.toContain("Microsoft.YourPhone"); // Phone Link not recommended → kept
     // keep-guard protects Armoury Crate / MyASUS / Dolby AND Xbox (gaming handheld)
     expect(script).toContain("Armoury Crate");
     expect(script).toContain("MyASUS");
     expect(script).toContain("Dolby");
     expect(script).toContain("Xbox");
+  });
+
+  it("strips only the opted-in removals when the config selects them", () => {
+    const picked = generateStripScript({
+      schema: 2,
+      device: "rog-ally",
+      settings: { sleep_mode: "hibernate", strip_removals: ["glidex", "phone-link"] },
+    });
+    expect(picked).toContain("*Glidex*"); // opted in
+    expect(picked).toContain("Microsoft.YourPhone"); // opted in this time
+    expect(picked).not.toContain("MSTeams"); // not selected → kept
   });
 });
