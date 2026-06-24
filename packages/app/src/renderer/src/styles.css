@@ -1765,6 +1765,20 @@ body[data-view="account"] .summary::before {
   margin: 6px 0 0;
 }
 
+/* "Recommended" badge on the Full ROG removals checklist */
+.cz-rec-tag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent, #4ea1ff);
+  background: color-mix(in srgb, var(--accent, #4ea1ff) 16%, transparent);
+  vertical-align: middle;
+}
+
 /* SSH source: sliding 3-way tabs (BYO / GitHub / Both) */
 .ssh-tabs {
   position: relative;

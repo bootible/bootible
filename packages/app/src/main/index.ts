@@ -48,6 +48,7 @@ import {
   type ProvisioningMethod,
   platformForOs,
   provisioningMethods,
+  REMOVAL_CATALOG,
   ROADMAP_DEVICES,
   type StepEvent,
   type SystemInfo,
@@ -444,6 +445,8 @@ export interface UsbBuildRequest {
   disabledModules?: string[];
   /** App slugs picked in the app-picker. */
   selectedApps?: string[];
+  /** Removal-catalog ids the user opted into stripping (Full ROG). */
+  selectedRemovals?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language — sets the download language AND the
@@ -661,6 +664,8 @@ type BuildChoice = {
   disabledModules?: string[];
   /** App slugs picked in the app-picker (settings.selected_apps). */
   selectedApps?: string[];
+  /** Removal-catalog ids the user opted into stripping (settings.strip_removals). */
+  selectedRemovals?: string[];
 };
 
 /** The non-empty, trimmed SSH public keys from a build choice. */
@@ -700,6 +705,7 @@ function buildSettings(req: BuildChoice): Record<string, unknown> {
   const keys = chosenKeys(req);
   if (keys.length > 0) settings.ssh_public_keys = keys;
   if (req.selectedApps?.length) settings.selected_apps = req.selectedApps;
+  if (req.selectedRemovals?.length) settings.strip_removals = req.selectedRemovals;
   if (req.staticIp?.ip) settings.static_ip = req.staticIp;
   if (req.remoteAccess?.sunshine && req.sunshineUser && req.sunshinePass) {
     settings.sunshine_user = req.sunshineUser;
@@ -1167,6 +1173,7 @@ app.whenReady().then(() => {
   ipcMain.handle("network:suggest", () => suggestNetwork());
   ipcMain.handle("base:plan", (_event, baseId: string) => getBasePlan(baseId));
   ipcMain.handle("apps:groups", (): AppGroup[] => APP_GROUPS);
+  ipcMain.handle("removals:get", () => REMOVAL_CATALOG);
   ipcMain.handle("image:browse", async () => {
     const r = await dialog.showOpenDialog({
       title: "Choose an image",

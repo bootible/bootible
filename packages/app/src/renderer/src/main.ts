@@ -66,6 +66,9 @@ interface UsbBuildRequest {
   sunshinePass?: string;
   wallpaperPath?: string;
   lockscreenPath?: string;
+  disabledModules?: string[];
+  selectedApps?: string[];
+  selectedRemovals?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   isoId?: string;
@@ -107,6 +110,15 @@ interface AppGroup {
   id: string;
   label: string;
   apps: AppEntry[];
+  note?: string;
+}
+
+interface RemovalEntry {
+  id: string;
+  name: string;
+  appx?: string[];
+  win32?: string[];
+  recommended?: boolean;
   note?: string;
 }
 
@@ -230,6 +242,10 @@ interface BootibleApi {
   browseIso(): Promise<string | null>;
   writeUsb(req: UsbWriteReq): Promise<{ started: boolean }>;
   onUsbProgress(cb: (event: UsbProgress) => void): void;
+  getRemovals(): Promise<RemovalEntry[]>;
+  saveStripKitDisk(req: UsbBuildRequest): Promise<{ path: string } | null>;
+  saveStripKitUsb(req: UsbBuildRequest, drive: string): Promise<{ path: string }>;
+  ejectUsb(drive: string): Promise<{ ok: boolean }>;
 }
 
 declare global {
@@ -560,6 +576,10 @@ function renderCustomise(): void {
     ),
   );
   secs.push(section("Add extras", basePlan.extras.length + 2, extraRows));
+  // Full ROG: opt-in "Remove apps" checklist (drives the strip list).
+  if (selectedBaseId === "full-rog" && removalsCatalog.length) {
+    secs.push(removalsSection());
+  }
   host.replaceChildren(...secs);
   // Running summary.
   const floorOn = basePlan.floor.filter((m) => !disabledModules.has(m.id)).length;
@@ -569,6 +589,45 @@ function renderCustomise(): void {
   if (sum) {
     sum.textContent = `${floorOn + baseOn + extrasOn} things will run · ${floorOn} core · ${baseOn} base · ${extrasOn} extras`;
   }
+}
+
+/** The Full ROG opt-in removals checklist — a collapsible block of checkboxes,
+ *  off by default (nothing removed unless ticked), with a "Select recommended"
+ *  shortcut. Drives config.settings.strip_removals. */
+function removalsSection(): HTMLElement {
+  const details = el("details", "app-group cz-removals") as HTMLDetailsElement;
+  if (selectedRemovals.size > 0) details.open = true;
+  const summary = el("summary", "app-group-sum");
+  summary.append(
+    el("span", "app-group-name", "Remove apps (optional)"),
+    el("span", "app-group-count", `${selectedRemovals.size} / ${removalsCatalog.length}`),
+  );
+  const body = el("div", "app-items");
+  const note = el(
+    "p",
+    "app-note",
+    "Nothing is removed unless you tick it. Phone Link is kept by default.",
+  );
+  const rec = el("button", "cz-applink", "Select recommended") as HTMLButtonElement;
+  rec.type = "button";
+  rec.dataset.removalsRec = "1";
+  body.append(note, rec);
+  for (const r of removalsCatalog) {
+    const row = el("label", "app-row");
+    const cb = el("input", "app-check") as HTMLInputElement;
+    cb.type = "checkbox";
+    cb.dataset.removal = r.id;
+    cb.checked = selectedRemovals.has(r.id);
+    const meta = el("span", "app-meta");
+    const name = el("span", "app-name", r.name);
+    if (r.recommended) name.append(el("span", "cz-rec-tag", "Recommended"));
+    meta.append(name);
+    if (r.note) meta.append(el("span", "app-id", r.note));
+    row.append(cb, meta);
+    body.append(row);
+  }
+  details.append(summary, body);
+  return details;
 }
 
 /** A Review row that opens a picker (Apps / Emulators), showing the live count. */
@@ -611,6 +670,12 @@ async function hydrateCustomise(): Promise<void> {
   if (!appGroups.length && api.getAppGroups) {
     try {
       appGroups = await api.getAppGroups();
+    } catch {}
+  }
+  // Full ROG: load the opt-in removal catalog for the "Remove apps" checklist.
+  if (!removalsCatalog.length && api.getRemovals) {
+    try {
+      removalsCatalog = await api.getRemovals();
     } catch {}
   }
   renderCustomise();
@@ -857,6 +922,9 @@ const disabledModules = new Set<string>(); // unticked floor/base modules
 const enabledExtras = new Set<string>(); // ticked optional extras (incl. "apps")
 let appGroups: AppGroup[] = [];
 const selectedApps = new Set<string>();
+// Full ROG opt-in removals (off until ticked).
+let removalsCatalog: RemovalEntry[] = [];
+const selectedRemovals = new Set<string>();
 let appsHydrated = false;
 let pickerMode: "apps" | "emulators" = "apps";
 const EMU_GROUP = "emulators";
@@ -1438,6 +1506,7 @@ function gatherUsbRequest(): UsbBuildRequest {
     lockscreenPath: lockscreenPath || undefined,
     disabledModules: disabledModules.size ? [...disabledModules] : undefined,
     selectedApps: selectedApps.size ? [...selectedApps] : undefined,
+    selectedRemovals: selectedRemovals.size ? [...selectedRemovals] : undefined,
     account,
     wifi,
   };
@@ -1760,6 +1829,12 @@ document.addEventListener("change", (event) => {
     }
     renderCustomise();
   }
+  // Removals checklist (Full ROG): opt-in app removals — off until ticked.
+  if (target instanceof HTMLInputElement && target.dataset.removal) {
+    if (target.checked) selectedRemovals.add(target.dataset.removal);
+    else selectedRemovals.delete(target.dataset.removal);
+    renderCustomise();
+  }
   // App-picker: a single app, or a whole group.
   // A single app pick (winget) or a module-driven entry (e.g. EmuDeck).
   if (target instanceof HTMLInputElement && target.dataset.app) {
@@ -1801,6 +1876,13 @@ document.addEventListener("click", (event) => {
   if (!btn) return;
   pickerMode = btn.dataset.picker === "emulators" ? "emulators" : "apps";
   location.hash = "apps";
+});
+
+// "Select recommended" on the removals checklist: tick the recommended set.
+document.addEventListener("click", (event) => {
+  if (!(event.target as HTMLElement).closest("[data-removals-rec]")) return;
+  for (const r of removalsCatalog) if (r.recommended) selectedRemovals.add(r.id);
+  renderCustomise();
 });
 
 document.addEventListener("click", (event) => {

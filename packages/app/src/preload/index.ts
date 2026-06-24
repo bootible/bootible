@@ -5,6 +5,7 @@ import type {
   GroupSummary,
   ModuleStateReport,
   ProvisioningMethod,
+  RemovalEntry,
   StepEvent,
 } from "@bootible/core";
 
@@ -54,6 +55,8 @@ export interface UsbBuildRequest {
   disabledModules?: string[];
   /** App slugs picked in the app-picker. */
   selectedApps?: string[];
+  /** Removal-catalog ids the user opted into stripping (Full ROG). */
+  selectedRemovals?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };
   wifi?: { ssid: string; password: string };
   /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
@@ -151,6 +154,7 @@ const api = {
   getBases: (): Promise<BaseOption[]> => ipcRenderer.invoke("bases:get"),
   getBasePlan: (baseId: string): Promise<BasePlan> => ipcRenderer.invoke("base:plan", baseId),
   getAppGroups: (): Promise<AppGroup[]> => ipcRenderer.invoke("apps:groups"),
+  getRemovals: (): Promise<RemovalEntry[]> => ipcRenderer.invoke("removals:get"),
   getHostSshKeys: (): Promise<HostSshKey[]> => ipcRenderer.invoke("ssh:host-keys"),
   generateHostSshKey: (comment: string): Promise<HostSshKey | null> =>
     ipcRenderer.invoke("ssh:generate-key", comment),
