@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateStripScript } from "./strip";
+import { generateStripLauncher, generateStripScript } from "./strip";
 
 const config = {
   schema: 2 as const,
@@ -11,6 +11,16 @@ const config = {
     disable_cpu_boost_on_battery: true,
   },
 };
+
+describe("generateStripLauncher", () => {
+  it("is a .bat that runs the sibling strip-rog.ps1 with bypass", () => {
+    const bat = generateStripLauncher();
+    expect(bat).toContain("@echo off");
+    expect(bat).toContain("-ExecutionPolicy Bypass");
+    expect(bat).toContain('"%~dp0strip-rog.ps1"');
+    expect(bat).toContain("\r\n"); // Windows line endings for a .bat
+  });
+});
 
 describe("generateStripScript", () => {
   const script = generateStripScript(config);

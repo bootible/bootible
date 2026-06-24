@@ -86,6 +86,20 @@ function floorLines(config: BootibleConfig): string {
     .join("\n");
 }
 
+/** A double-tappable launcher for the strip script. `.bat` RUNS on double-click
+ *  (touch-friendly) — unlike a `.ps1`, which Windows opens in an editor. It just
+ *  invokes strip-rog.ps1 sitting next to it, which then self-elevates (one UAC
+ *  prompt). Ship this beside strip-rog.ps1 on the USB. */
+export function generateStripLauncher(): string {
+  return [
+    "@echo off",
+    "REM bootible -- double-tap to strip a factory-restored ROG Ally.",
+    "REM Runs strip-rog.ps1 next to this file; it self-elevates (one UAC prompt).",
+    'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0strip-rog.ps1"',
+    "",
+  ].join("\r\n");
+}
+
 /** The standalone strip/tune script for a factory-restored ROG. */
 export function generateStripScript(config: BootibleConfig): string {
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
