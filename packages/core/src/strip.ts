@@ -229,7 +229,7 @@ if ($ghUser) {
     $keys = ($resp.Content -split "\`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^(ssh-|ecdsa-|sk-)' }
   } catch { Write-Strip "  github fetch failed: $_" }
   if ($keys.Count -gt 0) {
-    & winget install --id Microsoft.OpenSSH.Preview --accept-source-agreements --accept-package-agreements --silent
+    & winget install --id Microsoft.OpenSSH.Preview --source winget --accept-source-agreements --accept-package-agreements --silent
     if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
       $s = Get-ChildItem 'C:\\Program Files\\OpenSSH*' -Filter install-sshd.ps1 -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
       if ($s) { & $s.FullName }

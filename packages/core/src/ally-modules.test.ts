@@ -173,6 +173,8 @@ describe("allyCatalog", () => {
       "install",
       "--id",
       "Microsoft.OpenSSH.Preview",
+      "--source",
+      "winget",
       "--accept-source-agreements",
       "--accept-package-agreements",
       "--silent",

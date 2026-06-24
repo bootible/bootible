@@ -313,6 +313,10 @@ const sshKey: BootibleModule = {
       "install",
       "--id",
       "Microsoft.OpenSSH.Preview",
+      // Pin to the winget source so a misconfigured/SSL-inspected msstore source
+      // (corp networks: cert-pinning error 0x8a15005e) can't fail the install.
+      "--source",
+      "winget",
       "--accept-source-agreements",
       "--accept-package-agreements",
       "--silent",
