@@ -197,6 +197,7 @@ interface BootibleApi {
   getAppGroups(): Promise<AppGroup[]>;
   getHostSshKeys(): Promise<HostSshKey[]>;
   generateHostSshKey(comment: string): Promise<HostSshKey | null>;
+  githubKeys(user: string): Promise<string[]>;
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
   onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
@@ -691,8 +692,56 @@ async function hydrateApps(): Promise<void> {
   renderApps();
 }
 
-// ── host SSH key-picker (account screen) ────────────────────────────────────
+// ── SSH source: BYO key / GitHub / Both ─────────────────────────────────────
 let sshHydrated = false;
+let sshMode: "byo" | "github" | "both" = "byo";
+let githubKeys: string[] = [];
+
+/** Switch the SSH source tab — slide the indicator and show the right pane(s). */
+function setSshMode(mode: "byo" | "github" | "both"): void {
+  sshMode = mode;
+  const order = ["byo", "github", "both"];
+  for (const tab of document.querySelectorAll<HTMLElement>(".ssh-tab")) {
+    tab.classList.toggle("is-active", tab.dataset.sshmode === mode);
+  }
+  const glide = document.querySelector<HTMLElement>(".ssh-tab-glide");
+  if (glide) glide.style.transform = `translateX(${order.indexOf(mode) * 100}%)`;
+  const showByo = mode === "byo" || mode === "both";
+  const showGithub = mode === "github" || mode === "both";
+  document.querySelector('.ssh-pane[data-pane="byo"]')?.toggleAttribute("hidden", !showByo);
+  document.querySelector('.ssh-pane[data-pane="github"]')?.toggleAttribute("hidden", !showGithub);
+}
+
+/** Fetch + show the GitHub user's public keys (debounced via blur/Enter). */
+async function refreshGithubKeys(): Promise<void> {
+  const user = (document.querySelector<HTMLInputElement>("#github-user")?.value ?? "").trim();
+  const status = document.querySelector<HTMLElement>("#github-status");
+  if (!user) {
+    githubKeys = [];
+    if (status) status.textContent = "Pulls your public keys from github.com/<user>.keys";
+    return;
+  }
+  if (status) status.textContent = "Looking up keys…";
+  githubKeys = (await window.bootible?.githubKeys?.(user)) ?? [];
+  if (status) {
+    status.textContent = githubKeys.length
+      ? `✓ ${githubKeys.length} key${githubKeys.length === 1 ? "" : "s"} from github.com/${user}.keys`
+      : `No public keys at github.com/${user}.keys`;
+    status.classList.toggle("ok", githubKeys.length > 0);
+  }
+}
+
+// SSH source tab switch.
+document.addEventListener("click", (event) => {
+  const tab = (event.target as HTMLElement).closest<HTMLElement>(".ssh-tab");
+  const mode = tab?.dataset.sshmode;
+  if (mode === "byo" || mode === "github" || mode === "both") setSshMode(mode);
+});
+
+// GitHub username -> fetch its public keys (on blur / Enter).
+document.addEventListener("change", (event) => {
+  if ((event.target as HTMLElement).id === "github-user") void refreshGithubKeys();
+});
 
 /** Render the host's SSH keys as a multi-select, or an empty/generate state. */
 function renderSshKeys(): void {
@@ -748,6 +797,7 @@ async function hydrateSshKeys(): Promise<void> {
     sshHydrated = true;
   }
   renderSshKeys();
+  setSshMode(sshMode);
   updateEditionState();
   // Pre-fill the static IP hint from this PC's subnet (so the user types one host).
   if (!netSuggestion && api.suggestNetwork) {
@@ -1336,10 +1386,16 @@ function gatherUsbRequest(): UsbBuildRequest {
       : { mode };
   const ssid = val("#wifi-ssid");
   const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
-  // Chosen keys from the picker + anything pasted into the fallback box.
+  // SSH keys come from BYO (host picker + paste), GitHub (fetched), or both,
+  // per the active tab.
   const picked = hostSshKeys.filter((k) => selectedKeyIds.has(k.id)).map((k) => k.publicKey);
   const pasted = val("#ssh-paste");
-  const sshPublicKeys = [...picked, ...(pasted ? [pasted] : [])];
+  const byoKeys = [...picked, ...(pasted ? [pasted] : [])];
+  const wantByo = sshMode === "byo" || sshMode === "both";
+  const wantGithub = sshMode === "github" || sshMode === "both";
+  const sshPublicKeys = [
+    ...new Set([...(wantByo ? byoKeys : []), ...(wantGithub ? githubKeys : [])]),
+  ];
   const hostname = val("#device-hostname") || undefined;
   const staticIpVal = val("#static-ip");
   const staticIp: StaticIp | undefined = staticIpVal

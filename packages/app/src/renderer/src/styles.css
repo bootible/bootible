@@ -1765,6 +1765,56 @@ body[data-view="account"] .summary::before {
   margin: 6px 0 0;
 }
 
+/* SSH source: sliding 3-way tabs (BYO / GitHub / Both) */
+.ssh-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #0e0f12;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+
+.ssh-tab-glide {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  height: calc(100% - 6px);
+  background: rgba(246, 166, 35, 0.16);
+  border: 1px solid rgba(246, 166, 35, 0.5);
+  border-radius: 8px;
+  transition: transform 0.18s ease;
+  pointer-events: none;
+}
+
+.ssh-tab {
+  position: relative;
+  z-index: 1;
+  background: none;
+  border: none;
+  padding: 8px 0;
+  font-size: 13.5px;
+  color: var(--mut, #9aa0a8);
+  cursor: pointer;
+}
+
+.ssh-tab.is-active {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.github-status {
+  font-size: 12.5px;
+  margin: 8px 0 0;
+}
+
+.github-status.ok {
+  color: #39d98a;
+}
+
 .watch-host {
   margin-top: 20px;
   width: 100%;

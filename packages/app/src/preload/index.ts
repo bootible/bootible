@@ -154,6 +154,7 @@ const api = {
   getHostSshKeys: (): Promise<HostSshKey[]> => ipcRenderer.invoke("ssh:host-keys"),
   generateHostSshKey: (comment: string): Promise<HostSshKey | null> =>
     ipcRenderer.invoke("ssh:generate-key", comment),
+  githubKeys: (user: string): Promise<string[]> => ipcRenderer.invoke("ssh:github-keys", user),
   startDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:start"),
   stopDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:stop"),
   verifyDevice: (ip: string): Promise<{ reachable: boolean; output: string; alias?: string }> =>

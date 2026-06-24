@@ -491,9 +491,21 @@
               </div>
 
               <div class="field">
-                <label class="field-label">SSH access <span class="muted">(optional — pick keys from this PC)</span></label>
-                <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
-                <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>
+                <label class="field-label">SSH access <span class="muted">(optional)</span></label>
+                <div class="ssh-tabs" role="tablist">
+                  <span class="ssh-tab-glide" aria-hidden="true"></span>
+                  <button class="ssh-tab is-active" type="button" data-sshmode="byo">BYO key</button>
+                  <button class="ssh-tab" type="button" data-sshmode="github">GitHub</button>
+                  <button class="ssh-tab" type="button" data-sshmode="both">Both</button>
+                </div>
+                <div class="ssh-pane" data-pane="byo">
+                  <div class="ssh-keys" id="ssh-key-list"><p class="muted">Looking for your keys…</p></div>
+                  <textarea class="field-input ssh-paste" id="ssh-paste" rows="2" placeholder="…or paste another public key" autocomplete="off" spellcheck="false"></textarea>
+                </div>
+                <div class="ssh-pane" data-pane="github" hidden>
+                  <input class="field-input" id="github-user" type="text" placeholder="GitHub username (e.g. octocat)" autocomplete="off" spellcheck="false" />
+                  <p class="github-status muted" id="github-status">Pulls your public keys from github.com/&lt;user&gt;.keys</p>
+                </div>
               </div>
 
               <div class="field">

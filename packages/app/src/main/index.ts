@@ -234,6 +234,24 @@ function sshDir(): string {
   return join(homedir(), ".ssh");
 }
 
+/** Fetch a user's public SSH keys from github.com/<user>.keys (the ssh-import-id
+ *  endpoint). Username sanitised to GitHub's charset; returns the key lines. */
+async function fetchGithubKeys(user: string): Promise<string[]> {
+  const u = (user ?? "").trim().replace(/[^A-Za-z0-9-]/g, "");
+  if (!u) return [];
+  try {
+    const res = await fetch(`https://github.com/${u}.keys`);
+    if (!res.ok) return [];
+    const text = await res.text();
+    return text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => /^(ssh-|ecdsa-|sk-)/.test(l));
+  } catch {
+    return [];
+  }
+}
+
 function readPubKey(dir: string, file: string): HostSshKey | null {
   try {
     const content = readFileSync(join(dir, file), "utf8").trim();
@@ -1093,6 +1111,7 @@ app.whenReady().then(() => {
   ipcMain.handle("bases:get", () => getBases());
   ipcMain.handle("ssh:host-keys", () => getHostSshKeys());
   ipcMain.handle("ssh:generate-key", (_event, comment: string) => generateHostSshKey(comment));
+  ipcMain.handle("ssh:github-keys", (_event, user: string) => fetchGithubKeys(user));
   ipcMain.handle("discovery:start", (event) => startDiscovery(event.sender));
   ipcMain.handle("discovery:stop", () => stopDiscovery());
   ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
