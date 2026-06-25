@@ -40,6 +40,12 @@ describe("generateStripScript", () => {
     expect(script).toContain("inventory-win32.txt");
   });
 
+  it("beacons on the LAN at the end so the desktop can discover it (no IP needed)", () => {
+    expect(script).toContain("status = 'done'");
+    expect(script).toContain("EnableBroadcast");
+    expect(script).toContain("beacon.ps1");
+  });
+
   it("installs the user's picked apps when the config carries modules", () => {
     const withApps = generateStripScript({
       schema: 2,

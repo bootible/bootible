@@ -161,7 +161,11 @@
 
             <div class="sk-save">
               <p class="sk-h">3 · Check the device <span class="muted">(after you've run the kit)</span></p>
-              <p class="setup-sub">Once the strip has run and SSH is up, confirm bootible can reach it over your LAN or Tailscale.</p>
+              <p class="setup-sub">When the strip finishes it beacons on your network for ~10 minutes — open Find my device and it'll appear, no IP needed.</p>
+              <div class="summary-actions">
+                <button class="btn-primary" type="button" data-go="watch">Find my device →</button>
+              </div>
+              <p class="setup-sub sk-or">…or reach it directly by address (handy over Tailscale):</p>
               <div class="sk-verify-row">
                 <input class="field-input" id="sk-verify-ip" type="text" placeholder="device IP, hostname, or Tailscale IP" autocomplete="off" spellcheck="false" />
                 <button class="btn-ghost" type="button" id="sk-verify-btn">Verify →</button>
@@ -508,8 +512,8 @@
                   <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
                 </div>
               </div>
-              <div class="cfg-row" data-clean>
-                <div class="field">
+              <div class="cfg-row">
+                <div class="field" data-clean>
                   <label class="field-label">Windows edition</label>
                   <div class="edition-pick">
                     <label class="edition-opt"><input type="radio" name="edition" id="edition-home" checked /><span>Home</span></label>

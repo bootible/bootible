@@ -724,10 +724,16 @@ function buildSettings(req: BuildChoice): Record<string, unknown> {
 function buildStripKit(req: UsbBuildRequest): { name: string; content: string; bom: boolean }[] {
   const device = targetDevice();
   const modules = resolveModules(req);
+  // A build token so the device's end-of-strip beacon is recognised as "mine" on
+  // the desktop's discover screen; plus the SSH details for Verify.
+  lastBuildId = randomBytes(6).toString("hex");
+  lastBuildUsername = req.account?.username || "ally";
+  lastBuildHostname = sanitizeHostname(req.hostname);
+  lastBuildIdentity = identityForKeys(chosenKeys(req));
   const config = buildConfig({
     device: device?.id ?? "rog-ally",
     modules: modules.length ? modules : undefined,
-    settings: buildSettings(req),
+    settings: { ...buildSettings(req), build_id: lastBuildId },
   });
   return [
     { name: "striprog.ps1", content: generateStripScript(config), bom: true },

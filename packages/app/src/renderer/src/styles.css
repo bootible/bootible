@@ -1881,6 +1881,9 @@ body[data-view="account"] .summary::before {
   cursor: pointer;
   margin-left: 6px;
 }
+.sk-or {
+  margin-top: 14px;
+}
 .sk-verify-row {
   display: flex;
   gap: 8px;

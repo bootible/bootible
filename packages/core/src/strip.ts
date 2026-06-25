@@ -10,6 +10,7 @@
 
 import { allyCatalog } from "./ally-modules";
 import { UNIVERSAL_FLOOR } from "./bases";
+import { BEACON_PORT } from "./beacon";
 import type { BootibleConfig } from "./config";
 import type { ApplyContext } from "./orchestrator";
 import type { Exec } from "./secrets";
@@ -267,6 +268,7 @@ export function generateStripReadme(): string {
 /** The standalone strip/tune script for a factory-restored ROG. */
 export function generateStripScript(config: BootibleConfig): string {
   const removals = resolveRemovals(config.settings?.strip_removals as string[] | undefined);
+  const buildId = String(config.settings?.build_id ?? "bootible-strip").replace(/'/g, "''");
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
 # Applies bootible's floor + a conservative debloat, keeping the ROG essentials.
 # Generated, self-contained PowerShell — no runtime/CLI needed. Run elevated.
@@ -379,6 +381,34 @@ if ($ghUser) {
 
 Write-Strip 'bootible strip complete'
 "bootible stripped $(Get-Date -Format o)" | Set-Content "$Root\\receipt.txt"
+'done' | Set-Content "$Root\\status.txt"
+
+# ── Beacon: announce this device on the LAN for ~10 min so bootible can discover
+#    it with no IP/Tailscale to type — just open "Find my device" on the desktop.
+#    Runs detached in the background; bounded, so it isn't a permanent agent. ──
+$beaconBody = @'
+$ErrorActionPreference = 'SilentlyContinue'
+$buildId = '${buildId}'
+$port = ${BEACON_PORT}
+for ($i = 0; $i -lt 120; $i++) {
+  try {
+    $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress
+    $mac = (Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1).MacAddress
+    $payload = @{ bootible = 1; buildId = $buildId; mac = $mac; ip = $ip; hostname = $env:COMPUTERNAME; status = 'done' } | ConvertTo-Json -Compress
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
+    $udp = New-Object System.Net.Sockets.UdpClient; $udp.EnableBroadcast = $true
+    $endpoint = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Broadcast), $port
+    [void]$udp.Send($bytes, $bytes.Length, $endpoint); $udp.Close()
+  } catch {}
+  Start-Sleep -Seconds 5
+}
+'@
+Set-Content "$Root\\beacon.ps1" -Value $beaconBody -Encoding ascii
+try {
+  Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',"$Root\\beacon.ps1"
+  Write-Strip 'beacon broadcasting (~10 min) — open bootible "Find my device" on your PC'
+} catch { Write-Strip "  beacon failed: $_" }
+
 Write-Strip 'Review C:\\bootible\\inventory-*.txt and send them back so we can tighten the strip list.'
 Read-Host 'Done. Press Enter to close this window'
 `;
