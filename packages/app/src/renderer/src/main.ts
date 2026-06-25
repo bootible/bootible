@@ -134,6 +134,7 @@ interface DiscoveredDevice {
   mac: string;
   ip: string;
   hostname: string;
+  username: string;
   status: string;
   mine: boolean;
 }
@@ -1928,6 +1929,7 @@ function renderDiscovered(): void {
       const verify = el("button", "btn-ghost watch-verify", "Verify over SSH") as HTMLButtonElement;
       verify.type = "button";
       verify.dataset.verifyIp = d.ip;
+      verify.dataset.verifyUser = d.username || ""; // SSH as the device's own account
       card.append(verify);
 
       const result = verifyResults.get(d.ip);
@@ -1996,10 +1998,11 @@ document.addEventListener("click", (event) => {
   if (!btn) return;
   const ip = btn.dataset.verifyIp ?? "";
   if (!ip) return;
+  const user = btn.dataset.verifyUser || undefined; // the beacon-reported account
   btn.textContent = "Checking…";
   btn.disabled = true;
   void (async () => {
-    const result = (await window.bootible?.verifyDevice?.(ip)) ?? {
+    const result = (await window.bootible?.verifyDevice?.(ip, user)) ?? {
       reachable: false,
       output: "no bridge",
     };

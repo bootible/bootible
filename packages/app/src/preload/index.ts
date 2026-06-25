@@ -85,6 +85,7 @@ export interface DiscoveredDevice {
   mac: string;
   ip: string;
   hostname: string;
+  username: string;
   status: string;
   mine: boolean;
 }

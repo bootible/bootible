@@ -588,6 +588,8 @@ export interface DiscoveredDevice {
   mac: string;
   ip: string;
   hostname: string;
+  /** The device's account name, reported by the beacon — used as the SSH user. */
+  username: string;
   status: string;
   /** True when this is the device built by the most recent USB. */
   mine: boolean;
@@ -611,6 +613,7 @@ function startDiscovery(sender: WebContents): void {
           mac: String(msg.mac ?? ""),
           ip: String(msg.ip ?? ""),
           hostname: String(msg.hostname ?? ""),
+          username: String(msg.username ?? ""),
           status: String(msg.status ?? ""),
           mine: lastBuildId !== "" && msg.buildId === lastBuildId,
         };

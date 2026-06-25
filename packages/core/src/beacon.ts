@@ -22,6 +22,9 @@ export interface BeaconMessage {
   mac: string;
   ip: string;
   hostname: string;
+  /** The device's account name, so the desktop can SSH in as the right user
+   *  (Full ROG keeps the OOBE account — bootible doesn't otherwise know it). */
+  username: string;
   /** "installing" | "configuring" | "done" — drives the desktop's live view. */
   status: string;
 }
@@ -47,7 +50,7 @@ while ($true) {
     $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress
     $mac = (Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1).MacAddress
     $status = if (Test-Path $statusFile) { (Get-Content $statusFile -Raw).Trim() } else { 'installing' }
-    $payload = @{ bootible = 1; buildId = $buildId; mac = $mac; ip = $ip; hostname = $env:COMPUTERNAME; status = $status } | ConvertTo-Json -Compress
+    $payload = @{ bootible = 1; buildId = $buildId; mac = $mac; ip = $ip; hostname = $env:COMPUTERNAME; username = $env:USERNAME; status = $status } | ConvertTo-Json -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
     $udp = New-Object System.Net.Sockets.UdpClient
     $udp.EnableBroadcast = $true
