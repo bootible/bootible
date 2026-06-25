@@ -704,7 +704,10 @@ function pickerGroups(): AppGroup[] {
 function appGroupNode(group: AppGroup): HTMLElement {
   const onCount = group.apps.filter(entryOn).length;
   const details = el("details", "app-group") as HTMLDetailsElement;
-  if (onCount > 0 || pickerMode === "emulators") details.open = true;
+  details.dataset.group = group.id;
+  // Respect the user's expand/collapse (tracked in openGroups) — don't force a
+  // group back open just because it has a selection on every re-render.
+  details.open = openGroups.has(group.id);
   const summary = el("summary", "app-group-sum");
   const gcb = el("input", "app-group-check") as HTMLInputElement;
   gcb.type = "checkbox";
@@ -759,8 +762,29 @@ async function hydrateApps(): Promise<void> {
     }
     appsHydrated = true;
   }
+  // On (re)entering the picker, open the groups that have selections — but from
+  // here the user's manual expand/collapse (toggle event) is what's respected.
+  openGroups.clear();
+  for (const g of pickerGroups()) {
+    if (pickerMode === "emulators" || g.apps.some(entryOn)) openGroups.add(g.id);
+  }
   renderApps();
 }
+
+// Keep openGroups in sync with the user's expand/collapse. `toggle` doesn't
+// bubble, so listen in the capture phase.
+document.addEventListener(
+  "toggle",
+  (event) => {
+    const d = event.target;
+    if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("app-group")) return;
+    const id = d.dataset.group;
+    if (!id) return;
+    if (d.open) openGroups.add(id);
+    else openGroups.delete(id);
+  },
+  true,
+);
 
 // ── strip kit (Full ROG): save to disk / USB, format, eject ─────────────────
 let skMode: "disk" | "usb" = "disk";
@@ -1047,6 +1071,7 @@ const disabledModules = new Set<string>(); // unticked floor/base modules
 const enabledExtras = new Set<string>(); // ticked optional extras (incl. "apps")
 let appGroups: AppGroup[] = [];
 const selectedApps = new Set<string>();
+const openGroups = new Set<string>(); // which app-picker groups are expanded
 // Full ROG opt-in removals (off until ticked).
 let removalsCatalog: RemovalEntry[] = [];
 const selectedRemovals = new Set<string>();
