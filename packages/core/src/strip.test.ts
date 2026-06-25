@@ -18,8 +18,8 @@ describe("generateStripLauncher", () => {
     expect(bat).toContain("@echo off");
     expect(bat).toContain("-Verb RunAs"); // strip runs elevated
     expect(bat).toContain("-Wait"); // wait for the elevated strip to finish first
-    expect(bat).toContain("striprog.ps1"); // hyphen-free so macOS won't mangle it
-    expect(bat).toContain("*strip*.ps1"); // wildcard fallback
+    expect(bat).toContain("bootible.ps1"); // aligned name
+    expect(bat).toContain("bootible*.ps1"); // wildcard fallback
     expect(bat).toContain("user-installs.ps1"); // user-scope step in THIS session
     expect(bat).toContain("\r\n"); // Windows line endings for a .bat
   });
@@ -38,6 +38,12 @@ describe("generateStripScript", () => {
   it("writes a full inventory before stripping anything", () => {
     expect(script).toContain("inventory-appx.txt");
     expect(script).toContain("inventory-win32.txt");
+  });
+
+  it("stages wallpaper/lock screen into the user's Pictures (not C:\\bootible)", () => {
+    expect(script).toContain("wallpapers\\$($img[0]).*"); // globs the staged images
+    expect(script).toContain("$env:USERPROFILE\\Pictures"); // copies them there
+    expect(script).toContain("PersonalizationCSP"); // and points Windows at them
   });
 
   it("beacons on the LAN at the end so the desktop can discover it (no IP needed)", () => {

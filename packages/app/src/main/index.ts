@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir, networkInterfaces } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, extname, join } from "node:path";
 import {
   type AccountMode,
   APP_GROUPS,
@@ -756,8 +756,8 @@ function buildStripKit(req: UsbBuildRequest): { name: string; content: string; b
     settings: { ...buildSettings(req), build_id: lastBuildId },
   });
   return [
-    { name: "striprog.ps1", content: generateStripScript(config), bom: true },
-    { name: "runstrip.bat", content: generateStripLauncher(), bom: false },
+    { name: "bootible.ps1", content: generateStripScript(config), bom: true },
+    { name: "bootible.bat", content: generateStripLauncher(), bom: false },
     { name: "README-restore.txt", content: generateStripReadme(), bom: false },
   ];
 }
@@ -770,6 +770,21 @@ function writeStripKit(folder: string, req: UsbBuildRequest): void {
     // .ps1 gets a BOM (PS 5.1 reads em-dashes correctly); .bat stays ASCII.
     const content = f.bom ? `﻿${f.content}` : f.content;
     writeFileSync(join(folder, f.name), content, f.name.endsWith(".bat") ? "ascii" : "utf8");
+  }
+  // Stage wallpaper / lock-screen images into wallpapers/ next to bootible.ps1.
+  // The script copies them to the user's Pictures and sets them at runtime.
+  const images: [string | undefined, string][] = [
+    [req.wallpaperPath, "background"],
+    [req.lockscreenPath, "lockscreen"],
+  ];
+  const staged = images.filter(([src]) => src);
+  if (staged.length > 0) {
+    const wpDir = join(folder, "wallpapers");
+    mkdirSync(wpDir, { recursive: true });
+    for (const [src, name] of staged) {
+      if (!src) continue;
+      copyFileSync(src, join(wpDir, `${name}${extname(src) || ".jpg"}`));
+    }
   }
 }
 

@@ -202,10 +202,11 @@ function moduleLines(config: BootibleConfig): string {
     name: "ROG Ally",
     provisioning_models: ["on-device"],
   };
+  // "apps" runs through the two-pass installer; wallpaper/lockscreen bake a
+  // build-time path — the strip stages images into ~/Pictures at runtime instead.
+  const handledSeparately = new Set(["apps", "wallpaper", "lockscreen"]);
   for (const mod of allyCatalog) {
-    // "apps" (the user-picked winget installs) runs through the de-elevating
-    // two-pass installer instead of inline-elevated, so user-scope apps work.
-    if (ids.has(mod.id) && mod.id !== "apps") mod.apply({ device, config }, rec);
+    if (ids.has(mod.id) && !handledSeparately.has(mod.id)) mod.apply({ device, config }, rec);
   }
   return commands
     .map((cmd) => {
@@ -228,8 +229,8 @@ export function generateStripLauncher(): string {
     "REM session -- no staging, no reboot. Tip: double-tap it; don't launch it",
     "REM from an already-elevated prompt, or the user-scope step would be admin too.",
     'del "%SystemDrive%\\bootible\\user-installs.ps1" 2>nul',
-    'set "PS=%~dp0striprog.ps1"',
-    `if not exist "%PS%" for /f "delims=" %%f in ('dir /b /a-d "%~dp0*strip*.ps1" 2^>nul ^| findstr /v /b /c:"._"') do set "PS=%~dp0%%f"`,
+    'set "PS=%~dp0bootible.ps1"',
+    `if not exist "%PS%" for /f "delims=" %%f in ('dir /b /a-d "%~dp0bootible*.ps1" 2^>nul ^| findstr /v /b /c:"._"') do set "PS=%~dp0%%f"`,
     `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',\\"%PS%\\""`,
     'if exist "%SystemDrive%\\bootible\\user-installs.ps1" (',
     "  echo.",
@@ -259,14 +260,15 @@ export function generateStripReadme(): string {
     "     (you want a fresh machine), then OK to reset. ~1-3 hours, unattended.",
     "",
     "2) STRIP + SET UP (this kit)",
-    "   - Copy runstrip.bat + striprog.ps1 onto the restored Ally (or run from USB).",
-    "   - Double-tap runstrip.bat -> tap Yes on the UAC prompt.",
-    "   - It debloats, applies bootible's tuning, installs your chosen apps, and",
-    "     sets up SSH. Done.",
+    "   - Copy this whole folder onto the restored Ally (or run it from the USB).",
+    "   - Double-tap bootible.bat -> tap Yes on the UAC prompt.",
+    "   - It debloats, applies bootible's tuning, installs your chosen apps, sets",
+    "     up SSH, and applies your wallpaper/lock screen. Done.",
     "",
     "Files:",
-    "  runstrip.bat  -- double-tap this (touch-friendly launcher)",
-    "  striprog.ps1  -- the actual strip + setup script",
+    "  bootible.bat   -- double-tap this (touch-friendly launcher)",
+    "  bootible.ps1   -- the actual strip + setup script",
+    "  wallpapers/    -- your background / lock screen images (if you picked any)",
     "",
   ].join("\r\n");
 }
@@ -342,6 +344,23 @@ Write-Strip 'inventory written (inventory-appx.txt / inventory-win32.txt)'
 # winget's WindowsApps alias may not be on PATH for app installs — add it.
 $env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;$env:PATH"
 ${moduleLines(config)}
+
+# ── Wallpaper / lock screen: copy any images staged next to this script into the
+#    user's Pictures and point Windows at them there (not C:\\bootible) ──
+$pics = "$env:USERPROFILE\\Pictures"
+foreach ($img in @(@('background','Desktop'), @('lockscreen','LockScreen'))) {
+  $src = Get-ChildItem (Join-Path $PSScriptRoot "wallpapers\\$($img[0]).*") -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($src) {
+    New-Item -ItemType Directory -Force -Path $pics | Out-Null
+    $dest = Join-Path $pics $src.Name
+    Copy-Item $src.FullName $dest -Force
+    $k = 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PersonalizationCSP'
+    & reg add $k /v "$($img[1])ImagePath" /t REG_SZ /d $dest /f | Out-Null
+    & reg add $k /v "$($img[1])ImageUrl" /t REG_SZ /d $dest /f | Out-Null
+    & reg add $k /v "$($img[1])ImageStatus" /t REG_DWORD /d 1 /f | Out-Null
+    Write-Strip "$($img[0]) -> $dest"
+  }
+}
 
 ${appBlock}
 
