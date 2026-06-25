@@ -341,8 +341,12 @@ document.addEventListener("click", (event) => {
     document.body.dataset.method = method;
   }
   let target = trigger.dataset.go;
-  // Full ROG isn't a clean-install — Continue goes to the strip-kit builder.
-  if (target === "method" && selectedBaseId === "full-rog") target = "stripkit";
+  // Full ROG isn't a clean-install: customise → account (for SSH/access, with the
+  // clean-only fields hidden) → strip-kit builder, not the USB writer.
+  if (selectedBaseId === "full-rog") {
+    if (target === "method") target = "account";
+    else if (target === "wifi") target = "stripkit";
+  }
   if (target) location.hash = target;
 });
 
@@ -888,6 +892,43 @@ async function skEject(): Promise<void> {
   setSkStatus(r.ok ? "✓ Ejected — safe to remove." : "Eject failed — close any open files on it.");
 }
 
+async function skRefresh(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.getUsbDisks) return;
+  setSkStatus("Rescanning USB media…");
+  try {
+    skDisks = await api.getUsbDisks();
+  } catch {
+    skDisks = [];
+  }
+  renderSkUsbList();
+  setSkStatus(
+    skDisks.length ? `Found ${skDisks.length} USB drive(s).` : "Still no USB media found.",
+  );
+}
+
+async function skVerify(): Promise<void> {
+  const api = window.bootible;
+  const out = document.querySelector("#sk-verify-out");
+  const ip = document.querySelector<HTMLInputElement>("#sk-verify-ip")?.value.trim();
+  if (!ip) {
+    if (out) out.textContent = "Enter the device's IP, hostname, or Tailscale IP first.";
+    return;
+  }
+  if (!api?.verifyDevice) return;
+  if (out) out.textContent = `Reaching ${ip} over SSH…`;
+  try {
+    const r = await api.verifyDevice(ip);
+    if (out) {
+      out.textContent = r.reachable
+        ? `✓ Reachable${r.alias ? ` (ssh ${r.alias})` : ""} — ${r.output}`
+        : `✗ Couldn't reach it: ${r.output}`;
+    }
+  } catch (e) {
+    if (out) out.textContent = `Verify failed: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
 // Strip-kit clicks: tab toggle + the disk/usb/eject buttons.
 document.addEventListener("click", (event) => {
   const t = event.target as HTMLElement;
@@ -899,6 +940,8 @@ document.addEventListener("click", (event) => {
   if (t.closest("#sk-disk-save")) void skSaveDisk();
   else if (t.closest("#sk-usb-copy")) void skCopyUsb();
   else if (t.closest("#sk-usb-eject")) void skEject();
+  else if (t.closest("#sk-usb-refresh")) void skRefresh();
+  else if (t.closest("#sk-verify-btn")) void skVerify();
 });
 
 document.addEventListener("change", (event) => {
@@ -1038,6 +1081,9 @@ document.addEventListener("click", (event) => {
   } else if (card.dataset.pick === "base") {
     selectedBaseId = id;
     customiseHydrated = false; // re-resolve the plan for the newly chosen base
+    // Full ROG reuses the account screen for SSH/access but hides the
+    // clean-install-only fields (account mode, edition, password).
+    document.body.classList.toggle("is-strip", id === "full-rog");
     location.hash = "customise";
   }
 });

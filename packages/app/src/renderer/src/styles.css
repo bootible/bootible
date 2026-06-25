@@ -1871,6 +1871,30 @@ body[data-view="account"] .summary::before {
   min-height: 18px;
   margin: 4px 0 0;
 }
+.sk-refresh {
+  border: 1px solid var(--line, #2a2f3a);
+  background: transparent;
+  color: var(--accent, #4ea1ff);
+  border-radius: 6px;
+  padding: 2px 9px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 6px;
+}
+.sk-verify-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 4px;
+}
+.sk-verify-row .field-input {
+  flex: 1;
+}
+
+/* Full ROG reuses the account screen for SSH/access — hide clean-install-only bits */
+body.is-strip [data-clean] {
+  display: none !important;
+}
 
 /* SSH source: sliding 3-way tabs (BYO / GitHub / Both) */
 .ssh-tabs {

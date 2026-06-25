@@ -147,7 +147,7 @@
               </div>
 
               <div class="sk-pane" data-sk-pane="usb" hidden>
-                <p class="setup-sub">Available USB media:</p>
+                <p class="setup-sub">Available USB media: <button class="sk-refresh" type="button" id="sk-usb-refresh">↻ Refresh</button></p>
                 <div class="sk-usb-list" id="sk-usb-list"></div>
                 <label class="sk-format"><input type="checkbox" id="sk-format" /> Format first (exFAT, quick erase)</label>
                 <div class="summary-actions">
@@ -158,6 +158,16 @@
             </div>
 
             <p class="sk-status" id="sk-status"></p>
+
+            <div class="sk-save">
+              <p class="sk-h">3 · Check the device <span class="muted">(after you've run the kit)</span></p>
+              <p class="setup-sub">Once the strip has run and SSH is up, confirm bootible can reach it over your LAN or Tailscale.</p>
+              <div class="sk-verify-row">
+                <input class="field-input" id="sk-verify-ip" type="text" placeholder="device IP, hostname, or Tailscale IP" autocomplete="off" spellcheck="false" />
+                <button class="btn-ghost" type="button" id="sk-verify-btn">Verify →</button>
+              </div>
+              <p class="sk-status" id="sk-verify-out"></p>
+            </div>
           </div>
           <div class="customise-foot">
             <div class="summary-actions">
@@ -468,7 +478,7 @@
           </div>
 
           <div class="account-body">
-            <div class="snaps snaps-row">
+            <div class="snaps snaps-row" data-clean>
               <button class="snap is-sel" type="button" data-account="local" aria-pressed="true">
                 <span class="snap-radio" aria-hidden="true"></span>
                 <span class="group-main">
@@ -498,7 +508,7 @@
                   <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
                 </div>
               </div>
-              <div class="cfg-row">
+              <div class="cfg-row" data-clean>
                 <div class="field">
                   <label class="field-label">Windows edition</label>
                   <div class="edition-pick">
@@ -571,7 +581,7 @@
                 </div>
               </div>
 
-              <div class="field" data-when="local">
+              <div class="field" data-when="local" data-clean>
                 <label class="field-label" for="acct-pass">Password <span class="muted">(optional)</span></label>
                 <input class="field-input" id="acct-pass" type="password" placeholder="leave blank for none" autocomplete="off" />
               </div>
