@@ -9,11 +9,13 @@
 // fact (same approach that nailed Copilot/Recall over SSH).
 
 import { allyCatalog } from "./ally-modules";
+import { getSelectedAppCommands } from "./apps";
 import { UNIVERSAL_FLOOR } from "./bases";
 import { BEACON_PORT } from "./beacon";
 import type { BootibleConfig } from "./config";
 import type { ApplyContext } from "./orchestrator";
 import type { Exec } from "./secrets";
+import { generateTwoPassInstall } from "./winget";
 
 /** One removable app/bundle the user can opt into stripping. `appx` patterns
  *  match Get-AppxPackage -AllUsers names; `win32` patterns match Uninstall
@@ -201,7 +203,9 @@ function moduleLines(config: BootibleConfig): string {
     provisioning_models: ["on-device"],
   };
   for (const mod of allyCatalog) {
-    if (ids.has(mod.id)) mod.apply({ device, config }, rec);
+    // "apps" (the user-picked winget installs) runs through the de-elevating
+    // two-pass installer instead of inline-elevated, so user-scope apps work.
+    if (ids.has(mod.id) && mod.id !== "apps") mod.apply({ device, config }, rec);
   }
   return commands
     .map((cmd) => {
@@ -274,6 +278,10 @@ export function generateStripScript(config: BootibleConfig): string {
   const bakedSsh =
     ((config.settings?.ssh_public_keys as string[] | undefined)?.length ?? 0) > 0 ||
     !!config.modules?.includes("ssh-key");
+  const appInstalls = config.modules?.includes("apps")
+    ? getSelectedAppCommands((config.settings?.selected_apps as string[] | undefined) ?? [])
+    : [];
+  const appBlock = generateTwoPassInstall(appInstalls, "$Root", "Write-Strip");
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
 # Applies bootible's floor + a conservative debloat, keeping the ROG essentials.
 # Generated, self-contained PowerShell — no runtime/CLI needed. Run elevated.
@@ -326,6 +334,8 @@ Write-Strip 'inventory written (inventory-appx.txt / inventory-win32.txt)'
 # winget's WindowsApps alias may not be on PATH for app installs — add it.
 $env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;$env:PATH"
 ${moduleLines(config)}
+
+${appBlock}
 
 # ── STRIP Appx (the removals you opted into) ──
 $stripAppx = ${psArray(removals.appx)}
