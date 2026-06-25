@@ -872,12 +872,30 @@ async function hydrateStripkit(): Promise<void> {
   renderSkUsbList();
 }
 
+/** Install Sunshine/Moonlight on THIS desktop if the user ticked the host boxes.
+ *  Mirrors the clean-install path, which the strip flow previously skipped. */
+async function skHostStreaming(req: UsbBuildRequest): Promise<void> {
+  const which = req.remoteAccessHost;
+  if (!which || (!which.sunshine && !which.moonlight)) return;
+  const api = window.bootible;
+  if (!api?.installHostStreaming) return;
+  setSkStatus("Setting up streaming on this PC (host)…");
+  const h = await api.installHostStreaming(which);
+  setSkStatus(`Host streaming: ${h.output}`);
+}
+
 async function skSaveDisk(): Promise<void> {
   const api = window.bootible;
   if (!api?.saveStripKitDisk) return;
+  const req = gatherUsbRequest();
   setSkStatus("Saving…");
-  const res = await api.saveStripKitDisk(gatherUsbRequest());
-  setSkStatus(res ? `✓ Saved strip kit to ${res.path}` : "Cancelled.");
+  const res = await api.saveStripKitDisk(req);
+  if (!res) {
+    setSkStatus("Cancelled.");
+    return;
+  }
+  setSkStatus(`✓ Saved bootible-prep to ${res.path}`);
+  await skHostStreaming(req);
 }
 
 async function skCopyUsb(): Promise<void> {
@@ -888,6 +906,7 @@ async function skCopyUsb(): Promise<void> {
     return;
   }
   const format = document.querySelector<HTMLInputElement>("#sk-format")?.checked ?? false;
+  const req = gatherUsbRequest();
   try {
     if (format && api.formatUsb) {
       setSkStatus("Formatting (approve the UAC prompt)…");
@@ -895,8 +914,9 @@ async function skCopyUsb(): Promise<void> {
       if (!f.ok) setSkStatus("Format failed — copying without it…");
     }
     setSkStatus("Copying…");
-    const res = await api.saveStripKitUsb(gatherUsbRequest(), skSelectedDisk);
+    const res = await api.saveStripKitUsb(req, skSelectedDisk);
     setSkStatus(`✓ Copied to ${res.path} — safe to eject.`);
+    await skHostStreaming(req);
   } catch (e) {
     setSkStatus(`Copy failed: ${e instanceof Error ? e.message : String(e)}`);
   }
