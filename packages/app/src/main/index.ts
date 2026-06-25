@@ -909,19 +909,21 @@ function formatUsbDrive(driveLetter: string): { ok: boolean } {
   }
 }
 
-/** Safely eject a removable drive by letter (Shell "Eject" verb). */
+/** Safely eject a removable drive by letter. Shell.Application COM needs a
+ *  single-threaded apartment, which an Electron-spawned PowerShell lacks by
+ *  default (-STA fixes it); the verb name is localised, so match it case-insens. */
 function ejectUsb(driveLetter: string): { ok: boolean } {
   const d = driveLetter.replace(/[:\\]/g, "");
+  const ps = [
+    "$s = New-Object -comObject Shell.Application",
+    `$item = $s.Namespace(17).ParseName('${d}:')`,
+    "if ($item) {",
+    "  $verb = $item.Verbs() | Where-Object { $_.Name -replace '&','' -match 'Eject' } | Select-Object -First 1",
+    "  if ($verb) { $verb.DoIt() } else { $item.InvokeVerb('Eject') }",
+    "}",
+  ].join("; ");
   try {
-    execFileSync(
-      "powershell",
-      [
-        "-NoProfile",
-        "-Command",
-        `$s = New-Object -comObject Shell.Application; $s.Namespace(17).ParseName('${d}:').InvokeVerb('Eject')`,
-      ],
-      { timeout: 15000 },
-    );
+    execFileSync("powershell", ["-NoProfile", "-STA", "-Command", ps], { timeout: 15000 });
     return { ok: true };
   } catch {
     return { ok: false };

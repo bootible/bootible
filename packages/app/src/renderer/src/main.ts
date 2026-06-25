@@ -308,6 +308,12 @@ function isView(value: string): value is View {
 function show(view: string): void {
   const next: View = isView(view) ? view : "home";
   document.body.dataset.view = next;
+  // Always land at the top of the new screen (Continue used to drop you mid-page).
+  requestAnimationFrame(() => {
+    document.querySelector(".views")?.scrollTo({ top: 0 });
+    document.querySelector<HTMLElement>(`.view[data-view="${next}"]`)?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+  });
 }
 
 const APPLY_LABELS: Record<string, string> = {
@@ -1919,6 +1925,14 @@ document.addEventListener("click", (event) => {
       await refreshProfileList();
     })();
   }
+});
+
+// Password reveal toggles (eye icon).
+document.addEventListener("click", (event) => {
+  const btn = (event.target as HTMLElement).closest<HTMLElement>("[data-reveal]");
+  if (!btn?.dataset.reveal) return;
+  const input = document.getElementById(btn.dataset.reveal) as HTMLInputElement | null;
+  if (input) input.type = input.type === "password" ? "text" : "password";
 });
 
 // Save the current setup as a profile (strip-kit screen).

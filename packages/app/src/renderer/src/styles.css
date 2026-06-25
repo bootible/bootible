@@ -1908,6 +1908,30 @@ body.is-strip [data-clean] {
   display: none !important;
 }
 
+/* Password fields with a reveal (eye) toggle */
+.pw-wrap {
+  position: relative;
+}
+.pw-wrap .field-input {
+  width: 100%;
+  padding-right: 40px;
+}
+.pw-eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 15px;
+  opacity: 0.65;
+  line-height: 1;
+}
+.pw-eye:hover {
+  opacity: 1;
+}
+
 /* Saved config profiles (base screen) */
 .profile-list {
   display: flex;
