@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { generateTwoPassInstall, getWingetInstallCommands } from "./winget";
+import {
+  generateAppInstallerUpdate,
+  generateTwoPassInstall,
+  getWingetInstallCommands,
+} from "./winget";
+
+describe("generateAppInstallerUpdate", () => {
+  it("DISM-provisions the latest App Installer for the Store source", () => {
+    const block = generateAppInstallerUpdate("Write-Strip");
+    expect(block).toContain("aka.ms/getwinget");
+    expect(block).toContain("Add-AppxProvisionedPackage");
+  });
+});
 
 describe("generateTwoPassInstall", () => {
   it("emits an elevated pass + defers admin-rejecting installs to next sign-in", () => {

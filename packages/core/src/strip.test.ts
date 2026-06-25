@@ -55,6 +55,17 @@ describe("generateStripScript", () => {
     });
     expect(withApps).toContain("VideoLAN.VLC"); // the app-picker install
     expect(withApps).toContain("powercfg"); // floor still runs
+    expect(withApps).not.toContain("aka.ms/getwinget"); // no Store update without msstore apps
+  });
+
+  it("updates App Installer first only when a Store app is picked", () => {
+    const withStore = generateStripScript({
+      schema: 2,
+      device: "rog-ally",
+      modules: ["apps"],
+      settings: { sleep_mode: "hibernate", selected_apps: ["chatgpt"] },
+    });
+    expect(withStore).toContain("aka.ms/getwinget"); // chatgpt is msstore → update first
   });
 
   it("applies the floor (incl. Copilot removal + Recall off)", () => {

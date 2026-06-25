@@ -15,7 +15,7 @@ import { BEACON_PORT } from "./beacon";
 import type { BootibleConfig } from "./config";
 import type { ApplyContext } from "./orchestrator";
 import type { Exec } from "./secrets";
-import { generateTwoPassInstall } from "./winget";
+import { generateAppInstallerUpdate, generateTwoPassInstall } from "./winget";
 
 /** One removable app/bundle the user can opt into stripping. `appx` patterns
  *  match Get-AppxPackage -AllUsers names; `win32` patterns match Uninstall
@@ -281,7 +281,13 @@ export function generateStripScript(config: BootibleConfig): string {
   const appInstalls = config.modules?.includes("apps")
     ? getSelectedAppCommands((config.settings?.selected_apps as string[] | undefined) ?? [])
     : [];
-  const appBlock = generateTwoPassInstall(appInstalls, "$Root", "Write-Strip");
+  const needsStoreUpdate = appInstalls.some((c) => c.includes("msstore"));
+  const appBlock = [
+    needsStoreUpdate ? generateAppInstallerUpdate("Write-Strip") : "",
+    generateTwoPassInstall(appInstalls, "$Root", "Write-Strip"),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
 # Applies bootible's floor + a conservative debloat, keeping the ROG essentials.
 # Generated, self-contained PowerShell — no runtime/CLI needed. Run elevated.

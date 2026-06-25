@@ -4,7 +4,7 @@ import { onboard } from "./onboard";
 import type { Executor } from "./orchestrator";
 import type { DeviceEntry } from "./registry";
 import type { Exec } from "./secrets";
-import { generateTwoPassInstall } from "./winget";
+import { generateAppInstallerUpdate, generateTwoPassInstall } from "./winget";
 
 export interface BootstrapOptions {
   device: DeviceEntry;
@@ -69,7 +69,13 @@ export function generateBootstrapScript(opts: BootstrapOptions): string {
   const appInstalls = hasApps
     ? getSelectedAppCommands((opts.config.settings?.selected_apps as string[] | undefined) ?? [])
     : [];
-  const appBlock = generateTwoPassInstall(appInstalls, "$BootibleRoot", "Write-Bootible");
+  const needsStoreUpdate = appInstalls.some((c) => c.includes("msstore"));
+  const appBlock = [
+    needsStoreUpdate ? generateAppInstallerUpdate("Write-Bootible") : "",
+    generateTwoPassInstall(appInstalls, "$BootibleRoot", "Write-Bootible"),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   return `# bootible bootstrap — generated, self-contained plain PowerShell.
 # No separate runtime or CLI required. Runs once at first logon via the

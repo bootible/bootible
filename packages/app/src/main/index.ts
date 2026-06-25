@@ -483,6 +483,15 @@ function sanitizeHostname(raw: string | undefined): string {
 function writeSshAlias(hostname: string, ip: string): void {
   const dir = sshDir();
   mkdirSync(dir, { recursive: true });
+  // A reprovisioned device gets a NEW SSH host key at the same name/IP, so a
+  // stale known_hosts entry would break `ssh <hostname>` with "HOST
+  // IDENTIFICATION HAS CHANGED". Purge any prior entry for this host + IP so the
+  // accept-new alias below picks up the new key cleanly.
+  for (const h of [hostname, ip]) {
+    try {
+      execFileSync("ssh-keygen", ["-R", h], { stdio: "ignore" });
+    } catch {}
+  }
   const configPath = join(dir, "config");
   const begin = `# >>> bootible managed: ${hostname} >>>`;
   const end = `# <<< bootible managed: ${hostname} <<<`;

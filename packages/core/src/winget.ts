@@ -56,6 +56,26 @@ if ($bootRetry.Count -gt 0) {
 }`;
 }
 
+/**
+ * Emit a PowerShell block that updates App Installer (winget) to the latest from
+ * https://aka.ms/getwinget via DISM provisioning. A factory image ships an old
+ * winget whose pinned Store cert can be stale (msstore error 0x8a15005e); this
+ * fixes the Store source. Run elevated, before any msstore installs. ~216 MB, so
+ * callers should gate it on "an msstore app is actually selected".
+ */
+export function generateAppInstallerUpdate(logFn = "Write-Strip"): string {
+  return `# Store apps need a current App Installer — the factory winget's pinned cert can
+# be stale (msstore error 0x8a15005e). Update it before installing Store apps.
+${logFn} 'updating App Installer (winget) so the Microsoft Store source works...'
+try {
+  $wgTmp = Join-Path $env:TEMP 'bootible-winget.msixbundle'
+  Invoke-WebRequest -Uri 'https://aka.ms/getwinget' -OutFile $wgTmp -UseBasicParsing
+  Add-AppxProvisionedPackage -Online -PackagePath $wgTmp -SkipLicense -ErrorAction Stop | Out-Null
+  Remove-Item $wgTmp -ErrorAction SilentlyContinue
+  ${logFn} "App Installer updated ($(winget --version 2>$null))"
+} catch { ${logFn} "  App Installer update failed (Store apps may not install): $_" }`;
+}
+
 export function getWingetInstallCommands(packageIds: string[]): string[][] {
   return packageIds.map((id) => [
     "winget",
