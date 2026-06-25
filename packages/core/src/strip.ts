@@ -231,12 +231,14 @@ export function generateStripLauncher(): string {
     'del "%SystemDrive%\\bootible\\user-installs.ps1" 2>nul',
     'set "PS=%~dp0bootible.ps1"',
     `if not exist "%PS%" for /f "delims=" %%f in ('dir /b /a-d "%~dp0bootible*.ps1" 2^>nul ^| findstr /v /b /c:"._"') do set "PS=%~dp0%%f"`,
-    `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',\\"%PS%\\""`,
+    `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',\\"%PS%\\",'-FromLauncher'"`,
     'if exist "%SystemDrive%\\bootible\\user-installs.ps1" (',
     "  echo.",
     "  echo Finishing user-scope app installs in this session ^(no reboot needed^)...",
     '  powershell -NoProfile -ExecutionPolicy Bypass -File "%SystemDrive%\\bootible\\user-installs.ps1"',
     ")",
+    "echo.",
+    "echo bootible prep complete -- you can close this window.",
     "pause",
     "",
   ].join("\r\n");
@@ -295,6 +297,7 @@ export function generateStripScript(config: BootibleConfig): string {
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
 # Applies bootible's floor + a conservative debloat, keeping the ROG essentials.
 # Generated, self-contained PowerShell — no runtime/CLI needed. Run elevated.
+param([switch]$FromLauncher)
 $ErrorActionPreference = 'Continue'
 
 # Self-elevate: if not already Administrator, relaunch this same script elevated
@@ -456,6 +459,8 @@ try {
 } catch { Write-Strip "  beacon failed: $_" }
 
 Write-Strip 'Review C:\\bootible\\inventory-*.txt and send them back so we can tighten the strip list.'
-Read-Host 'Done. Press Enter to close this window'
+# When run via bootible.bat the launcher owns the final pause (and the user-scope
+# installs run after this). Only pause here for a standalone right-click run.
+if (-not $FromLauncher) { Read-Host 'Done. Press Enter to close this window' }
 `;
 }
