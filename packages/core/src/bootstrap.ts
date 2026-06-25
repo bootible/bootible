@@ -1,8 +1,10 @@
+import { getSelectedAppCommands } from "./apps";
 import type { BootibleConfig } from "./config";
 import { onboard } from "./onboard";
 import type { Executor } from "./orchestrator";
 import type { DeviceEntry } from "./registry";
 import type { Exec } from "./secrets";
+import { generateTwoPassInstall } from "./winget";
 
 export interface BootstrapOptions {
   device: DeviceEntry;
@@ -42,9 +44,17 @@ export function generateBootstrapScript(opts: BootstrapOptions): string {
     return "";
   };
 
+  // The user-picked apps run through the de-elevating two-pass installer (user
+  // -scope installers reject an admin context), so drop "apps" from the inline
+  // onboard run and install them separately at the end.
+  const hasApps = !!opts.config.modules?.includes("apps");
+  const onboardConfig = hasApps
+    ? { ...opts.config, modules: opts.config.modules?.filter((m) => m !== "apps") }
+    : opts.config;
+
   onboard({
     device: opts.device,
-    config: opts.config,
+    config: onboardConfig,
     executor: opts.executorFactory(recordingExec),
     exec: recordingExec,
   });
@@ -55,6 +65,11 @@ export function generateBootstrapScript(opts: BootstrapOptions): string {
       return `Write-Bootible ${psQuote(line)}\ntry { ${line} } catch { Write-Bootible "  failed: $_" }`;
     })
     .join("\n");
+
+  const appInstalls = hasApps
+    ? getSelectedAppCommands((opts.config.settings?.selected_apps as string[] | undefined) ?? [])
+    : [];
+  const appBlock = generateTwoPassInstall(appInstalls, "$BootibleRoot", "Write-Bootible");
 
   return `# bootible bootstrap — generated, self-contained plain PowerShell.
 # No separate runtime or CLI required. Runs once at first logon via the
@@ -96,6 +111,8 @@ if (Test-Path "$BootibleRoot\\beacon.ps1") {
 Write-Bootible 'bootible onboard starting'
 
 ${steps}
+
+${appBlock}
 
 Write-Bootible 'bootible onboard complete'
 'done' | Set-Content "$BootibleRoot\\status.txt"
