@@ -744,7 +744,8 @@ function buildStripKit(req: UsbBuildRequest): { name: string; content: string; b
 
 /** Write the strip kit into a target folder (a disk folder or a USB drive root). */
 function writeStripKit(folder: string, req: UsbBuildRequest): void {
-  mkdirSync(folder, { recursive: true });
+  // Don't mkdir a drive root (e.g. "I:\") — it exists and Windows throws EPERM.
+  if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
   for (const f of buildStripKit(req)) {
     // .ps1 gets a BOM (PS 5.1 reads em-dashes correctly); .bat stays ASCII.
     const content = f.bom ? `﻿${f.content}` : f.content;
