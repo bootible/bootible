@@ -101,6 +101,10 @@ body[data-view="apps"] .view[data-view="apps"] {
   display: flex;
 }
 
+body[data-view="stripkit"] .view[data-view="stripkit"] {
+  display: flex;
+}
+
 body[data-view="bundles"] .view[data-view="bundles"] {
   display: flex;
 }
