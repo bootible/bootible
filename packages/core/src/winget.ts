@@ -9,6 +9,11 @@ export function getWingetInstallCommands(packageIds: string[]): string[][] {
     "install",
     "--id",
     id,
+    // Pin to the winget source so a misconfigured/SSL-inspected msstore source
+    // (corp networks: cert-pinning error 0x8a15005e) can't spam errors or fail
+    // the install. Store-only apps opt back in with their own --source msstore.
+    "--source",
+    "winget",
     "--accept-source-agreements",
     "--accept-package-agreements",
     "--silent",

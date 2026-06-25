@@ -9,6 +9,8 @@ describe("getWingetInstallCommands", () => {
         "install",
         "--id",
         "Valve.Steam",
+        "--source",
+        "winget",
         "--accept-source-agreements",
         "--accept-package-agreements",
         "--silent",
