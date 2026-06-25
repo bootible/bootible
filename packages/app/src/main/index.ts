@@ -538,8 +538,13 @@ function verifyDevice(
   const args = [
     "-o",
     "BatchMode=yes",
+    // bootible re-images devices, so a device's SSH host key changes (and the
+    // same IP can be a different device). Don't pin host keys — use a throwaway
+    // known_hosts so a changed key never blocks the verify.
     "-o",
-    "StrictHostKeyChecking=accept-new",
+    "StrictHostKeyChecking=no",
+    "-o",
+    "UserKnownHostsFile=NUL",
     "-o",
     "ConnectTimeout=8",
     ...(lastBuildIdentity ? ["-i", lastBuildIdentity, "-o", "IdentitiesOnly=yes"] : []),

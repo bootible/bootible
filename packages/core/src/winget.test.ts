@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { generateTwoPassInstall, getWingetInstallCommands } from "./winget";
 
 describe("generateTwoPassInstall", () => {
-  it("emits an elevated pass + a de-elevated retry for failures", () => {
+  it("emits an elevated pass + defers admin-rejecting installs to next sign-in", () => {
     const block = generateTwoPassInstall(getWingetInstallCommands(["Spotify.Spotify"]), "$Root");
     expect(block).toContain("Spotify.Spotify");
     expect(block).toContain("$bootRetry"); // collects failures
-    expect(block).toContain("RunLevel Limited"); // de-elevated retry
-    expect(block).toContain("LogonType Interactive");
+    expect(block).toContain("RunOnce"); // deferred to next interactive logon
+    expect(block).toContain("user-installs.ps1");
   });
   it("is empty when there's nothing to install", () => {
     expect(generateTwoPassInstall([], "$Root")).toBe("");

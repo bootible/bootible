@@ -21,32 +21,38 @@ export function generateTwoPassInstall(
   const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
   // Drop the leading 'winget','install' — keep the args for splatting.
   const arrays = commands.map((c) => `  ,@(${c.slice(2).map(q).join(", ")})`).join("\n");
-  return `# App installs: elevated first; retry admin-rejecting (user-scope) ones de-elevated.
+  return `# App installs: elevated first (machine-scope land). Anything that rejects an
+# admin context (user-scope installers like Spotify, winget exit 0x8a150046) is
+# deferred to the user's NEXT sign-in via RunOnce, where it installs in the
+# interactive medium-integrity session that user-scope installers require.
 $bootInstalls = @(
 ${arrays}
 )
+$bootOk = @(0, -1978335189) # success + "already installed" (0x8a15002b)
 $bootRetry = @()
 foreach ($a in $bootInstalls) {
   ${logFn} "install $($a -join ' ')"
   & winget install @a
-  if ($LASTEXITCODE -ne 0) { ${logFn} "  elevated exit $LASTEXITCODE -- queueing de-elevated retry"; $bootRetry += ,$a }
+  if ($bootOk -notcontains $LASTEXITCODE) { ${logFn} "  elevated exit $LASTEXITCODE -- deferring to next sign-in"; $bootRetry += ,$a }
 }
 if ($bootRetry.Count -gt 0) {
-  ${logFn} "retrying $($bootRetry.Count) user-scope install(s) de-elevated (as $env:USERNAME)"
-  $rScript = Join-Path (${rootExpr}) 'user-installs.ps1'
-  $rLines = @('$env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;$env:PATH"')
-  foreach ($a in $bootRetry) { $rLines += ('winget install ' + ($a -join ' ')) }
+  $rRoot = ${rootExpr}
+  $rScript = Join-Path $rRoot 'user-installs.ps1'
+  $rLog = Join-Path $rRoot 'user-installs.log'
+  $rLines = @()
+  # The bare 'winget' App Execution Alias doesn't resolve in every context, so
+  # resolve its real path; log each result for diagnosis.
+  $rLines += '$wg = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps\\winget.exe"'
+  $rLines += 'if (-not (Test-Path $wg)) { $wg = (Get-Command winget.exe -ErrorAction SilentlyContinue).Source }'
+  $rLines += ('"bootible user-scope installs $(Get-Date -Format o) as $(whoami)" | Set-Content "' + $rLog + '"')
+  foreach ($a in $bootRetry) {
+    $rLines += ('& $wg install ' + ($a -join ' ') + ' *>> "' + $rLog + '"')
+    $rLines += ('"' + $a[1] + ' exit $LASTEXITCODE" | Add-Content "' + $rLog + '"')
+  }
   Set-Content -Path $rScript -Value $rLines -Encoding ascii
-  try {
-    $act = New-ScheduledTaskAction -Execute 'powershell' -Argument ('-NoProfile -ExecutionPolicy Bypass -File "' + $rScript + '"')
-    $pri = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
-    Register-ScheduledTask -TaskName 'bootible-userinstall' -Action $act -Principal $pri -Force | Out-Null
-    Start-ScheduledTask -TaskName 'bootible-userinstall'
-    $waited = 0
-    do { Start-Sleep 5; $waited += 5 } while ((Get-ScheduledTask -TaskName 'bootible-userinstall' -ErrorAction SilentlyContinue).State -eq 'Running' -and $waited -lt 1800)
-    Unregister-ScheduledTask -TaskName 'bootible-userinstall' -Confirm:$false -ErrorAction SilentlyContinue
-    ${logFn} 'de-elevated installs done'
-  } catch { ${logFn} "  de-elevated retry failed: $_" }
+  $runCmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File "' + $rScript + '"'
+  New-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce' -Name 'BootibleUserInstall' -Value $runCmd -PropertyType String -Force | Out-Null
+  ${logFn} "$($bootRetry.Count) user-scope app(s) will finish installing at your next sign-in (sign out/in or reboot)"
 }`;
 }
 
