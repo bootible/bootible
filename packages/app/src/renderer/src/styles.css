@@ -1460,6 +1460,12 @@ body[data-view="account"] .summary::before {
   gap: 22px;
 }
 
+/* Fields side-by-side in a row must NOT get the stacked-field top margin —
+   that's what dropped the second column (e.g. Sunshine password) by 14px. */
+.cfg-row .field + .field {
+  margin-top: 0;
+}
+
 .config-panel .field {
   margin-bottom: 18px;
 }
