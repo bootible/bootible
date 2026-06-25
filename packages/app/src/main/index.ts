@@ -1265,20 +1265,21 @@ app.whenReady().then(() => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
     const r = await dialog.showOpenDialog(win, {
-      title: "Choose a folder for the strip kit",
+      title: "Choose where to save the bootible-prep folder",
       properties: ["openDirectory", "createDirectory"],
     });
     if (r.canceled || !r.filePaths[0]) return null;
-    const dest = join(r.filePaths[0], "bootible-strip-kit");
+    const dest = join(r.filePaths[0], "bootible-prep");
     writeStripKit(dest, req);
     return { path: dest };
   });
   ipcMain.handle(
     "stripkit:usb",
     (_event, { req, drive }: { req: UsbBuildRequest; drive: string }) => {
-      const root = `${drive.replace(/[:\\]/g, "")}:\\`;
-      writeStripKit(root, req);
-      return { path: root };
+      // A bootible-prep folder on the stick (not the root) — keeps the USB tidy.
+      const dest = join(`${drive.replace(/[:\\]/g, "")}:\\`, "bootible-prep");
+      writeStripKit(dest, req);
+      return { path: dest };
     },
   );
   ipcMain.handle("usb:eject", (_event, drive: string) => ejectUsb(drive));
