@@ -223,17 +223,19 @@ export function generateStripLauncher(): string {
   return [
     "@echo off",
     "REM bootible -- double-tap to strip a factory-restored ROG Ally.",
-    "REM Self-elevates (one UAC prompt), then runs striprog.ps1 next to it.",
-    "REM Hyphen-free names so macOS doesn't mangle them; a wildcard fallback finds",
-    "REM the script even if the name still changed in transit (skips macOS ._ files).",
-    "net session >nul 2>&1",
-    "if %errorlevel% NEQ 0 (",
-    `  powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"`,
-    "  exit /b",
-    ")",
+    "REM (1) the strip runs ELEVATED (one UAC prompt). (2) any user-scope app",
+    "REM installs (Spotify, GeForce NOW, ...) then finish in THIS non-elevated",
+    "REM session -- no staging, no reboot. Tip: double-tap it; don't launch it",
+    "REM from an already-elevated prompt, or the user-scope step would be admin too.",
+    'del "%SystemDrive%\\bootible\\user-installs.ps1" 2>nul',
     'set "PS=%~dp0striprog.ps1"',
     `if not exist "%PS%" for /f "delims=" %%f in ('dir /b /a-d "%~dp0*strip*.ps1" 2^>nul ^| findstr /v /b /c:"._"') do set "PS=%~dp0%%f"`,
-    'powershell -NoProfile -ExecutionPolicy Bypass -File "%PS%"',
+    `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',\\"%PS%\\""`,
+    'if exist "%SystemDrive%\\bootible\\user-installs.ps1" (',
+    "  echo.",
+    "  echo Finishing user-scope app installs in this session ^(no reboot needed^)...",
+    '  powershell -NoProfile -ExecutionPolicy Bypass -File "%SystemDrive%\\bootible\\user-installs.ps1"',
+    ")",
     "pause",
     "",
   ].join("\r\n");
@@ -284,7 +286,7 @@ export function generateStripScript(config: BootibleConfig): string {
   const needsStoreUpdate = appInstalls.some((c) => c.includes("msstore"));
   const appBlock = [
     needsStoreUpdate ? generateAppInstallerUpdate("Write-Strip") : "",
-    generateTwoPassInstall(appInstalls, "$Root", "Write-Strip"),
+    generateTwoPassInstall(appInstalls, "$Root", "Write-Strip", "launcher"),
   ]
     .filter(Boolean)
     .join("\n\n");

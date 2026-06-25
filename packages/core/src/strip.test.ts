@@ -13,14 +13,14 @@ const config = {
 };
 
 describe("generateStripLauncher", () => {
-  it("is a self-elevating .bat that runs the sibling hyphen-free striprog.ps1", () => {
+  it("runs the strip elevated, then user-scope installs in the non-elevated session", () => {
     const bat = generateStripLauncher();
     expect(bat).toContain("@echo off");
-    expect(bat).toContain("net session"); // admin check
-    expect(bat).toContain("-Verb RunAs"); // self-elevation
-    expect(bat).toContain("-ExecutionPolicy Bypass");
+    expect(bat).toContain("-Verb RunAs"); // strip runs elevated
+    expect(bat).toContain("-Wait"); // wait for the elevated strip to finish first
     expect(bat).toContain("striprog.ps1"); // hyphen-free so macOS won't mangle it
     expect(bat).toContain("*strip*.ps1"); // wildcard fallback
+    expect(bat).toContain("user-installs.ps1"); // user-scope step in THIS session
     expect(bat).toContain("\r\n"); // Windows line endings for a .bat
   });
 });

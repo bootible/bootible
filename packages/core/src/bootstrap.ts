@@ -72,7 +72,7 @@ export function generateBootstrapScript(opts: BootstrapOptions): string {
   const needsStoreUpdate = appInstalls.some((c) => c.includes("msstore"));
   const appBlock = [
     needsStoreUpdate ? generateAppInstallerUpdate("Write-Bootible") : "",
-    generateTwoPassInstall(appInstalls, "$BootibleRoot", "Write-Bootible"),
+    generateTwoPassInstall(appInstalls, "$BootibleRoot", "Write-Bootible", "runonce"),
   ]
     .filter(Boolean)
     .join("\n\n");

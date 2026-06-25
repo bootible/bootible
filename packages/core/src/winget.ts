@@ -16,6 +16,10 @@ export function generateTwoPassInstall(
   commands: string[][],
   rootExpr: string,
   logFn = "Write-Strip",
+  // "launcher": runstrip.bat runs user-installs.ps1 in its non-elevated session
+  // straight after the elevated strip (no reboot). "runonce": the bootstrap runs
+  // at first logon with no such sibling, so defer to RunOnce at next sign-in.
+  deferVia: "launcher" | "runonce" = "runonce",
 ): string {
   if (commands.length === 0) return "";
   const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
@@ -23,8 +27,8 @@ export function generateTwoPassInstall(
   const arrays = commands.map((c) => `  ,@(${c.slice(2).map(q).join(", ")})`).join("\n");
   return `# App installs: elevated first (machine-scope land). Anything that rejects an
 # admin context (user-scope installers like Spotify, winget exit 0x8a150046) is
-# deferred to the user's NEXT sign-in via RunOnce, where it installs in the
-# interactive medium-integrity session that user-scope installers require.
+# written to user-installs.ps1 and run NON-elevated — by runstrip.bat in this
+# session (no reboot), or via RunOnce at next sign-in for the first-logon bootstrap.
 $bootInstalls = @(
 ${arrays}
 )
@@ -50,9 +54,13 @@ if ($bootRetry.Count -gt 0) {
     $rLines += ('"' + $a[1] + ' exit $LASTEXITCODE" | Add-Content "' + $rLog + '"')
   }
   Set-Content -Path $rScript -Value $rLines -Encoding ascii
-  $runCmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File "' + $rScript + '"'
+${
+  deferVia === "runonce"
+    ? `  $runCmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File "' + $rScript + '"'
   New-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce' -Name 'BootibleUserInstall' -Value $runCmd -PropertyType String -Force | Out-Null
-  ${logFn} "$($bootRetry.Count) user-scope app(s) will finish installing at your next sign-in (sign out/in or reboot)"
+  ${logFn} "$($bootRetry.Count) user-scope app(s) will finish installing at your next sign-in (sign out/in or reboot)"`
+    : `  ${logFn} "$($bootRetry.Count) user-scope app(s) queued -- runstrip.bat finishes them in your session (no reboot)"`
+}
 }`;
 }
 
