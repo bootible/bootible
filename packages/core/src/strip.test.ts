@@ -64,11 +64,22 @@ describe("generateStripScript", () => {
     expect(script).toContain("Copilot"); // Copilot removal from windows-defaults
   });
 
-  it("offers GitHub-key SSH (prompt + fetch + OpenSSH setup)", () => {
+  it("offers GitHub-key SSH (prompt + fetch + OpenSSH setup) for the standalone strip", () => {
     expect(script).toContain("GitHub username");
     expect(script).toContain("github.com/$ghUser.keys");
     expect(script).toContain("Microsoft.OpenSSH.Preview");
     expect(script).toContain("administrators_authorized_keys");
+  });
+
+  it("skips the runtime GitHub prompt when the app already baked SSH keys", () => {
+    const baked = generateStripScript({
+      schema: 2,
+      device: "rog-ally",
+      modules: ["ssh-key"],
+      settings: { sleep_mode: "hibernate", ssh_public_keys: ["ssh-ed25519 AAAA... me"] },
+    });
+    expect(baked).not.toContain("Read-Host 'GitHub username");
+    expect(baked).toContain("SSH keys are baked in"); // the no-prompt note
   });
 
   it("strips the recommended set by default + ASUS GlideX, guards the essentials", () => {

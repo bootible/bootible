@@ -269,6 +269,11 @@ export function generateStripReadme(): string {
 export function generateStripScript(config: BootibleConfig): string {
   const removals = resolveRemovals(config.settings?.strip_removals as string[] | undefined);
   const buildId = String(config.settings?.build_id ?? "bootible-strip").replace(/'/g, "''");
+  // If the app already baked SSH keys (ssh-key module), the runtime GitHub-keys
+  // prompt is redundant — skip it. Only the standalone manual strip prompts.
+  const bakedSsh =
+    ((config.settings?.ssh_public_keys as string[] | undefined)?.length ?? 0) > 0 ||
+    !!config.modules?.includes("ssh-key");
   return `# bootible strip-rog — run ONCE on a factory-restored ROG Ally.
 # Applies bootible's floor + a conservative debloat, keeping the ROG essentials.
 # Generated, self-contained PowerShell — no runtime/CLI needed. Run elevated.
@@ -288,9 +293,13 @@ $Log = "$Root\\strip.log"
 New-Item -ItemType Directory -Force -Path $Root | Out-Null
 function Write-Strip($m) { "[$(Get-Date -Format o)] $m" | Tee-Object -FilePath $Log -Append }
 
-# Optional headless SSH: type a GitHub username to pull your public keys from
+${
+  bakedSsh
+    ? "# SSH keys are baked in by bootible (the ssh-key module sets up OpenSSH below).\n$ghUser = ''"
+    : `# Optional headless SSH: type a GitHub username to pull your public keys from
 # github.com/<user>.keys and set up OpenSSH so you can ssh in afterwards.
-$ghUser = Read-Host 'GitHub username for SSH access (or press Enter to skip)'
+$ghUser = Read-Host 'GitHub username for SSH access (or press Enter to skip)'`
+}
 
 Write-Strip 'bootible strip starting'
 try {

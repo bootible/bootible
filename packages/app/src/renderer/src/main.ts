@@ -314,7 +314,23 @@ function syncFromHash(): void {
   if (view === "customise") void hydrateCustomise();
   if (view === "apps") void hydrateApps();
   if (view === "stripkit") void hydrateStripkit();
-  if (view === "account") void hydrateSshKeys();
+  if (view === "account") {
+    void hydrateSshKeys();
+    // Full ROG restores the factory image — it doesn't create an account, so
+    // re-word the screen away from "pick how it signs in".
+    const strip = selectedBaseId === "full-rog";
+    const root = document.querySelector('[data-view="account"]');
+    const e = root?.querySelector(".eyebrow");
+    const t = root?.querySelector(".setup-title");
+    const s = root?.querySelector(".setup-sub");
+    if (e) e.textContent = strip ? "Access" : "Account & access";
+    if (t) t.textContent = strip ? "Access & SSH" : "Account & access";
+    if (s) {
+      s.textContent = strip
+        ? "Name the device and choose how you'll reach it."
+        : "Pick how it signs in, then name it and choose how you'll reach it.";
+    }
+  }
   if (view === "review") {
     setApplyLabel();
     renderReviewPlan();
