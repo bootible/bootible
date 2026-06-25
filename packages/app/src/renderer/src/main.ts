@@ -1938,14 +1938,15 @@ document.addEventListener("click", (event) => {
 // Save the current setup as a profile (strip-kit screen).
 document.addEventListener("click", (event) => {
   if (!(event.target as HTMLElement).closest("#sk-save-profile")) return;
+  const out = document.querySelector("#sk-profile-status");
   const name = document.querySelector<HTMLInputElement>("#sk-profile-name")?.value.trim();
   if (!name) {
-    setSkStatus("Name the profile first, then Save profile.");
+    if (out) out.textContent = "Name the profile first, then Save profile.";
     return;
   }
   void (async () => {
     const r = await window.bootible?.saveProfile?.(captureProfile(name));
-    setSkStatus(r?.ok ? `✓ Profile "${r.name}" saved to this PC` : "Save failed.");
+    if (out) out.textContent = r?.ok ? `✓ Profile "${r.name}" saved to this PC` : "Save failed.";
   })();
 });
 
