@@ -80,6 +80,18 @@ export interface HostSshKey {
   publicKey: string;
 }
 
+export interface ProfileSummary {
+  name: string;
+  deviceId?: string;
+  baseId?: string;
+  savedAt?: string;
+}
+
+export interface Profile extends ProfileSummary {
+  ui: Record<string, unknown>;
+  secrets?: Record<string, string>;
+}
+
 export interface DiscoveredDevice {
   buildId: string;
   mac: string;
@@ -198,6 +210,12 @@ const api = {
   saveStripKitUsb: (req: UsbBuildRequest, drive: string): Promise<{ path: string }> =>
     ipcRenderer.invoke("stripkit:usb", { req, drive }),
   ejectUsb: (drive: string): Promise<{ ok: boolean }> => ipcRenderer.invoke("usb:eject", drive),
+  listProfiles: (): Promise<ProfileSummary[]> => ipcRenderer.invoke("profiles:list"),
+  saveProfile: (p: Profile): Promise<{ ok: boolean; name: string }> =>
+    ipcRenderer.invoke("profiles:save", p),
+  loadProfile: (name: string): Promise<Profile | null> => ipcRenderer.invoke("profiles:load", name),
+  deleteProfile: (name: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke("profiles:delete", name),
   formatUsb: (drive: string): Promise<{ ok: boolean }> => ipcRenderer.invoke("usb:format", drive),
   onUsbProgress: (cb: (event: UsbProgress) => void): void => {
     ipcRenderer.on("usb:progress", (_e, event: UsbProgress) => cb(event));
