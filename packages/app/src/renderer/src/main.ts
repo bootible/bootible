@@ -139,6 +139,18 @@ interface DiscoveredDevice {
   mine: boolean;
 }
 
+interface ProfileSummary {
+  name: string;
+  deviceId?: string;
+  baseId?: string;
+  savedAt?: string;
+}
+
+interface Profile extends ProfileSummary {
+  ui: Record<string, unknown>;
+  secrets?: Record<string, string>;
+}
+
 interface ModuleStateReport {
   id: string;
   name: string;
@@ -251,6 +263,10 @@ interface BootibleApi {
   saveStripKitUsb(req: UsbBuildRequest, drive: string): Promise<{ path: string }>;
   ejectUsb(drive: string): Promise<{ ok: boolean }>;
   formatUsb(drive: string): Promise<{ ok: boolean }>;
+  listProfiles(): Promise<ProfileSummary[]>;
+  saveProfile(p: Profile): Promise<{ ok: boolean; name: string }>;
+  loadProfile(name: string): Promise<Profile | null>;
+  deleteProfile(name: string): Promise<{ ok: boolean }>;
 }
 
 declare global {
@@ -493,7 +509,9 @@ async function selectDeviceAndGo(id: string): Promise<void> {
   if (!api?.selectDevice) return;
   const device = await api.selectDevice(id);
   if (!device) return;
+  selectedDeviceId = id;
   deviceName = device.name;
+  void refreshProfileList();
   fill("name", device.name);
   fill("system", device.system);
   fill("device-sub", `${device.system} handheld — selected.`);
@@ -1148,6 +1166,7 @@ const GROUP_TAGS: Record<string, string> = {
 
 let catalog: GroupSummary[] = [];
 let deviceName = "ROG Ally X";
+let selectedDeviceId = "";
 let selectedBaseId = "";
 let hostSshKeys: HostSshKey[] = [];
 const selectedKeyIds = new Set<string>();
@@ -1752,6 +1771,169 @@ function gatherUsbRequest(): UsbBuildRequest {
     wifi,
   };
 }
+
+// ── config profiles: capture / apply the whole UI state ─────────────────────
+const fv = (s: string) => document.querySelector<HTMLInputElement>(s)?.value ?? "";
+const fck = (s: string) => document.querySelector<HTMLInputElement>(s)?.checked ?? false;
+const setV = (s: string, v: unknown) => {
+  const e = document.querySelector<HTMLInputElement>(s);
+  if (e) e.value = typeof v === "string" ? v : "";
+};
+const setCk = (s: string, v: unknown) => {
+  const e = document.querySelector<HTMLInputElement>(s);
+  if (e) e.checked = Boolean(v);
+};
+
+/** Snapshot every UI selection into a Profile (passwords go in `secrets`, which
+ *  main encrypts with DPAPI). */
+function captureProfile(name: string): Profile {
+  return {
+    name,
+    deviceId: selectedDeviceId || undefined,
+    baseId: selectedBaseId || undefined,
+    ui: {
+      selectedApps: [...selectedApps],
+      selectedRemovals: [...selectedRemovals],
+      enabledExtras: [...enabledExtras],
+      disabledModules: [...disabledModules],
+      selectedKeyIds: [...selectedKeyIds],
+      sshMode,
+      githubUser: fv("#github-user"),
+      sshPaste: fv("#ssh-paste"),
+      hostname: fv("#device-hostname"),
+      staticIp: fv("#static-ip"),
+      edition: fck("#edition-pro") ? "pro" : "home",
+      accountMode: document.body.dataset.account ?? "local",
+      acctUser: fv("#acct-user"),
+      sunshineUser: fv("#sunshine-user"),
+      wifiSsid: fv("#wifi-ssid"),
+      ra: { sunshine: fck("#ra-sunshine"), moonlight: fck("#ra-moonlight"), rdp: fck("#ra-rdp") },
+      raHost: { sunshine: fck("#ra-sunshine-host"), moonlight: fck("#ra-moonlight-host") },
+      wallpaperPath,
+      lockscreenPath,
+    },
+    secrets: {
+      sunshinePass: fv("#sunshine-pass"),
+      acctPass: fv("#acct-pass"),
+      wifiPass: fv("#wifi-pass"),
+    },
+  };
+}
+
+/** Restore a loaded Profile into the UI (Sets, inputs, checkboxes, derived UI). */
+function applyProfile(p: Profile): void {
+  const ui = (p.ui ?? {}) as Record<string, unknown>;
+  const list = (k: string) => (Array.isArray(ui[k]) ? (ui[k] as string[]) : []);
+  selectedBaseId = p.baseId ?? "";
+  const restore = (set: Set<string>, k: string) => {
+    set.clear();
+    for (const v of list(k)) set.add(v);
+  };
+  restore(selectedApps, "selectedApps");
+  restore(selectedRemovals, "selectedRemovals");
+  restore(enabledExtras, "enabledExtras");
+  restore(disabledModules, "disabledModules");
+  restore(selectedKeyIds, "selectedKeyIds");
+  sshMode = (ui.sshMode as typeof sshMode) ?? "byo";
+  setV("#github-user", ui.githubUser);
+  setV("#ssh-paste", ui.sshPaste);
+  setV("#device-hostname", ui.hostname);
+  setV("#static-ip", ui.staticIp);
+  setCk("#edition-pro", ui.edition === "pro");
+  setCk("#edition-home", ui.edition !== "pro");
+  setV("#acct-user", ui.acctUser);
+  setV("#sunshine-user", ui.sunshineUser);
+  setV("#wifi-ssid", ui.wifiSsid);
+  const ra = (ui.ra ?? {}) as Record<string, unknown>;
+  setCk("#ra-sunshine", ra.sunshine);
+  setCk("#ra-moonlight", ra.moonlight);
+  setCk("#ra-rdp", ra.rdp);
+  const raHost = (ui.raHost ?? {}) as Record<string, unknown>;
+  setCk("#ra-sunshine-host", raHost.sunshine);
+  setCk("#ra-moonlight-host", raHost.moonlight);
+  setV("#sunshine-pass", p.secrets?.sunshinePass);
+  setV("#acct-pass", p.secrets?.acctPass);
+  setV("#wifi-pass", p.secrets?.wifiPass);
+  wallpaperPath = (ui.wallpaperPath as string) ?? "";
+  lockscreenPath = (ui.lockscreenPath as string) ?? "";
+  document.body.classList.toggle("is-strip", selectedBaseId === "full-rog");
+  setSshMode(sshMode); // sync the SSH tab UI
+  customiseHydrated = false; // re-resolve the plan for the restored base
+}
+
+/** Render saved profiles on the base screen (only this device's, or untagged). */
+async function refreshProfileList(): Promise<void> {
+  const api = window.bootible;
+  const host = document.querySelector<HTMLElement>("#profile-list");
+  if (!host || !api?.listProfiles) return;
+  let profiles: ProfileSummary[] = [];
+  try {
+    profiles = await api.listProfiles();
+  } catch {}
+  const mine = profiles.filter((p) => !p.deviceId || p.deviceId === selectedDeviceId);
+  if (mine.length === 0) {
+    host.replaceChildren();
+    return;
+  }
+  host.replaceChildren(
+    el("p", "profile-head", "…or load a saved profile"),
+    ...mine.map((p) => {
+      const row = el("div", "profile-row");
+      const load = el(
+        "button",
+        "profile-load",
+        `${p.name}${p.baseId ? ` · ${p.baseId}` : ""}`,
+      ) as HTMLButtonElement;
+      load.type = "button";
+      load.dataset.loadProfile = p.name;
+      const del = el("button", "profile-del", "✕") as HTMLButtonElement;
+      del.type = "button";
+      del.dataset.delProfile = p.name;
+      del.title = "Delete this profile";
+      row.append(load, del);
+      return row;
+    }),
+  );
+}
+
+// Load / delete a saved profile (base screen).
+document.addEventListener("click", (event) => {
+  const t = event.target as HTMLElement;
+  const load = t.closest<HTMLElement>("[data-load-profile]");
+  if (load?.dataset.loadProfile) {
+    const name = load.dataset.loadProfile;
+    void (async () => {
+      const p = await window.bootible?.loadProfile?.(name);
+      if (p) {
+        applyProfile(p);
+        location.hash = "customise";
+      }
+    })();
+    return;
+  }
+  const del = t.closest<HTMLElement>("[data-del-profile]");
+  if (del?.dataset.delProfile) {
+    const name = del.dataset.delProfile;
+    void (async () => {
+      await window.bootible?.deleteProfile?.(name);
+      await refreshProfileList();
+    })();
+  }
+});
+
+// Save the current setup as a profile (strip-kit screen).
+document.addEventListener("click", (event) => {
+  if (!(event.target as HTMLElement).closest("#sk-save-profile")) return;
+  const name = document.querySelector<HTMLInputElement>("#sk-profile-name")?.value.trim();
+  if (!name) {
+    setSkStatus("Name the profile first, then Save profile.");
+    return;
+  }
+  void (async () => {
+    const r = await window.bootible?.saveProfile?.(captureProfile(name));
+    setSkStatus(r?.ok ? `✓ Profile "${r.name}" saved to this PC` : "Save failed.");
+  })();
+});
 
 // ── in-app USB writer screen ────────────────────────────────────────────────
 const usbState: { isoId: string; isoPath: string; regionId: string; disk: number } = {

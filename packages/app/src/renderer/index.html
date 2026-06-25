@@ -78,6 +78,7 @@
             </p>
           </div>
           <div class="method-list base-list"></div>
+          <div class="profile-list" id="profile-list"></div>
           <div class="bundle-back">
             <button class="btn-ghost" type="button" data-back>Back</button>
           </div>
@@ -158,6 +159,15 @@
             </div>
 
             <p class="sk-status" id="sk-status"></p>
+
+            <div class="sk-save">
+              <p class="sk-h">Save this setup <span class="muted">— skip re-entering it next time</span></p>
+              <p class="setup-sub">Saves your apps, removals, SSH, remote access &amp; images to this PC. Passwords are encrypted (Windows DPAPI), never plaintext.</p>
+              <div class="sk-verify-row">
+                <input class="field-input" id="sk-profile-name" type="text" placeholder="profile name (e.g. My ROG)" autocomplete="off" spellcheck="false" />
+                <button class="btn-ghost" type="button" id="sk-save-profile">Save profile</button>
+              </div>
+            </div>
 
             <div class="sk-save">
               <p class="sk-h">3 · Check the device <span class="muted">(after you've run the kit)</span></p>
