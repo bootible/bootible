@@ -527,8 +527,11 @@ function identityForKeys(keys: string[]): string {
 /** Verify a discovered device over SSH (key auth, no prompts): read its status
  *  + receipt to confirm the configure ran. Returns the raw output, or the error
  *  if unreachable. */
-function verifyDevice(ip: string): { reachable: boolean; output: string; alias?: string } {
-  const target = `${lastBuildUsername || "ally"}@${ip}`;
+function verifyDevice(
+  ip: string,
+  username?: string,
+): { reachable: boolean; output: string; alias?: string } {
+  const target = `${username || lastBuildUsername || "ally"}@${ip}`;
   // cmd-friendly remote command — no nested quoting through ssh -> cmd.
   const remote =
     "type C:\\bootible\\status.txt 2>nul & echo. & type C:\\bootible\\receipt.txt 2>nul";
@@ -1197,7 +1200,9 @@ app.whenReady().then(() => {
   ipcMain.handle("ssh:github-keys", (_event, user: string) => fetchGithubKeys(user));
   ipcMain.handle("discovery:start", (event) => startDiscovery(event.sender));
   ipcMain.handle("discovery:stop", () => stopDiscovery());
-  ipcMain.handle("device:verify", (_event, ip: string) => verifyDevice(ip));
+  ipcMain.handle("device:verify", (_event, ip: string, username?: string) =>
+    verifyDevice(ip, username),
+  );
   ipcMain.handle("network:suggest", () => suggestNetwork());
   ipcMain.handle("base:plan", (_event, baseId: string) => getBasePlan(baseId));
   ipcMain.handle("apps:groups", (): AppGroup[] => APP_GROUPS);

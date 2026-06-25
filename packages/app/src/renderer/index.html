@@ -167,6 +167,7 @@
               </div>
               <p class="setup-sub sk-or">…or reach it directly by address (handy over Tailscale):</p>
               <div class="sk-verify-row">
+                <input class="field-input sk-verify-user" id="sk-verify-user" type="text" placeholder="account name (from OOBE)" autocomplete="off" spellcheck="false" />
                 <input class="field-input" id="sk-verify-ip" type="text" placeholder="device IP, hostname, or Tailscale IP" autocomplete="off" spellcheck="false" />
                 <button class="btn-ghost" type="button" id="sk-verify-btn">Verify →</button>
               </div>
@@ -520,7 +521,7 @@
                     <label class="edition-opt"><input type="radio" name="edition" id="edition-pro" /><span>Pro</span></label>
                   </div>
                 </div>
-                <div class="field" data-when="local">
+                <div class="field" data-when="local" data-clean>
                   <label class="field-label" for="acct-user">Username</label>
                   <input class="field-input" id="acct-user" type="text" value="ally" autocomplete="off" spellcheck="false" />
                 </div>

@@ -1893,6 +1893,9 @@ body[data-view="account"] .summary::before {
 .sk-verify-row .field-input {
   flex: 1;
 }
+.sk-verify-row .sk-verify-user {
+  flex: 0 0 150px;
+}
 
 /* Full ROG reuses the account screen for SSH/access — hide clean-install-only bits */
 body.is-strip [data-clean] {

@@ -161,8 +161,11 @@ const api = {
   githubKeys: (user: string): Promise<string[]> => ipcRenderer.invoke("ssh:github-keys", user),
   startDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:start"),
   stopDiscovery: (): Promise<void> => ipcRenderer.invoke("discovery:stop"),
-  verifyDevice: (ip: string): Promise<{ reachable: boolean; output: string; alias?: string }> =>
-    ipcRenderer.invoke("device:verify", ip),
+  verifyDevice: (
+    ip: string,
+    username?: string,
+  ): Promise<{ reachable: boolean; output: string; alias?: string }> =>
+    ipcRenderer.invoke("device:verify", ip, username),
   suggestNetwork: (): Promise<{ prefix: number; gateway: string; subnet: string } | null> =>
     ipcRenderer.invoke("network:suggest"),
   installHostStreaming: (which: {

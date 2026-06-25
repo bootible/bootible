@@ -213,7 +213,10 @@ interface BootibleApi {
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
   onBeaconDevice(cb: (device: DiscoveredDevice) => void): void;
-  verifyDevice(ip: string): Promise<{ reachable: boolean; output: string; alias?: string }>;
+  verifyDevice(
+    ip: string,
+    username?: string,
+  ): Promise<{ reachable: boolean; output: string; alias?: string }>;
   suggestNetwork(): Promise<{ prefix: number; gateway: string; subnet: string } | null>;
   installHostStreaming(which: {
     sunshine?: boolean;
@@ -911,14 +914,19 @@ async function skVerify(): Promise<void> {
   const api = window.bootible;
   const out = document.querySelector("#sk-verify-out");
   const ip = document.querySelector<HTMLInputElement>("#sk-verify-ip")?.value.trim();
+  const user = document.querySelector<HTMLInputElement>("#sk-verify-user")?.value.trim();
   if (!ip) {
     if (out) out.textContent = "Enter the device's IP, hostname, or Tailscale IP first.";
     return;
   }
+  if (!user) {
+    if (out) out.textContent = "Enter the device's account name (the one you set at OOBE).";
+    return;
+  }
   if (!api?.verifyDevice) return;
-  if (out) out.textContent = `Reaching ${ip} over SSH…`;
+  if (out) out.textContent = `Reaching ${user}@${ip} over SSH…`;
   try {
-    const r = await api.verifyDevice(ip);
+    const r = await api.verifyDevice(ip, user);
     if (out) {
       out.textContent = r.reachable
         ? `✓ Reachable${r.alias ? ` (ssh ${r.alias})` : ""} — ${r.output}`
