@@ -1862,6 +1862,13 @@ function applyProfile(p: Profile): void {
   setV("#wifi-pass", p.secrets?.wifiPass);
   wallpaperPath = (ui.wallpaperPath as string) ?? "";
   lockscreenPath = (ui.lockscreenPath as string) ?? "";
+  // Show the remembered image filenames on the picker buttons (the paths are saved
+  // but the labels were blank, so it looked like the images weren't remembered).
+  const imgName = (p: string) => (p ? (p.split(/[\\/]/).pop() ?? p) : "");
+  const wn = document.querySelector("#wallpaper-name");
+  if (wn) wn.textContent = imgName(wallpaperPath);
+  const ln = document.querySelector("#lockscreen-name");
+  if (ln) ln.textContent = imgName(lockscreenPath);
   document.body.classList.toggle("is-strip", selectedBaseId === "full-rog");
   setSshMode(sshMode); // sync the SSH tab UI
   // Re-fetch GitHub keys so a github/both profile actually has keys baked and
