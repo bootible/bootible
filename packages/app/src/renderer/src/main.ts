@@ -886,6 +886,7 @@ async function hydrateStripkit(): Promise<void> {
   const api = window.bootible;
   setSkMode(skMode);
   setSkStatus("");
+  refreshProfileSaveUI();
   if (api?.getUsbDisks) {
     try {
       skDisks = await api.getUsbDisks();
@@ -1174,6 +1175,7 @@ let catalog: GroupSummary[] = [];
 let deviceName = "ROG Ally X";
 let selectedDeviceId = "";
 let selectedBaseId = "";
+let loadedProfileName = ""; // the profile currently loaded (drives Update vs Save-as-new)
 let hostSshKeys: HostSshKey[] = [];
 const selectedKeyIds = new Set<string>();
 let netSuggestion: { prefix: number; gateway: string; subnet: string } | null = null;
@@ -1826,8 +1828,18 @@ function captureProfile(name: string): Profile {
   };
 }
 
+/** Show/hide the Update button for the loaded profile. */
+function refreshProfileSaveUI(): void {
+  const upd = document.querySelector<HTMLElement>("#sk-update-profile");
+  if (!upd) return;
+  upd.hidden = !loadedProfileName;
+  upd.textContent = loadedProfileName ? `Update "${loadedProfileName}"` : "Update";
+}
+
 /** Restore a loaded Profile into the UI (Sets, inputs, checkboxes, derived UI). */
 function applyProfile(p: Profile): void {
+  loadedProfileName = p.name ?? "";
+  setV("#sk-profile-name", loadedProfileName);
   const ui = (p.ui ?? {}) as Record<string, unknown>;
   const list = (k: string) => (Array.isArray(ui[k]) ? (ui[k] as string[]) : []);
   selectedBaseId = p.baseId ?? "";
@@ -1947,18 +1959,30 @@ document.addEventListener("click", (event) => {
   if (input) input.type = input.type === "password" ? "text" : "password";
 });
 
-// Save the current setup as a profile (strip-kit screen).
+// Save the setup as a profile — Update (the loaded one) or Save as new.
 document.addEventListener("click", (event) => {
-  if (!(event.target as HTMLElement).closest("#sk-save-profile")) return;
+  const t = event.target as HTMLElement;
+  const isUpdate = !!t.closest("#sk-update-profile");
+  const isNew = !!t.closest("#sk-save-profile");
+  if (!isUpdate && !isNew) return;
   const out = document.querySelector("#sk-profile-status");
-  const name = document.querySelector<HTMLInputElement>("#sk-profile-name")?.value.trim();
+  const typed = document.querySelector<HTMLInputElement>("#sk-profile-name")?.value.trim() ?? "";
+  const name = isUpdate ? loadedProfileName : typed;
   if (!name) {
-    if (out) out.textContent = "Name the profile first, then Save profile.";
+    if (out) out.textContent = "Name the profile first, then Save as new.";
     return;
   }
   void (async () => {
     const r = await window.bootible?.saveProfile?.(captureProfile(name));
-    if (out) out.textContent = r?.ok ? `✓ Profile "${r.name}" saved to this PC` : "Save failed.";
+    if (r?.ok) {
+      loadedProfileName = r.name; // now editing this profile → Update targets it
+      setV("#sk-profile-name", r.name);
+      refreshProfileSaveUI();
+      if (out)
+        out.textContent = isUpdate ? `✓ Updated "${r.name}"` : `✓ Saved "${r.name}" to this PC`;
+    } else if (out) {
+      out.textContent = "Save failed.";
+    }
   })();
 });
 
