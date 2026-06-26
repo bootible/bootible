@@ -53,6 +53,9 @@ if ($bootRetry.Count -gt 0) {
     $rLines += ('& $wg install ' + ($a -join ' ') + ' *>> "' + $rLog + '"')
     $rLines += ('"' + $a[1] + ' exit $LASTEXITCODE" | Add-Content "' + $rLog + '"')
   }
+  # Sweep desktop icons these installers dumped (against the pre-install snapshot).
+  $rLines += '$keep = @(Get-Content "$env:SystemDrive\\bootible\\desktop-keep.txt" -ErrorAction SilentlyContinue)'
+  $rLines += 'foreach ($d in @("$env:PUBLIC\\Desktop","$env:USERPROFILE\\Desktop")) { Get-ChildItem "$d\\*.lnk" -ErrorAction SilentlyContinue | Where-Object { $keep -notcontains $_.FullName } | Remove-Item -Force -ErrorAction SilentlyContinue }'
   Set-Content -Path $rScript -Value $rLines -Encoding ascii
 ${
   deferVia === "runonce"

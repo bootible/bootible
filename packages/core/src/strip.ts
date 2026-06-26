@@ -314,6 +314,19 @@ $Log = "$Root\\strip.log"
 New-Item -ItemType Directory -Force -Path $Root | Out-Null
 function Write-Strip($m) { "[$(Get-Date -Format o)] $m" | Tee-Object -FilePath $Log -Append }
 
+# Remember the desktop shortcuts that exist BEFORE installs, so we only sweep the
+# icons the app installers dump (keeps any you already had).
+@(@("$env:PUBLIC\\Desktop", "$env:USERPROFILE\\Desktop") | ForEach-Object {
+  Get-ChildItem "$_\\*.lnk" -ErrorAction SilentlyContinue
+} | Select-Object -ExpandProperty FullName) | Set-Content "$Root\\desktop-keep.txt"
+function Clear-NewDesktopShortcuts {
+  $keep = @(Get-Content "$env:SystemDrive\\bootible\\desktop-keep.txt" -ErrorAction SilentlyContinue)
+  foreach ($d in @("$env:PUBLIC\\Desktop", "$env:USERPROFILE\\Desktop")) {
+    Get-ChildItem "$d\\*.lnk" -ErrorAction SilentlyContinue |
+      Where-Object { $keep -notcontains $_.FullName } | Remove-Item -Force -ErrorAction SilentlyContinue
+  }
+}
+
 ${
   bakedSsh
     ? "# SSH keys are baked in by bootible (the ssh-key module sets up OpenSSH below).\n$ghUser = ''"
@@ -361,11 +374,26 @@ foreach ($img in @(@('background','Desktop'), @('lockscreen','LockScreen'))) {
     & reg add $k /v "$($img[1])ImagePath" /t REG_SZ /d $dest /f | Out-Null
     & reg add $k /v "$($img[1])ImageUrl" /t REG_SZ /d $dest /f | Out-Null
     & reg add $k /v "$($img[1])ImageStatus" /t REG_DWORD /d 1 /f | Out-Null
+    if ($img[0] -eq 'background') {
+      # The CSP lock screen applies, but the desktop wallpaper usually needs a
+      # logon — also set it per-user and push it to the live session now.
+      Set-ItemProperty 'HKCU:\\Control Panel\\Desktop' -Name WallPaper -Value $dest -Force
+      Set-ItemProperty 'HKCU:\\Control Panel\\Desktop' -Name WallpaperStyle -Value '10' -Force
+      try {
+        if (-not ('W.BootWP' -as [type])) {
+          Add-Type -Name BootWP -Namespace W -MemberDefinition '[DllImport("user32.dll", SetLastError=true)] public static extern bool SystemParametersInfo(int a, int u, string p, int w);'
+        }
+        [void][W.BootWP]::SystemParametersInfo(20, 0, $dest, 3)
+      } catch {}
+    }
     Write-Strip "$($img[0]) -> $dest"
   }
 }
 
 ${appBlock}
+
+# Sweep desktop icons the installers just dumped (the elevated pass).
+Clear-NewDesktopShortcuts
 
 # ── STRIP Appx (the removals you opted into) ──
 $stripAppx = ${psArray(removals.appx)}
