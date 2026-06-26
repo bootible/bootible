@@ -231,6 +231,7 @@ export function generateStripLauncher(): string {
     'del "%SystemDrive%\\bootible\\user-installs.ps1" 2>nul',
     'set "PS=%~dp0bootible.ps1"',
     `if not exist "%PS%" for /f "delims=" %%f in ('dir /b /a-d "%~dp0bootible*.ps1" 2^>nul ^| findstr /v /b /c:"._"') do set "PS=%~dp0%%f"`,
+    "echo Running the strip in an elevated window -- watch that window. This one closes itself when done.",
     `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',\\"%PS%\\",'-FromLauncher'"`,
     'if exist "%SystemDrive%\\bootible\\user-installs.ps1" (',
     "  echo.",
@@ -238,8 +239,8 @@ export function generateStripLauncher(): string {
     '  powershell -NoProfile -ExecutionPolicy Bypass -File "%SystemDrive%\\bootible\\user-installs.ps1"',
     ")",
     "echo.",
-    "echo bootible prep complete -- you can close this window.",
-    "pause",
+    "echo bootible prep complete -- closing...",
+    "timeout /t 6 >nul",
     "",
   ].join("\r\n");
 }
