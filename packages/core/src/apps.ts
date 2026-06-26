@@ -128,7 +128,9 @@ export const APP_GROUPS: AppGroup[] = [
         wingetId: "BenjaminLSR.HandheldCompanion",
       },
       { id: "hidhide", name: "HidHide", wingetId: "Nefarius.HidHide" },
-      { id: "ds4windows", name: "DS4Windows", wingetId: "Ryochan7.DS4Windows" },
+      // DS4Windows dropped: the Ryochan7 winget package is abandoned (404), and the
+      // official continuation (ds4-windows.com) is a click-through download with no
+      // automatable URL. Handheld Companion covers controller remapping/emulation.
       { id: "razersynapse", name: "Razer Synapse 4", wingetId: "RazerInc.RazerInstaller.Synapse4" },
       { id: "8bitdo", name: "8BitDo Ultimate Software", wingetId: "8BitDo.UltimateSoftwareV2" },
       { id: "vortex", name: "Vortex Mod Manager", wingetId: "NexusMods.Vortex" },
