@@ -1758,6 +1758,12 @@ body[data-view="account"] .summary::before {
   color: var(--ink);
 }
 
+/* Picked count pops magenta — "you've selected some". */
+.app-group-count.on {
+  color: var(--accent);
+  text-shadow: 0 0 12px var(--accent-soft);
+}
+
 .app-items {
   padding: 6px 14px 12px 40px;
 }

@@ -660,7 +660,11 @@ function removalsSection(): HTMLElement {
   const summary = el("summary", "app-group-sum");
   summary.append(
     el("span", "app-group-name", "Remove apps (optional)"),
-    el("span", "app-group-count", `${selectedRemovals.size} / ${removalsCatalog.length}`),
+    el(
+      "span",
+      `app-group-count${selectedRemovals.size > 0 ? " on" : ""}`,
+      `${selectedRemovals.size} / ${removalsCatalog.length}`,
+    ),
   );
   const body = el("div", "app-items");
   const note = el(
@@ -776,7 +780,7 @@ function appGroupNode(group: AppGroup): HTMLElement {
   summary.append(
     gcb,
     el("span", "app-group-name", group.label),
-    el("span", "app-group-count", `${onCount} / ${group.apps.length}`),
+    el("span", `app-group-count${onCount > 0 ? " on" : ""}`, `${onCount} / ${group.apps.length}`),
   );
   const items = el("div", "app-items");
   for (const a of group.apps) {
