@@ -1331,6 +1331,8 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: "#0b0d12",
+    // Dev window/taskbar icon (packaged builds use the .ico baked into the exe).
+    ...(app.isPackaged ? {} : { icon: join(repoRoot, "packages/app/build/icon-512.png") }),
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
       sandbox: false,

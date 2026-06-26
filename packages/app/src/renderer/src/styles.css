@@ -6,8 +6,11 @@
   --ink: #eceae3;
   --dim: #8b919c;
   --muted: #5f6671;
-  --signal: #f6a623;
-  --signal-soft: rgba(246, 166, 35, 0.16);
+  /* Brand palette (from the bootible mark): cyan = primary action, magenta = accent. */
+  --signal: #2bc8e0;
+  --signal-soft: rgba(43, 200, 224, 0.16);
+  --accent: #e93dcb;
+  --accent-soft: rgba(233, 61, 203, 0.16);
   --danger: #e5614b;
   color-scheme: dark;
 }
@@ -162,6 +165,19 @@ body[data-view="connect"] .view[data-view="connect"] {
   border-bottom: 1px solid var(--line);
 }
 
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-mark {
+  height: 22px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(43, 200, 224, 0.35));
+}
+
 .wordmark {
   font-weight: 800;
   font-size: 17px;
@@ -174,8 +190,8 @@ body[data-view="connect"] .view[data-view="connect"] {
   height: 6px;
   margin-left: 3px;
   border-radius: 50%;
-  background: var(--signal);
-  box-shadow: 0 0 12px var(--signal);
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
 }
 
 .sysstatus {

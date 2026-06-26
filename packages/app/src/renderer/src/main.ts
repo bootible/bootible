@@ -1,4 +1,11 @@
 import "./styles.css";
+import brandMark from "./assets/bootible-mark.png";
+
+// Brand mark in the sysbar + window favicon (Vite resolves the hashed URL).
+const markImg = document.querySelector<HTMLImageElement>("#brand-mark");
+if (markImg) markImg.src = brandMark;
+const favicon = document.querySelector<HTMLLinkElement>("#favicon");
+if (favicon) favicon.href = brandMark;
 
 interface DeviceSummary {
   id: string;

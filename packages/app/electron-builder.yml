@@ -22,6 +22,8 @@ extraResources:
   - from: resources/prepare-usb.ps1
     to: prepare-usb.ps1
 win:
+  # bootible mark, multi-res (16–256) — exe, taskbar, and window icon.
+  icon: build/icon.ico
   target: portable
   # asInvoker: the app launches without a UAC prompt. The actions that need
   # admin (Run-on-device apply, prepare-usb.ps1) self-elevate their own child
