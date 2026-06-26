@@ -1864,6 +1864,11 @@ function applyProfile(p: Profile): void {
   lockscreenPath = (ui.lockscreenPath as string) ?? "";
   document.body.classList.toggle("is-strip", selectedBaseId === "full-rog");
   setSshMode(sshMode); // sync the SSH tab UI
+  // Re-fetch GitHub keys so a github/both profile actually has keys baked and
+  // shows the matched status (loading the name alone doesn't fetch).
+  if ((sshMode === "github" || sshMode === "both") && fv("#github-user")) {
+    void refreshGithubKeys();
+  }
   customiseHydrated = false; // re-resolve the plan for the restored base
 }
 
