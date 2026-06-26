@@ -567,8 +567,9 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 .group-count {
   font-family: "Space Mono", monospace;
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dim);
 }
 
 .group-state {
@@ -1751,9 +1752,10 @@ body[data-view="account"] .summary::before {
 
 .app-group-count {
   font-family: "Space Mono", monospace;
-  font-size: 12px;
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: 1px;
-  color: var(--amber);
+  color: var(--ink);
 }
 
 .app-items {
