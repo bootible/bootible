@@ -715,8 +715,12 @@ async function hydrateCustomise(): Promise<void> {
     } catch {
       basePlan = null;
     }
-    disabledModules.clear();
-    enabledExtras.clear();
+    // Fresh base entry resets toggles; a just-loaded profile keeps its restored ones.
+    if (!keepRestoredCustomise) {
+      disabledModules.clear();
+      enabledExtras.clear();
+    }
+    keepRestoredCustomise = false;
     customiseHydrated = true;
   }
   // The Apps/Emulators counts need the catalog loaded.
@@ -1185,6 +1189,9 @@ let lockscreenPath = "";
 // Review/customise + app-picker state.
 let basePlan: BasePlan | null = null;
 let customiseHydrated = false;
+// Set by applyProfile so the next hydrateCustomise keeps the restored extras/
+// disabled modules instead of resetting them for a fresh base.
+let keepRestoredCustomise = false;
 const disabledModules = new Set<string>(); // unticked floor/base modules
 const enabledExtras = new Set<string>(); // ticked optional extras (incl. "apps")
 let appGroups: AppGroup[] = [];
@@ -1889,6 +1896,7 @@ function applyProfile(p: Profile): void {
     void refreshGithubKeys();
   }
   customiseHydrated = false; // re-resolve the plan for the restored base
+  keepRestoredCustomise = true; // ...but keep the restored extras/disabled modules
 }
 
 /** Render saved profiles on the base screen (only this device's, or untagged). */
