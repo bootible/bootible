@@ -11,6 +11,9 @@
   --signal-soft: rgba(43, 200, 224, 0.16);
   --accent: #e93dcb;
   --accent-soft: rgba(233, 61, 203, 0.16);
+  /* legacy alias used by count/label text — was undefined (unreadable); now a
+     legible light slate so "0 / 5" counts read clearly. */
+  --amber: #aeb6c2;
   --danger: #e5614b;
   color-scheme: dark;
 }
@@ -260,7 +263,7 @@ body[data-view="connect"] .view[data-view="connect"] {
   font-family: inherit;
   font-weight: 600;
   font-size: 15px;
-  color: #1a1206;
+  color: #06141a;
   background: var(--signal);
   border: none;
   padding: 14px 22px;
@@ -270,7 +273,7 @@ body[data-view="connect"] .view[data-view="connect"] {
   align-items: center;
   gap: 10px;
   box-shadow:
-    0 0 0 1px rgba(246, 166, 35, 0.45),
+    0 0 0 1px rgba(43, 200, 224, 0.45),
     0 12px 30px -14px var(--signal);
   transition:
     transform 0.12s ease,
@@ -280,7 +283,7 @@ body[data-view="connect"] .view[data-view="connect"] {
 .btn-primary:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 0 0 1px rgba(246, 166, 35, 0.65),
+    0 0 0 1px rgba(43, 200, 224, 0.65),
     0 18px 38px -14px var(--signal);
 }
 
@@ -525,7 +528,7 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 .group.is-on .group-toggle::after {
   transform: translateX(14px);
-  background: #1a1206;
+  background: #06141a;
 }
 
 .group-main {
@@ -690,7 +693,7 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 .module-row.is-on .module-toggle::after {
   transform: translateX(12px);
-  background: #1a1206;
+  background: #06141a;
 }
 
 .module-soon .module-toggle {
@@ -916,7 +919,7 @@ body[data-view="connect"] .view[data-view="connect"] {
 .uw-confirm input {
   width: 16px;
   height: 16px;
-  accent-color: var(--signal);
+  accent-color: var(--accent);
 }
 
 .uw-progress {
@@ -1128,7 +1131,7 @@ body[data-view="connect"] .view[data-view="connect"] {
   margin-bottom: 24px;
   border-radius: 50%;
   font-size: 24px;
-  color: #1a1206;
+  color: #06141a;
   background: var(--signal);
   box-shadow:
     0 0 0 6px var(--signal-soft),
@@ -1294,7 +1297,7 @@ body[data-view="account"] .summary::before {
 }
 
 .ssh-key-check {
-  accent-color: var(--amber);
+  accent-color: var(--accent);
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
@@ -1342,8 +1345,8 @@ body[data-view="account"] .summary::before {
 }
 
 .watch-card.is-mine {
-  border-color: rgba(246, 166, 35, 0.55);
-  box-shadow: 0 0 0 1px rgba(246, 166, 35, 0.25);
+  border-color: rgba(43, 200, 224, 0.55);
+  box-shadow: 0 0 0 1px rgba(43, 200, 224, 0.25);
 }
 
 .watch-head {
@@ -1446,7 +1449,7 @@ body[data-view="account"] .summary::before {
 }
 
 .edition-opt input {
-  accent-color: var(--amber);
+  accent-color: var(--accent);
 }
 
 /* account screen layout: selector row on top, full-width config panel below */
@@ -1500,7 +1503,7 @@ body[data-view="account"] .summary::before {
 }
 
 .ra-row input {
-  accent-color: var(--amber);
+  accent-color: var(--accent);
   width: 17px;
   height: 17px;
   flex: 0 0 auto;
@@ -1559,7 +1562,7 @@ body[data-view="account"] .summary::before {
 }
 
 .ra-host input {
-  accent-color: var(--amber);
+  accent-color: var(--accent);
 }
 
 .ra-creds {
@@ -1591,7 +1594,7 @@ body[data-view="account"] .summary::before {
 }
 
 .img-btn:hover {
-  border-color: rgba(246, 166, 35, 0.55);
+  border-color: rgba(43, 200, 224, 0.55);
 }
 
 .img-name {
@@ -1644,7 +1647,7 @@ body[data-view="account"] .summary::before {
 
 .cz-check {
   margin-top: 3px;
-  accent-color: var(--amber);
+  accent-color: var(--accent);
   flex: 0 0 auto;
 }
 
@@ -1679,8 +1682,8 @@ body[data-view="account"] .summary::before {
 
 .cz-applink {
   margin-top: 7px;
-  background: rgba(246, 166, 35, 0.12);
-  border: 1px solid rgba(246, 166, 35, 0.4);
+  background: rgba(43, 200, 224, 0.12);
+  border: 1px solid rgba(43, 200, 224, 0.4);
   color: var(--amber);
   border-radius: 7px;
   padding: 5px 11px;
@@ -1737,7 +1740,7 @@ body[data-view="account"] .summary::before {
 }
 
 .app-group-check {
-  accent-color: var(--amber);
+  accent-color: var(--accent);
 }
 
 .app-group-name {
@@ -1766,7 +1769,7 @@ body[data-view="account"] .summary::before {
 }
 
 .app-row input {
-  accent-color: var(--amber);
+  accent-color: var(--accent);
 }
 
 .app-meta {
@@ -2010,8 +2013,8 @@ body.is-strip [data-clean] {
   left: 3px;
   width: calc((100% - 6px) / 3);
   height: calc(100% - 6px);
-  background: rgba(246, 166, 35, 0.16);
-  border: 1px solid rgba(246, 166, 35, 0.5);
+  background: rgba(43, 200, 224, 0.16);
+  border: 1px solid rgba(43, 200, 224, 0.5);
   border-radius: 8px;
   transition: transform 0.18s ease;
   pointer-events: none;
