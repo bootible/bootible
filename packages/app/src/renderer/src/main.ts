@@ -957,8 +957,13 @@ async function skEject(): Promise<void> {
     setSkStatus("Pick a USB drive first.");
     return;
   }
+  setSkStatus("Ejecting…");
   const r = await api.ejectUsb(skSelectedDisk);
-  setSkStatus(r.ok ? "✓ Ejected — safe to remove." : "Eject failed — close any open files on it.");
+  setSkStatus(
+    r.ok
+      ? "✓ Ejected — safe to remove."
+      : "Eject failed — close any Explorer windows or files open on the drive, then retry.",
+  );
 }
 
 async function skRefresh(): Promise<void> {

@@ -913,18 +913,47 @@ function formatUsbDrive(driveLetter: string): { ok: boolean } {
  *  single-threaded apartment, which an Electron-spawned PowerShell lacks by
  *  default (-STA fixes it); the verb name is localised, so match it case-insens. */
 function ejectUsb(driveLetter: string): { ok: boolean } {
-  const d = driveLetter.replace(/[:\\]/g, "");
-  const ps = [
-    "$s = New-Object -comObject Shell.Application",
-    `$item = $s.Namespace(17).ParseName('${d}:')`,
-    "if ($item) {",
-    "  $verb = $item.Verbs() | Where-Object { $_.Name -replace '&','' -match 'Eject' } | Select-Object -First 1",
-    "  if ($verb) { $verb.DoIt() } else { $item.InvokeVerb('Eject') }",
-    "}",
-  ].join("; ");
+  const L = (driveLetter.replace(/[:\\]/g, "")[0] ?? "").toUpperCase();
+  if (!/^[A-Z]$/.test(L)) return { ok: false };
+  // Reliable eject: open the volume and issue the Win32 lock/dismount/eject IOCTLs
+  // (Shell.Application's Eject silently no-ops when a handle is open and always
+  // reports success). Fall back to the shell verb, then VERIFY the drive is gone
+  // so we report the truth instead of a false success.
+  const script = `$ErrorActionPreference = 'SilentlyContinue'
+$L = '${L}'
+$dev = '\\\\.\\' + $L + ':'
+$root = $L + ':\\'
+Add-Type -Name Ej -Namespace Bt -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+public static extern IntPtr CreateFileW(string n, uint a, uint s, IntPtr sec, uint c, uint f, IntPtr t);
+[DllImport("kernel32.dll", SetLastError=true)]
+public static extern bool DeviceIoControl(IntPtr h, uint code, IntPtr i, uint isz, IntPtr o, uint osz, out uint r, IntPtr ov);
+[DllImport("kernel32.dll", SetLastError=true)]
+public static extern bool CloseHandle(IntPtr h);
+'@
+$h = [Bt.Ej]::CreateFileW($dev, 0xC0000000, 3, [IntPtr]::Zero, 3, 0, [IntPtr]::Zero)
+if ($h.ToInt64() -ne -1) {
+  $r = 0
+  [void][Bt.Ej]::DeviceIoControl($h, 0x90018, [IntPtr]::Zero, 0, [IntPtr]::Zero, 0, [ref]$r, [IntPtr]::Zero)
+  [void][Bt.Ej]::DeviceIoControl($h, 0x90020, [IntPtr]::Zero, 0, [IntPtr]::Zero, 0, [ref]$r, [IntPtr]::Zero)
+  [void][Bt.Ej]::DeviceIoControl($h, 0x2D4808, [IntPtr]::Zero, 0, [IntPtr]::Zero, 0, [ref]$r, [IntPtr]::Zero)
+  [void][Bt.Ej]::CloseHandle($h)
+}
+Start-Sleep -Milliseconds 700
+if (Test-Path $root) {
+  try { $s = New-Object -ComObject Shell.Application; $s.Namespace(17).ParseName($L + ':').InvokeVerb('Eject') } catch {}
+  Start-Sleep -Milliseconds 1300
+}
+if (Test-Path $root) { 'FAILED' } else { 'EJECTED' }`;
   try {
-    execFileSync("powershell", ["-NoProfile", "-STA", "-Command", ps], { timeout: 15000 });
-    return { ok: true };
+    const tmp = join(app.getPath("temp"), `bootible-eject-${L}.ps1`);
+    writeFileSync(tmp, script, "utf8");
+    const out = execFileSync(
+      "powershell",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-STA", "-File", tmp],
+      { timeout: 20000, encoding: "utf8" },
+    );
+    return { ok: /EJECTED/.test(out) };
   } catch {
     return { ok: false };
   }
