@@ -66,6 +66,9 @@ body {
   display: flex;
   flex-direction: column;
   overflow-y: auto; /* the content region scrolls; sysbar + baseline stay pinned */
+  /* Always reserve the scrollbar gutter so centred screens never shift sideways
+     when content height crosses the scroll threshold. */
+  scrollbar-gutter: stable both-edges;
 }
 
 /* a slim, themed scrollbar — only shows when content actually overflows */
@@ -2420,7 +2423,6 @@ body[data-view="connect"] .summary::before {
   justify-items: center;
   min-height: 100%;
   padding: 48px 40px;
-  overflow: auto;
 }
 
 .welcome-card {
@@ -2604,7 +2606,6 @@ body[data-view="connect"] .summary::before {
   justify-items: center;
   min-height: 100%;
   padding: 48px 40px;
-  overflow: auto;
 }
 
 .synckey-card {
