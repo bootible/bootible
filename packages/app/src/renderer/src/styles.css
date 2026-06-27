@@ -2088,6 +2088,10 @@ body.is-strip [data-clean] {
 .force-white {
   filter: brightness(0) invert(1);
 }
+/* Logos with heavy internal padding — scale up so they match the others. */
+.app-logo.scaled {
+  transform: scale(1.35);
+}
 /* Platform/device/base card logo: larger, no box — just the logo.
    Double class beats .method-icon's background/radius (same-specificity order). */
 .method-icon.method-icon-img {

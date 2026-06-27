@@ -54,6 +54,8 @@ const FORCE_WHITE = new Set([
   "epic",
   "gog",
 ]);
+// Logos that read small (heavy internal padding) — scale up a touch.
+const LOGO_SCALE = new Set(["handheldcompanion"]);
 /** An <img> of the real brand logo (full colour), or a blank `.no-logo` span. */
 function logoEl(url: string | undefined, cls: string): HTMLElement {
   if (!url) return el("span", `${cls} no-logo`);
@@ -860,10 +862,10 @@ function appGroupNode(group: AppGroup): HTMLElement {
     if (a.module) cb.dataset.module = a.module;
     else cb.dataset.app = a.id;
     cb.checked = entryOn(a);
-    const logo = logoEl(
-      APP_LOGOS[a.id],
-      FORCE_WHITE.has(a.id) ? "app-logo force-white" : "app-logo",
-    );
+    let logoCls = "app-logo";
+    if (FORCE_WHITE.has(a.id)) logoCls += " force-white";
+    if (LOGO_SCALE.has(a.id)) logoCls += " scaled";
+    const logo = logoEl(APP_LOGOS[a.id], logoCls);
     const meta = el("span", "app-meta");
     meta.append(el("span", "app-name", a.name));
     meta.append(el("span", "app-id", a.desc ?? a.wingetId ?? ""));
