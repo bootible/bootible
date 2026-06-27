@@ -59,6 +59,34 @@
           </div>
         </main>
 
+        <!-- ───────────────────── SYNC KEY (passphrase setup / unlock) ───────────────────── -->
+        <main class="view synckey" data-view="synckey">
+          <div class="synckey-card">
+            <h1 class="setup-title" id="synckey-title">Set a sync passphrase</h1>
+            <p class="setup-sub" id="synckey-sub">
+              This encrypts your saved secrets before they ever leave this device. We can't see it
+              or reset it — you'll get a one-time recovery code.
+            </p>
+
+            <div class="synckey-form" id="synckey-form">
+              <input class="welcome-input" id="synckey-pass" type="password" placeholder="Sync passphrase (8+ characters)" autocomplete="off" />
+              <input class="welcome-input" id="synckey-confirm" type="password" placeholder="Confirm passphrase" autocomplete="off" />
+              <button class="btn-primary" id="synckey-submit" type="button">Set passphrase</button>
+              <button class="welcome-skip" id="synckey-recovery-toggle" type="button" hidden>Use a recovery code instead</button>
+              <p class="welcome-error" id="synckey-error" role="alert" hidden></p>
+            </div>
+
+            <div class="synckey-recovery" id="synckey-recovery" hidden>
+              <p class="setup-sub">
+                Save this recovery code somewhere safe — it's the only way back into your synced
+                secrets if you forget your passphrase.
+              </p>
+              <code class="recovery-code" id="recovery-code"></code>
+              <button class="btn-primary" id="synckey-done" type="button">I've saved it — continue</button>
+            </div>
+          </div>
+        </main>
+
         <!-- ───────────────────── PLATFORM (page 1: device type) ───────────────────── -->
         <main class="view setup" data-view="platform">
           <div class="setup-head">

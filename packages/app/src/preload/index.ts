@@ -244,6 +244,16 @@ const api = {
     signInSocial: (provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }> =>
       ipcRenderer.invoke("cloud:signInSocial", provider),
     signOut: (): Promise<{ ok: boolean }> => ipcRenderer.invoke("cloud:signOut"),
+    keyStatus: (): Promise<{ signedIn: boolean; hasServerKey: boolean; unlocked: boolean }> =>
+      ipcRenderer.invoke("cloud:keyStatus"),
+    setupKey: (
+      passphrase: string,
+    ): Promise<{ ok: boolean; error?: string; recoveryCode?: string }> =>
+      ipcRenderer.invoke("cloud:setupKey", passphrase),
+    unlock: (passphrase: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke("cloud:unlock", passphrase),
+    unlockRecovery: (code: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke("cloud:unlockRecovery", code),
   },
 };
 

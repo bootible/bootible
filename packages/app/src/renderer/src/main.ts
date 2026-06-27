@@ -350,6 +350,10 @@ interface BootibleApi {
     signInEmail(b: { email: string; password: string }): Promise<{ ok: boolean; error?: string }>;
     signInSocial(provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }>;
     signOut(): Promise<{ ok: boolean }>;
+    keyStatus(): Promise<{ signedIn: boolean; hasServerKey: boolean; unlocked: boolean }>;
+    setupKey(passphrase: string): Promise<{ ok: boolean; error?: string; recoveryCode?: string }>;
+    unlock(passphrase: string): Promise<{ ok: boolean; error?: string }>;
+    unlockRecovery(code: string): Promise<{ ok: boolean; error?: string }>;
   };
 }
 
@@ -361,6 +365,7 @@ declare global {
 
 const VIEWS = [
   "welcome",
+  "synckey",
   "platform",
   "devices",
   "home",
@@ -2607,9 +2612,111 @@ async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
     mode === "signup"
       ? await cloud.signUpEmail({ email, password })
       : await cloud.signInEmail({ email, password });
-  if (r.ok) location.hash = "platform";
+  if (r.ok) void afterSignIn();
   else welcomeError(r.error ?? "Sign-in failed.");
 }
+
+// ── Sync-key step (passphrase setup / unlock / recovery) ─────────────────────
+type SyncMode = "setup" | "unlock" | "recovery";
+let syncMode: SyncMode = "setup";
+
+function syncEl<T extends HTMLElement>(id: string): T | null {
+  return document.querySelector<T>(id);
+}
+function syncError(msg: string | null): void {
+  const el = syncEl<HTMLElement>("#synckey-error");
+  if (!el) return;
+  el.textContent = msg ?? "";
+  el.hidden = !msg;
+}
+
+/** After sign-in, route to set/unlock the sync key, or straight in if ready. */
+async function afterSignIn(): Promise<void> {
+  if (!cloud) {
+    location.hash = "platform";
+    return;
+  }
+  const ks = await cloud.keyStatus();
+  if (!ks.signedIn || ks.unlocked) {
+    location.hash = "platform";
+    return;
+  }
+  configureSyncKey(ks.hasServerKey ? "unlock" : "setup");
+  location.hash = "synckey";
+}
+
+function configureSyncKey(mode: SyncMode): void {
+  syncMode = mode;
+  const title = syncEl<HTMLElement>("#synckey-title");
+  const sub = syncEl<HTMLElement>("#synckey-sub");
+  const pass = syncEl<HTMLInputElement>("#synckey-pass");
+  const confirm = syncEl<HTMLInputElement>("#synckey-confirm");
+  const submit = syncEl<HTMLButtonElement>("#synckey-submit");
+  const recToggle = syncEl<HTMLButtonElement>("#synckey-recovery-toggle");
+  syncEl<HTMLElement>("#synckey-form")?.removeAttribute("hidden");
+  syncEl<HTMLElement>("#synckey-recovery")?.setAttribute("hidden", "");
+  syncError(null);
+  if (pass) pass.value = "";
+  if (confirm) confirm.value = "";
+
+  if (mode === "setup") {
+    if (title) title.textContent = "Set a sync passphrase";
+    if (sub)
+      sub.textContent =
+        "This encrypts your saved secrets before they ever leave this device. We can't see it or reset it — you'll get a one-time recovery code.";
+    if (pass) pass.placeholder = "Sync passphrase (8+ characters)";
+    confirm?.removeAttribute("hidden");
+    if (submit) submit.textContent = "Set passphrase";
+    recToggle?.setAttribute("hidden", "");
+  } else if (mode === "unlock") {
+    if (title) title.textContent = "Unlock your synced secrets";
+    if (sub) sub.textContent = "Enter your sync passphrase to decrypt your secrets on this device.";
+    if (pass) pass.placeholder = "Sync passphrase";
+    confirm?.setAttribute("hidden", "");
+    if (submit) submit.textContent = "Unlock";
+    recToggle?.removeAttribute("hidden");
+    if (recToggle) recToggle.textContent = "Use a recovery code instead";
+  } else {
+    if (title) title.textContent = "Enter your recovery code";
+    if (sub) sub.textContent = "Use the one-time recovery code you saved when you set up sync.";
+    if (pass) pass.placeholder = "XXXX-XXXX-XXXX-XXXX";
+    confirm?.setAttribute("hidden", "");
+    if (submit) submit.textContent = "Unlock with code";
+    recToggle?.removeAttribute("hidden");
+    if (recToggle) recToggle.textContent = "Use my passphrase instead";
+  }
+}
+
+async function submitSyncKey(): Promise<void> {
+  if (!cloud) return;
+  const pass = syncEl<HTMLInputElement>("#synckey-pass")?.value.trim() ?? "";
+  const confirm = syncEl<HTMLInputElement>("#synckey-confirm")?.value.trim() ?? "";
+  syncError(null);
+  if (syncMode === "setup") {
+    if (pass.length < 8) return syncError("Use a passphrase of at least 8 characters.");
+    if (pass !== confirm) return syncError("The passphrases don't match.");
+    const r = await cloud.setupKey(pass);
+    if (!r.ok) return syncError(r.error ?? "Couldn't set the passphrase.");
+    // Reveal the recovery code; the user continues from there.
+    const code = syncEl<HTMLElement>("#recovery-code");
+    if (code) code.textContent = r.recoveryCode ?? "";
+    syncEl<HTMLElement>("#synckey-form")?.setAttribute("hidden", "");
+    syncEl<HTMLElement>("#synckey-recovery")?.removeAttribute("hidden");
+    return;
+  }
+  if (!pass) return syncError("Enter your passphrase.");
+  const r = syncMode === "recovery" ? await cloud.unlockRecovery(pass) : await cloud.unlock(pass);
+  if (r.ok) location.hash = "platform";
+  else syncError(r.error ?? "That didn't work.");
+}
+
+syncEl<HTMLButtonElement>("#synckey-submit")?.addEventListener("click", () => void submitSyncKey());
+syncEl<HTMLButtonElement>("#synckey-done")?.addEventListener("click", () => {
+  location.hash = "platform";
+});
+syncEl<HTMLButtonElement>("#synckey-recovery-toggle")?.addEventListener("click", () =>
+  configureSyncKey(syncMode === "recovery" ? "unlock" : "recovery"),
+);
 
 document.querySelector<HTMLFormElement>("#welcome-email-form")?.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -2638,9 +2745,9 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-ico"))
   );
 }
 
-// Skip the welcome screen when there's already a valid session.
+// On launch with an existing session, route past welcome (to unlock or straight in).
 void (async () => {
-  if (!location.hash && cloud && (await cloud.status()).signedIn) location.hash = "platform";
+  if (!location.hash && cloud && (await cloud.status()).signedIn) await afterSignIn();
 })();
 
 // First render — run after all declarations so deep-linking #provision is safe.

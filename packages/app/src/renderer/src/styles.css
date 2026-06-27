@@ -95,6 +95,10 @@ body[data-view="welcome"] .view[data-view="welcome"] {
   display: grid;
 }
 
+body[data-view="synckey"] .view[data-view="synckey"] {
+  display: grid;
+}
+
 body[data-view="home"] .view[data-view="home"] {
   display: grid;
 }
@@ -2589,4 +2593,51 @@ body[data-view="connect"] .summary::before {
   .welcome-form {
     margin: 0 auto;
   }
+}
+
+/* ── Sync key (passphrase setup / unlock / recovery) ───────────────────────── */
+.view[data-view="synckey"] {
+  place-content: safe center;
+  justify-items: center;
+  min-height: 100%;
+  padding: 48px 40px;
+  overflow: auto;
+}
+
+.synckey-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+}
+.synckey-card .setup-title {
+  margin: 0;
+}
+.synckey-card .setup-sub {
+  margin: 0;
+  color: var(--dim);
+}
+
+.synckey-form,
+.synckey-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.recovery-code {
+  font-family: "JetBrains Mono", monospace;
+  font-feature-settings: "zero" 1;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  color: var(--signal);
+  background: var(--bg-2);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  user-select: all;
+  word-break: break-all;
 }
