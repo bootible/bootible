@@ -17,6 +17,9 @@ import {
 import { app, ipcMain, safeStorage, shell } from "electron";
 
 const API_BASE = process.env.BOOTIBLE_API_BASE ?? "https://api.bootible.dev";
+// better-auth rejects state-changing requests without an Origin; a native client
+// sends a same-origin header (Node fetch permits it, unlike a browser).
+const ORIGIN = new URL(API_BASE).origin;
 const PROVIDERS = new Set(["google", "github", "discord", "twitch"]);
 
 const tokenFile = () => join(app.getPath("userData"), "cloud-session.bin");
@@ -51,6 +54,7 @@ let token: string | null = null;
 function api(): CloudApi {
   return new CloudApi({
     baseUrl: API_BASE,
+    origin: ORIGIN,
     authHeader: () => (token ? `Bearer ${token}` : undefined),
   });
 }
@@ -122,7 +126,7 @@ async function emailAuth(path: string, body: unknown): Promise<AuthResult> {
   try {
     const res = await fetch(`${API_BASE}/api/auth/${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", Origin: ORIGIN },
       body: JSON.stringify(body),
     });
     const data = (await res.json().catch(() => ({}))) as { message?: string };
@@ -243,7 +247,7 @@ export function registerCloudIpc(): void {
       try {
         const res = await fetch(`${API_BASE}/api/auth/sign-in/social`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", Origin: ORIGIN },
           body: JSON.stringify({ provider, callbackURL: "bootible://auth-callback" }),
         });
         const data = (await res.json().catch(() => ({}))) as { url?: string };

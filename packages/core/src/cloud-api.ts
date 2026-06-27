@@ -41,6 +41,9 @@ export interface CloudApiOptions {
   fetchImpl?: FetchLike;
   /** Returns the auth header value (e.g. "Bearer <token>"), or undefined when signed out. */
   authHeader?: () => string | undefined;
+  /** Origin header to send (better-auth rejects state-changing requests without one).
+   *  A native client sets this to the API origin; browsers send it automatically. */
+  origin?: string;
 }
 
 export class CloudError extends Error {
@@ -59,6 +62,7 @@ export class CloudApi {
   private async req(method: string, path: string, body?: unknown) {
     const f = this.opts.fetchImpl ?? (fetch as unknown as FetchLike);
     const headers: Record<string, string> = { "content-type": "application/json" };
+    if (this.opts.origin) headers.Origin = this.opts.origin;
     const auth = this.opts.authHeader?.();
     if (auth) headers.authorization = auth;
     return f(this.opts.baseUrl + path, {
