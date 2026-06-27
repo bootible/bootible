@@ -7,6 +7,49 @@ if (markImg) markImg.src = brandMark;
 const favicon = document.querySelector<HTMLLinkElement>("#favicon");
 if (favicon) favicon.href = brandMark;
 
+// ── Brand / OS / app logos — rendered as CSS masks so the source colour
+//    (black, white, full-colour) is discarded and everything tints to palette. ──
+function logoMap(mods: Record<string, unknown>): Record<string, string> {
+  const m: Record<string, string> = {};
+  for (const [path, url] of Object.entries(mods)) {
+    const id =
+      path
+        .split("/")
+        .pop()
+        ?.replace(/\.svg$/, "") ?? "";
+    m[id] = url as string;
+  }
+  return m;
+}
+const APP_LOGOS = logoMap(
+  import.meta.glob("./assets/logos/apps/*.svg", { eager: true, query: "?url", import: "default" }),
+);
+const OS_LOGOS = logoMap(
+  import.meta.glob("./assets/logos/os/*.svg", { eager: true, query: "?url", import: "default" }),
+);
+const DEVICE_LOGOS = logoMap(
+  import.meta.glob("./assets/logos/devices/*.svg", {
+    eager: true,
+    query: "?url",
+    import: "default",
+  }),
+);
+// device id (registry) → brand-logo filename under devices/
+const DEVICE_BRAND: Record<string, string> = {
+  "rog-ally": "rog",
+  "legion-go": "lenovo",
+  "msi-claw": "msi",
+  steamdeck: "steam-deck",
+  "retroid-pocket": "retroid",
+  "ayn-odin": "ayn",
+};
+/** A span that masks `url` (tinted via CSS); falls back to a `.no-logo` blank. */
+function maskIcon(url: string | undefined, cls: string): HTMLElement {
+  const s = el("span", url ? cls : `${cls} no-logo`);
+  if (url) s.style.setProperty("--logo", `url("${url}")`);
+  return s;
+}
+
 interface DeviceSummary {
   id: string;
   name: string;
@@ -473,8 +516,11 @@ function pickCard(
   } else {
     card.disabled = true;
   }
-  // Placeholder glyphs (proper icons later): platform vs specific device.
-  const icon = el("span", "method-icon", kind === "platform" ? "❖" : "◈");
+  // Brand/OS logo (masked) when we have one, else a placeholder glyph.
+  const logoUrl = kind === "platform" ? OS_LOGOS[id] : DEVICE_LOGOS[DEVICE_BRAND[id] ?? id];
+  const icon = logoUrl
+    ? maskIcon(logoUrl, "method-icon method-icon-logo")
+    : el("span", "method-icon", kind === "platform" ? "❖" : "◈");
   icon.setAttribute("aria-hidden", "true");
   const main = el("span", "method-main");
   main.append(el("span", "method-name", title));
@@ -790,10 +836,11 @@ function appGroupNode(group: AppGroup): HTMLElement {
     if (a.module) cb.dataset.module = a.module;
     else cb.dataset.app = a.id;
     cb.checked = entryOn(a);
+    const logo = maskIcon(APP_LOGOS[a.id], "app-logo");
     const meta = el("span", "app-meta");
     meta.append(el("span", "app-name", a.name));
     meta.append(el("span", "app-id", a.desc ?? a.wingetId ?? ""));
-    row.append(cb, meta);
+    row.append(cb, logo, meta);
     items.append(row);
   }
   if (group.note) items.append(el("p", "app-note", group.note));

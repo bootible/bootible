@@ -2074,6 +2074,33 @@ body.is-strip [data-clean] {
   transform: translateY(-1px);
 }
 
+/* Masked logos — the SVG/PNG shape is painted with our palette, so source
+   colour (black/white/full-colour) is discarded and everything stays cohesive. */
+.app-logo {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background-color: var(--dim);
+  -webkit-mask: var(--logo) center / contain no-repeat;
+  mask: var(--logo) center / contain no-repeat;
+}
+.app-logo.no-logo {
+  background: none;
+}
+.app-row:hover .app-logo {
+  background-color: var(--ink);
+}
+.app-row:has(input:checked) .app-logo {
+  background-color: var(--accent);
+}
+/* Platform/device card logo: fills the 42px tile via mask instead of a glyph. */
+.method-icon-logo {
+  color: transparent;
+  background-color: var(--signal);
+  -webkit-mask: var(--logo) center / 62% no-repeat;
+  mask: var(--logo) center / 62% no-repeat;
+}
+
 .method-icon {
   display: grid;
   place-items: center;
