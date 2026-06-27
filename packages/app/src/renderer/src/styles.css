@@ -21,11 +21,12 @@
   --ink: #eceae3;
   --dim: #8b919c;
   --muted: #5f6671;
-  /* Warm palette: amber = primary action, hot pink = accent (matches the logo). */
+  /* Amber-led palette. --accent points at amber too (pink is hard to read with
+     colour-blindness); the pink now lives only in the logo art. */
   --signal: #f6a623;
   --signal-soft: rgba(246, 166, 35, 0.16);
-  --accent: #ff3d77;
-  --accent-soft: rgba(255, 61, 119, 0.16);
+  --accent: var(--signal);
+  --accent-soft: var(--signal-soft);
   /* legacy alias used by count/label text — was undefined (unreadable); now a
      legible light slate so "0 / 5" counts read clearly. */
   --amber: #aeb6c2;
@@ -948,7 +949,7 @@ body[data-view="connect"] .view[data-view="connect"] {
 .uw-confirm input {
   width: 16px;
   height: 16px;
-  accent-color: var(--accent);
+  accent-color: var(--signal);
 }
 
 .uw-progress {
@@ -1333,7 +1334,7 @@ body[data-view="account"] .summary::before {
 }
 
 .ssh-key-check {
-  accent-color: var(--accent);
+  accent-color: var(--signal);
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
@@ -1492,7 +1493,7 @@ body[data-view="account"] .summary::before {
 }
 
 .edition-opt input {
-  accent-color: var(--accent);
+  accent-color: var(--signal);
 }
 
 /* account screen layout: selector row on top, full-width config panel below */
@@ -1546,7 +1547,7 @@ body[data-view="account"] .summary::before {
 }
 
 .ra-row input {
-  accent-color: var(--accent);
+  accent-color: var(--signal);
   width: 17px;
   height: 17px;
   flex: 0 0 auto;
@@ -1607,7 +1608,7 @@ body[data-view="account"] .summary::before {
 }
 
 .ra-host input {
-  accent-color: var(--accent);
+  accent-color: var(--signal);
 }
 
 .ra-creds {
@@ -1694,7 +1695,7 @@ body[data-view="account"] .summary::before {
 
 .cz-check {
   margin-top: 3px;
-  accent-color: var(--accent);
+  accent-color: var(--signal);
   flex: 0 0 auto;
 }
 
@@ -1788,7 +1789,7 @@ body[data-view="account"] .summary::before {
 }
 
 .app-group-check {
-  accent-color: var(--accent);
+  accent-color: var(--signal);
 }
 
 .app-group-name {
@@ -1808,8 +1809,8 @@ body[data-view="account"] .summary::before {
 
 /* Picked count pops magenta — "you've selected some". */
 .app-group-count.on {
-  color: var(--accent);
-  text-shadow: 0 0 12px var(--accent-soft);
+  color: var(--signal);
+  text-shadow: 0 0 12px var(--signal-soft);
 }
 
 .app-items {
@@ -1825,7 +1826,7 @@ body[data-view="account"] .summary::before {
 }
 
 .app-row input {
-  accent-color: var(--accent);
+  accent-color: var(--signal);
 }
 
 .app-meta {
