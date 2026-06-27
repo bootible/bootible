@@ -567,7 +567,7 @@ body[data-view="connect"] .view[data-view="connect"] {
 
 .group-count {
   font-family: "Space Mono", monospace;
-  font-size: 15px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--dim);
 }
@@ -1752,7 +1752,7 @@ body[data-view="account"] .summary::before {
 
 .app-group-count {
   font-family: "Space Mono", monospace;
-  font-size: 15px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--ink);
@@ -2076,19 +2076,26 @@ body.is-strip [data-clean] {
 
 /* Real brand-colour logos (rendered as <img>, no tint). */
 .app-logo {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   flex: none;
   object-fit: contain;
 }
 .app-logo.no-logo {
   visibility: hidden;
 }
-/* Platform/device card logo: real-colour image inside the 42px tile. */
+/* Black/dark monochrome logos → white, so they read on the dark UI. */
+.force-white {
+  filter: brightness(0) invert(1);
+}
+/* Platform/device card logo: larger, no box — just the logo. */
 .method-icon-img {
-  padding: 7px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
   object-fit: contain;
-  background: var(--panel);
+  background: none;
+  border-radius: 0;
 }
 
 .method-icon {

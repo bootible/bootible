@@ -37,12 +37,13 @@ const DEVICE_LOGOS = logoMap(
 // device id (registry) → brand-logo filename under devices/
 const DEVICE_BRAND: Record<string, string> = {
   "rog-ally": "rog",
-  "legion-go": "lenovo",
   "msi-claw": "msi",
   steamdeck: "steam-deck",
   "retroid-pocket": "retroid",
   "ayn-odin": "ayn",
 };
+// Logos that are black/dark monochrome — render white so they show on the dark UI.
+const FORCE_WHITE = new Set(["7zip", "ea", "ubisoft", "tailscale", "retroarch", "playnite", "obs"]);
 /** An <img> of the real brand logo (full colour), or a blank `.no-logo` span. */
 function logoEl(url: string | undefined, cls: string): HTMLElement {
   if (!url) return el("span", `${cls} no-logo`);
@@ -840,7 +841,10 @@ function appGroupNode(group: AppGroup): HTMLElement {
     if (a.module) cb.dataset.module = a.module;
     else cb.dataset.app = a.id;
     cb.checked = entryOn(a);
-    const logo = logoEl(APP_LOGOS[a.id], "app-logo");
+    const logo = logoEl(
+      APP_LOGOS[a.id],
+      FORCE_WHITE.has(a.id) ? "app-logo force-white" : "app-logo",
+    );
     const meta = el("span", "app-meta");
     meta.append(el("span", "app-name", a.name));
     meta.append(el("span", "app-id", a.desc ?? a.wingetId ?? ""));
