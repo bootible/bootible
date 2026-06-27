@@ -21,6 +21,14 @@ export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
 export { bundleModules } from "./bundles";
+export type {
+  CloudApiOptions,
+  FetchLike,
+  KeyMaterialDTO,
+  ProfilePayload,
+  ProfileSummary,
+} from "./cloud-api";
+export { CloudApi, CloudError } from "./cloud-api";
 export type { CryptoFail, KdfParams, KeyMaterial, KeySetup, Result } from "./cloud-crypto";
 export {
   createKeyMaterial,
@@ -33,6 +41,8 @@ export {
 } from "./cloud-crypto";
 export type { LocalState, RemoteState, SyncAction } from "./cloud-sync";
 export { reconcile } from "./cloud-sync";
+export type { LocalProfile, LocalStore, SyncApi, SyncReport } from "./cloud-sync-run";
+export { conflictId, runSync } from "./cloud-sync-run";
 export type {
   Artifact,
   ArtifactSchemas,
