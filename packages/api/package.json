@@ -5,11 +5,18 @@
   "type": "module",
   "description": "bootible cloud API — Cloudflare Worker (better-auth + D1) for accounts & E2E profile sync.",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "better-auth generate --config ./scripts/auth.cli.ts --output ./migrations/0000_better_auth.sql -y",
+    "db:migrate:local": "wrangler d1 migrations apply bootible --local -y",
+    "db:migrate:remote": "wrangler d1 migrations apply bootible --remote -y",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
     "@cloudflare/workers-types": "^4.20260627.1",
+    "better-sqlite3": "^12.11.1",
+    "kysely": "^0.28.17",
     "wrangler": "^4.105.0"
   },
   "dependencies": {
