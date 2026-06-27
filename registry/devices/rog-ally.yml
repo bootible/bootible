@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/bootible/bootible/main/schemas/device.schema.json
 id: rog-ally
-name: ROG Ally / Ally X / Xbox Ally
+name: ROG / Xbox Ally / Ally X
 provisioning_models:
   - host-media-prep
   - on-device
