@@ -1,0 +1,10 @@
+{
+  "name": "@bootible/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "bootible cloud API — Cloudflare Worker (better-auth + D1) for accounts & E2E profile sync.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
