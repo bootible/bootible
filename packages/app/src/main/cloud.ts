@@ -11,10 +11,13 @@ import {
   createKeyMaterial,
   type KeyMaterial,
   type KeyMaterialDTO,
+  runSync,
+  type SyncReport,
   unlockWithPassphrase,
   unlockWithRecovery,
 } from "@bootible/core";
 import { app, ipcMain, safeStorage, shell } from "electron";
+import { makeLocalStore } from "./profiles-store";
 
 const API_BASE = process.env.BOOTIBLE_API_BASE ?? "https://api.bootible.dev";
 // better-auth rejects state-changing requests without an Origin; a native client
@@ -142,6 +145,16 @@ async function emailAuth(path: string, body: unknown): Promise<AuthResult> {
   }
 }
 
+/** Run a full profile sync when signed in + unlocked. Best-effort (offline-safe). */
+async function doSync(): Promise<SyncReport | null> {
+  if (!token || !dek) return null;
+  try {
+    return await runSync(api(), dek, makeLocalStore());
+  } catch {
+    return null;
+  }
+}
+
 export function registerCloudIpc(): void {
   token = loadToken();
   dek = loadDek();
@@ -214,6 +227,7 @@ export function registerCloudIpc(): void {
         await api().putKeys(toKeyDTO(setup.material));
         dek = setup.dek;
         saveDek(dek);
+        void doSync();
         return { ok: true, recoveryCode: setup.recoveryCode };
       } catch (e) {
         return { ok: false, error: errMsg(e) };
@@ -230,6 +244,7 @@ export function registerCloudIpc(): void {
       if (!r.ok) return { ok: false, error: "That passphrase didn't match." };
       dek = r.value;
       saveDek(dek);
+      void doSync();
       return { ok: true };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
@@ -245,11 +260,15 @@ export function registerCloudIpc(): void {
       if (!r.ok) return { ok: false, error: "That recovery code didn't match." };
       dek = r.value;
       saveDek(dek);
+      void doSync();
       return { ok: true };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
     }
   });
+
+  // Manual / post-save sync trigger. Returns the report, or null if not ready.
+  ipcMain.handle("cloud:syncNow", () => doSync());
 
   // Social: ask better-auth for the provider authorize URL, open it in the system
   // browser (providers block embedded webviews). Token capture is the next step.

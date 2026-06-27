@@ -354,6 +354,12 @@ interface BootibleApi {
     setupKey(passphrase: string): Promise<{ ok: boolean; error?: string; recoveryCode?: string }>;
     unlock(passphrase: string): Promise<{ ok: boolean; error?: string }>;
     unlockRecovery(code: string): Promise<{ ok: boolean; error?: string }>;
+    syncNow(): Promise<{
+      pulled: string[];
+      pushed: string[];
+      conflicted: string[];
+      failed: { id: string; error: string }[];
+    } | null>;
   };
 }
 
@@ -2101,6 +2107,7 @@ document.addEventListener("click", (event) => {
       loadedProfileName = r.name; // now editing this profile → Update targets it
       setV("#sk-profile-name", r.name);
       refreshProfileSaveUI();
+      void window.bootible?.cloud?.syncNow(); // push the change if signed in + unlocked
       if (out)
         out.textContent = isUpdate ? `✓ Updated "${r.name}"` : `✓ Saved "${r.name}" to this PC`;
     } else if (out) {
@@ -2721,6 +2728,7 @@ async function afterSignIn(): Promise<void> {
   void refreshAccount();
   const ks = await cloud.keyStatus();
   if (!ks.signedIn || ks.unlocked) {
+    if (ks.unlocked) void cloud.syncNow(); // sync on entry when already unlocked
     location.hash = "platform";
     return;
   }

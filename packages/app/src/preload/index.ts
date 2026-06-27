@@ -254,6 +254,12 @@ const api = {
       ipcRenderer.invoke("cloud:unlock", passphrase),
     unlockRecovery: (code: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke("cloud:unlockRecovery", code),
+    syncNow: (): Promise<{
+      pulled: string[];
+      pushed: string[];
+      conflicted: string[];
+      failed: { id: string; error: string }[];
+    } | null> => ipcRenderer.invoke("cloud:syncNow"),
   },
 };
 

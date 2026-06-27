@@ -62,11 +62,17 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
-  safeStorage,
   shell,
   type WebContents,
 } from "electron";
 import { registerCloudIpc } from "./cloud";
+import {
+  deleteProfile,
+  listProfiles,
+  loadProfile,
+  type Profile,
+  saveProfile,
+} from "./profiles-store";
 
 // Resource roots. In dev, schemas/registry live at the repo root and the USB
 // script under packages/app/resources. In a packaged app they're shipped as
@@ -748,97 +754,8 @@ function buildSettings(req: BuildChoice): Record<string, unknown> {
   return settings;
 }
 
-// ── Config profiles: save/load the whole setup to %APPDATA%\bootible\profiles ──
-// Secrets (Sunshine/account/Wi-Fi passwords) are encrypted with the OS keychain
-// (Windows DPAPI via Electron safeStorage) — never plaintext on disk.
-
-export interface ProfileSummary {
-  name: string;
-  deviceId?: string;
-  baseId?: string;
-  savedAt?: string;
-}
-
-/** A saved profile: a snapshot of the UI selections + (encrypted) secrets. */
-export interface Profile extends ProfileSummary {
-  ui: Record<string, unknown>;
-  secrets?: Record<string, string>;
-}
-
-function profilesDir(): string {
-  return join(app.getPath("userData"), "profiles");
-}
-
-function profilePath(name: string): string {
-  const safe = name.replace(/[^a-zA-Z0-9 _-]/g, "_").trim() || "profile";
-  return join(profilesDir(), `${safe}.json`);
-}
-
-function saveProfile(p: Profile): { ok: boolean; name: string } {
-  mkdirSync(profilesDir(), { recursive: true });
-  let secretsEnc = "";
-  const secrets = p.secrets ?? {};
-  if (Object.keys(secrets).length > 0 && safeStorage.isEncryptionAvailable()) {
-    secretsEnc = safeStorage.encryptString(JSON.stringify(secrets)).toString("base64");
-  }
-  const out = {
-    name: p.name,
-    deviceId: p.deviceId,
-    baseId: p.baseId,
-    savedAt: new Date().toISOString(),
-    ui: p.ui,
-    secretsEnc,
-  };
-  writeFileSync(profilePath(p.name), JSON.stringify(out, null, 2), "utf8");
-  return { ok: true, name: p.name };
-}
-
-function listProfiles(): ProfileSummary[] {
-  try {
-    return readdirSync(profilesDir())
-      .filter((f) => f.endsWith(".json"))
-      .map((f) => {
-        try {
-          const j = JSON.parse(readFileSync(join(profilesDir(), f), "utf8"));
-          return {
-            name: String(j.name ?? f.replace(/\.json$/, "")),
-            deviceId: j.deviceId,
-            baseId: j.baseId,
-            savedAt: j.savedAt,
-          } as ProfileSummary;
-        } catch {
-          return null;
-        }
-      })
-      .filter((p): p is ProfileSummary => p !== null);
-  } catch {
-    return [];
-  }
-}
-
-function loadProfile(name: string): Profile | null {
-  try {
-    const j = JSON.parse(readFileSync(profilePath(name), "utf8"));
-    let secrets: Record<string, string> = {};
-    if (j.secretsEnc && safeStorage.isEncryptionAvailable()) {
-      try {
-        secrets = JSON.parse(safeStorage.decryptString(Buffer.from(j.secretsEnc, "base64")));
-      } catch {}
-    }
-    return { name: j.name, deviceId: j.deviceId, baseId: j.baseId, ui: j.ui ?? {}, secrets };
-  } catch {
-    return null;
-  }
-}
-
-function deleteProfile(name: string): { ok: boolean } {
-  try {
-    rmSync(profilePath(name));
-    return { ok: true };
-  } catch {
-    return { ok: false };
-  }
-}
+// Config profiles (save/load the whole setup, DPAPI-encrypted secrets) + the
+// cloud-sync LocalStore now live in ./profiles-store.
 
 /** The three Full ROG strip-kit files, generated from the user's config (their
  *  picked apps + SSH baked in). */
