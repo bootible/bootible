@@ -6,5 +6,15 @@
   "description": "bootible cloud API — Cloudflare Worker (better-auth + D1) for accounts & E2E profile sync.",
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@better-auth/cli": "^1.4.21",
+    "@cloudflare/workers-types": "^4.20260627.1",
+    "wrangler": "^4.105.0"
+  },
+  "dependencies": {
+    "better-auth": "^1.6.22",
+    "better-auth-cloudflare": "^0.3.0",
+    "hono": "^4.12.27"
   }
 }

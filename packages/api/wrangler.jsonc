@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bootible-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "49f8d56506e37dc854ee7e0762bd592e",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DATABASE",
+      "database_name": "bootible",
+      // replace with the real id from `wrangler d1 create bootible`; local dev ignores it
+      "database_id": "REPLACE_WITH_D1_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    // replace id from `wrangler kv namespace create SESSIONS`; local dev ignores it
+    { "binding": "KV", "id": "REPLACE_WITH_KV_ID" }
+  ]
+  // Custom route api.bootible.dev is attached after first deploy (zone is live).
+}
