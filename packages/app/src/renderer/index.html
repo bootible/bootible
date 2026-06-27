@@ -73,11 +73,16 @@
 
             <div class="synckey-form" id="synckey-form">
               <div class="pw-wrap">
-                <input class="welcome-input" id="synckey-pass" type="password" placeholder="Sync passphrase (8+ characters)" autocomplete="off" />
+                <input class="welcome-input" id="synckey-pass" type="password" placeholder="Sync passphrase (8+ characters)" autocomplete="off" spellcheck="false" />
                 <button class="pw-eye" type="button" data-reveal="synckey-pass" title="Show / hide" aria-label="Show or hide passphrase">👁</button>
               </div>
               <input class="welcome-input" id="synckey-confirm" type="password" placeholder="Confirm passphrase" autocomplete="off" />
+              <div class="synckey-row" id="synckey-gen-actions">
+                <button class="btn-ghost" id="synckey-copy" type="button">Copy</button>
+                <button class="btn-ghost" id="synckey-regen" type="button">Generate new</button>
+              </div>
               <button class="btn-primary" id="synckey-submit" type="button">Set passphrase</button>
+              <button class="welcome-skip" id="synckey-own-toggle" type="button">Set my own passphrase instead</button>
               <button class="welcome-skip" id="synckey-recovery-toggle" type="button" hidden>Use a recovery code instead</button>
               <p class="welcome-error" id="synckey-error" role="alert"></p>
             </div>
@@ -85,9 +90,12 @@
             <div class="synckey-recovery" id="synckey-recovery" hidden>
               <p class="setup-sub">
                 Save this recovery code somewhere safe — it's the only way back into your synced
-                secrets if you forget your passphrase.
+                secrets if you ever lose your passphrase.
               </p>
               <code class="recovery-code" id="recovery-code"></code>
+              <div class="synckey-row">
+                <button class="btn-ghost" id="recovery-copy" type="button">Copy recovery code</button>
+              </div>
               <button class="btn-primary" id="synckey-done" type="button">I've saved it — continue</button>
             </div>
           </div>

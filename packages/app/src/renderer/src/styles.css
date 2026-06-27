@@ -2635,6 +2635,20 @@ body[data-view="connect"] .summary::before {
   margin-top: 6px;
 }
 
+/* Copy / regenerate row under the generated passphrase + recovery code. */
+.synckey-row {
+  display: flex;
+  gap: 8px;
+}
+.synckey-row .btn-ghost {
+  flex: 1;
+}
+
+/* Keep the screen blank (not a welcome flash) until the session is resolved. */
+body.booting .views {
+  visibility: hidden;
+}
+
 .recovery-code {
   font-family: "JetBrains Mono", monospace;
   font-feature-settings: "zero" 1;

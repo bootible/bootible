@@ -2617,6 +2617,8 @@ async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
 // ── Sync-key step (passphrase setup / unlock / recovery) ─────────────────────
 type SyncMode = "setup" | "unlock" | "recovery";
 let syncMode: SyncMode = "setup";
+let setupOwn = false; // setup sub-mode: false = generated, true = the user's own
+let generatedPass = "";
 
 function syncEl<T extends HTMLElement>(id: string): T | null {
   return document.querySelector<T>(id);
@@ -2624,6 +2626,67 @@ function syncEl<T extends HTMLElement>(id: string): T | null {
 function syncError(msg: string | null): void {
   const el = syncEl<HTMLElement>("#synckey-error");
   if (el) el.textContent = msg ?? "";
+}
+
+/** A strong, readable random passphrase (~120 bits, Crockford base32, grouped). */
+function genPassphrase(): string {
+  const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
+  const bytes = crypto.getRandomValues(new Uint8Array(15));
+  let out = "";
+  let bits = 0;
+  let val = 0;
+  for (const b of bytes) {
+    val = (val << 8) | b;
+    bits += 8;
+    while (bits >= 5) {
+      out += ALPHABET[(val >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  return (out.match(/.{1,4}/g) ?? [out]).join("-");
+}
+
+async function copyToClipboard(text: string, btn: HTMLButtonElement): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    const original = btn.textContent ?? "";
+    btn.textContent = "Copied!";
+    setTimeout(() => {
+      btn.textContent = original;
+    }, 1500);
+  } catch {
+    syncError("Couldn't copy — select the text and copy manually.");
+  }
+}
+
+/** Within setup, switch between a generated passphrase and the user's own. */
+function applySetupSubmode(): void {
+  const pass = syncEl<HTMLInputElement>("#synckey-pass");
+  const confirm = syncEl<HTMLInputElement>("#synckey-confirm");
+  const genActions = syncEl<HTMLElement>("#synckey-gen-actions");
+  const ownToggle = syncEl<HTMLButtonElement>("#synckey-own-toggle");
+  if (!setupOwn) {
+    if (!generatedPass) generatedPass = genPassphrase();
+    if (pass) {
+      pass.readOnly = true;
+      pass.type = "text";
+      pass.value = generatedPass;
+    }
+    confirm?.setAttribute("hidden", "");
+    genActions?.removeAttribute("hidden");
+    if (ownToggle) ownToggle.textContent = "Set my own passphrase instead";
+  } else {
+    if (pass) {
+      pass.readOnly = false;
+      pass.type = "password";
+      pass.value = "";
+      pass.placeholder = "Sync passphrase (8+ characters)";
+    }
+    if (confirm) confirm.value = "";
+    confirm?.removeAttribute("hidden");
+    genActions?.setAttribute("hidden", "");
+    if (ownToggle) ownToggle.textContent = "Use a generated passphrase instead";
+  }
 }
 
 /** After sign-in, route to set/unlock the sync key, or straight in if ready. */
@@ -2648,37 +2711,48 @@ function configureSyncKey(mode: SyncMode): void {
   const pass = syncEl<HTMLInputElement>("#synckey-pass");
   const confirm = syncEl<HTMLInputElement>("#synckey-confirm");
   const submit = syncEl<HTMLButtonElement>("#synckey-submit");
+  const ownToggle = syncEl<HTMLButtonElement>("#synckey-own-toggle");
   const recToggle = syncEl<HTMLButtonElement>("#synckey-recovery-toggle");
+  const genActions = syncEl<HTMLElement>("#synckey-gen-actions");
   syncEl<HTMLElement>("#synckey-form")?.removeAttribute("hidden");
   syncEl<HTMLElement>("#synckey-recovery")?.setAttribute("hidden", "");
   syncError(null);
-  if (pass) pass.value = "";
-  if (confirm) confirm.value = "";
 
   if (mode === "setup") {
     if (title) title.textContent = "Set a sync passphrase";
     if (sub)
       sub.textContent =
-        "This encrypts your saved secrets before they ever leave this device. We can't see it or reset it — you'll get a one-time recovery code.";
-    if (pass) pass.placeholder = "Sync passphrase (8+ characters)";
-    confirm?.removeAttribute("hidden");
+        "This encrypts your saved secrets before they ever leave this device — we can't see it or reset it. Save it in your password manager; you'll also get a one-time recovery code.";
     if (submit) submit.textContent = "Set passphrase";
+    ownToggle?.removeAttribute("hidden");
     recToggle?.setAttribute("hidden", "");
-  } else if (mode === "unlock") {
+    setupOwn = false;
+    generatedPass = genPassphrase();
+    applySetupSubmode();
+    return;
+  }
+
+  // unlock / recovery — a single editable field, no generated controls.
+  genActions?.setAttribute("hidden", "");
+  ownToggle?.setAttribute("hidden", "");
+  confirm?.setAttribute("hidden", "");
+  if (pass) {
+    pass.readOnly = false;
+    pass.type = "password";
+    pass.value = "";
+  }
+  recToggle?.removeAttribute("hidden");
+  if (mode === "unlock") {
     if (title) title.textContent = "Unlock your synced secrets";
     if (sub) sub.textContent = "Enter your sync passphrase to decrypt your secrets on this device.";
     if (pass) pass.placeholder = "Sync passphrase";
-    confirm?.setAttribute("hidden", "");
     if (submit) submit.textContent = "Unlock";
-    recToggle?.removeAttribute("hidden");
     if (recToggle) recToggle.textContent = "Use a recovery code instead";
   } else {
     if (title) title.textContent = "Enter your recovery code";
     if (sub) sub.textContent = "Use the one-time recovery code you saved when you set up sync.";
-    if (pass) pass.placeholder = "XXXX-XXXX-XXXX-XXXX";
-    confirm?.setAttribute("hidden", "");
+    if (pass) pass.placeholder = "xxxx-xxxx-xxxx-xxxx";
     if (submit) submit.textContent = "Unlock with code";
-    recToggle?.removeAttribute("hidden");
     if (recToggle) recToggle.textContent = "Use my passphrase instead";
   }
 }
@@ -2686,11 +2760,13 @@ function configureSyncKey(mode: SyncMode): void {
 async function submitSyncKey(): Promise<void> {
   if (!cloud) return;
   const pass = syncEl<HTMLInputElement>("#synckey-pass")?.value.trim() ?? "";
-  const confirm = syncEl<HTMLInputElement>("#synckey-confirm")?.value.trim() ?? "";
   syncError(null);
   if (syncMode === "setup") {
-    if (pass.length < 8) return syncError("Use a passphrase of at least 8 characters.");
-    if (pass !== confirm) return syncError("The passphrases don't match.");
+    if (setupOwn) {
+      const confirm = syncEl<HTMLInputElement>("#synckey-confirm")?.value.trim() ?? "";
+      if (pass.length < 8) return syncError("Use a passphrase of at least 8 characters.");
+      if (pass !== confirm) return syncError("The passphrases don't match.");
+    }
     const r = await cloud.setupKey(pass);
     if (!r.ok) return syncError(r.error ?? "Couldn't set the passphrase.");
     // Reveal the recovery code; the user continues from there.
@@ -2713,6 +2789,22 @@ syncEl<HTMLButtonElement>("#synckey-done")?.addEventListener("click", () => {
 syncEl<HTMLButtonElement>("#synckey-recovery-toggle")?.addEventListener("click", () =>
   configureSyncKey(syncMode === "recovery" ? "unlock" : "recovery"),
 );
+syncEl<HTMLButtonElement>("#synckey-own-toggle")?.addEventListener("click", () => {
+  setupOwn = !setupOwn;
+  applySetupSubmode();
+});
+syncEl<HTMLButtonElement>("#synckey-regen")?.addEventListener("click", () => {
+  generatedPass = genPassphrase();
+  const pass = syncEl<HTMLInputElement>("#synckey-pass");
+  if (pass) pass.value = generatedPass;
+});
+syncEl<HTMLButtonElement>("#synckey-copy")?.addEventListener("click", (e) => {
+  void copyToClipboard(generatedPass, e.currentTarget as HTMLButtonElement);
+});
+syncEl<HTMLButtonElement>("#recovery-copy")?.addEventListener("click", (e) => {
+  const code = syncEl<HTMLElement>("#recovery-code")?.textContent ?? "";
+  void copyToClipboard(code, e.currentTarget as HTMLButtonElement);
+});
 
 document.querySelector<HTMLFormElement>("#welcome-email-form")?.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -2741,10 +2833,20 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-ico"))
   );
 }
 
-// On launch with an existing session, route past welcome (to unlock or straight in).
+// First render. Resolve the session BEFORE painting so a signed-in user doesn't
+// flash the welcome screen before being redirected in. Views stay hidden until then.
+document.body.classList.add("booting");
 void (async () => {
-  if (!location.hash && cloud && (await cloud.status()).signedIn) await afterSignIn();
+  try {
+    if (!location.hash && cloud) {
+      const s = await cloud.status();
+      if (s.signedIn) {
+        await afterSignIn();
+        return;
+      }
+    }
+    syncFromHash();
+  } finally {
+    document.body.classList.remove("booting");
+  }
 })();
-
-// First render — run after all declarations so deep-linking #provision is safe.
-syncFromHash();
