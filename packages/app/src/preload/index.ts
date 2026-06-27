@@ -230,7 +230,7 @@ const api = {
     ipcRenderer.on("provision:done", (_e, result: ProvisionResult) => cb(result));
   },
   cloud: {
-    status: (): Promise<{ signedIn: boolean; accountId?: string }> =>
+    status: (): Promise<{ signedIn: boolean; accountId?: string; email?: string }> =>
       ipcRenderer.invoke("cloud:status"),
     signUpEmail: (b: {
       email: string;

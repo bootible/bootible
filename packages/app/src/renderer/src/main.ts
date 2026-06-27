@@ -341,7 +341,7 @@ interface BootibleApi {
   loadProfile(name: string): Promise<Profile | null>;
   deleteProfile(name: string): Promise<{ ok: boolean }>;
   cloud: {
-    status(): Promise<{ signedIn: boolean; accountId?: string }>;
+    status(): Promise<{ signedIn: boolean; accountId?: string; email?: string }>;
     signUpEmail(b: {
       email: string;
       password: string;
@@ -2592,6 +2592,29 @@ document.addEventListener("click", (event) => {
 // ── Welcome / sign-in ───────────────────────────────────────────────────────
 const cloud = window.bootible?.cloud;
 
+/** Reflect the signed-in account (email + Sign out) in the top bar. */
+async function refreshAccount(): Promise<void> {
+  const acct = document.querySelector<HTMLElement>("#account");
+  const emailEl = document.querySelector<HTMLElement>("#account-email");
+  if (!acct || !cloud) return;
+  const s = await cloud.status();
+  if (s.signedIn) {
+    if (emailEl) emailEl.textContent = s.email ?? "Signed in";
+    acct.hidden = false;
+  } else {
+    acct.hidden = true;
+  }
+}
+
+document.querySelector<HTMLButtonElement>("#account-signout")?.addEventListener("click", () => {
+  void (async () => {
+    if (!cloud) return;
+    await cloud.signOut();
+    document.querySelector<HTMLElement>("#account")?.setAttribute("hidden", "");
+    location.hash = "welcome";
+  })();
+});
+
 function welcomeError(msg: string | null): void {
   const el = document.querySelector<HTMLElement>("#welcome-error");
   if (el) el.textContent = msg ?? ""; // space is reserved in CSS — no reflow
@@ -2695,6 +2718,7 @@ async function afterSignIn(): Promise<void> {
     location.hash = "platform";
     return;
   }
+  void refreshAccount();
   const ks = await cloud.keyStatus();
   if (!ks.signedIn || ks.unlocked) {
     location.hash = "platform";
@@ -2846,6 +2870,7 @@ void (async () => {
       }
     }
     syncFromHash();
+    void refreshAccount();
   } finally {
     document.body.classList.remove("booting");
   }

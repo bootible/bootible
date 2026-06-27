@@ -2649,6 +2649,40 @@ body.booting .views {
   visibility: hidden;
 }
 
+/* Top-bar account chip (signed-in email + sign out) */
+.sysbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.account-email {
+  color: var(--dim);
+  font-size: 12px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-signout {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.account-signout:hover {
+  border-color: var(--signal);
+  color: var(--ink);
+}
+
 .recovery-code {
   font-family: "JetBrains Mono", monospace;
   font-feature-settings: "zero" 1;

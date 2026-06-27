@@ -148,13 +148,26 @@ export function registerCloudIpc(): void {
 
   ipcMain.handle("cloud:status", async () => {
     if (!token) return { signedIn: false };
-    const accountId = await api().sessionAccountId();
-    if (!accountId) {
-      token = null;
-      clearToken();
-      return { signedIn: false };
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/get-session`, {
+        headers: { Origin: ORIGIN, authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        token = null;
+        clearToken();
+        return { signedIn: false };
+      }
+      const s = (await res.json()) as { user?: { id?: string; email?: string } } | null;
+      if (!s?.user?.id) {
+        token = null;
+        clearToken();
+        return { signedIn: false };
+      }
+      return { signedIn: true, accountId: s.user.id, email: s.user.email };
+    } catch {
+      // Network down — keep the cached session rather than signing out.
+      return { signedIn: true };
     }
-    return { signedIn: true, accountId };
   });
 
   ipcMain.handle(
