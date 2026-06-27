@@ -1,3 +1,18 @@
+/* JetBrains Mono, bundled locally with a slashed zero baked in as the default
+   glyph (cmap 0x30 -> zero.zero) — guarantees slashed zeros + works offline. */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./assets/fonts/JetBrainsMonoSlashed-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./assets/fonts/JetBrainsMonoSlashed-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   --bg: #0e0f12;
   --bg-2: #0b0c0f;
