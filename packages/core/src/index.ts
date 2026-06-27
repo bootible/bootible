@@ -21,6 +21,16 @@ export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
 export { bundleModules } from "./bundles";
+export type { CryptoFail, KdfParams, KeyMaterial, KeySetup, Result } from "./cloud-crypto";
+export {
+  createKeyMaterial,
+  DEFAULT_KDF,
+  decryptSecrets,
+  encryptSecrets,
+  rewrapWithPassphrase,
+  unlockWithPassphrase,
+  unlockWithRecovery,
+} from "./cloud-crypto";
 export type {
   Artifact,
   ArtifactSchemas,
