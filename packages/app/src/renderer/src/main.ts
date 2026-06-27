@@ -354,6 +354,7 @@ interface BootibleApi {
     setupKey(passphrase: string): Promise<{ ok: boolean; error?: string; recoveryCode?: string }>;
     unlock(passphrase: string): Promise<{ ok: boolean; error?: string }>;
     unlockRecovery(code: string): Promise<{ ok: boolean; error?: string }>;
+    resetPassphrase(passphrase: string): Promise<{ ok: boolean; error?: string }>;
     syncNow(): Promise<{
       pulled: string[];
       pushed: string[];
@@ -2647,7 +2648,7 @@ async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
 }
 
 // ── Sync-key step (passphrase setup / unlock / recovery) ─────────────────────
-type SyncMode = "setup" | "unlock" | "recovery";
+type SyncMode = "setup" | "unlock" | "recovery" | "reset";
 let syncMode: SyncMode = "setup";
 let setupOwn = false; // setup sub-mode: false = generated, true = the user's own
 let generatedPass = "";
@@ -2752,12 +2753,15 @@ function configureSyncKey(mode: SyncMode): void {
   syncEl<HTMLElement>("#synckey-recovery")?.setAttribute("hidden", "");
   syncError(null);
 
-  if (mode === "setup") {
-    if (title) title.textContent = "Set a sync passphrase";
+  if (mode === "setup" || mode === "reset") {
+    if (title)
+      title.textContent = mode === "reset" ? "Set a new passphrase" : "Set a sync passphrase";
     if (sub)
       sub.textContent =
-        "This encrypts your saved secrets before they ever leave this device — we can't see it or reset it. Save it in your password manager; you'll also get a one-time recovery code.";
-    if (submit) submit.textContent = "Set passphrase";
+        mode === "reset"
+          ? "Recovered. Choose a new passphrase to lock your synced secrets — your recovery code stays the same."
+          : "This encrypts your saved secrets before they ever leave this device — we can't see it or reset it. Save it in your password manager; you'll also get a one-time recovery code.";
+    if (submit) submit.textContent = mode === "reset" ? "Set new passphrase" : "Set passphrase";
     ownToggle?.removeAttribute("hidden");
     recToggle?.setAttribute("hidden", "");
     setupOwn = false;
@@ -2795,25 +2799,31 @@ async function submitSyncKey(): Promise<void> {
   if (!cloud) return;
   const pass = syncEl<HTMLInputElement>("#synckey-pass")?.value.trim() ?? "";
   syncError(null);
-  if (syncMode === "setup") {
+  if (syncMode === "setup" || syncMode === "reset") {
     if (setupOwn) {
       const confirm = syncEl<HTMLInputElement>("#synckey-confirm")?.value.trim() ?? "";
       if (pass.length < 8) return syncError("Use a passphrase of at least 8 characters.");
       if (pass !== confirm) return syncError("The passphrases don't match.");
     }
-    const r = await cloud.setupKey(pass);
+    const r = syncMode === "reset" ? await cloud.resetPassphrase(pass) : await cloud.setupKey(pass);
     if (!r.ok) return syncError(r.error ?? "Couldn't set the passphrase.");
-    // Reveal the recovery code; the user continues from there.
+    if (syncMode === "reset") {
+      location.hash = "platform"; // recovery code unchanged — straight in
+      return;
+    }
+    // Setup: reveal the recovery code; the user continues from there.
     const code = syncEl<HTMLElement>("#recovery-code");
-    if (code) code.textContent = r.recoveryCode ?? "";
+    if (code) code.textContent = (r as { recoveryCode?: string }).recoveryCode ?? "";
     syncEl<HTMLElement>("#synckey-form")?.setAttribute("hidden", "");
     syncEl<HTMLElement>("#synckey-recovery")?.removeAttribute("hidden");
     return;
   }
   if (!pass) return syncError("Enter your passphrase.");
   const r = syncMode === "recovery" ? await cloud.unlockRecovery(pass) : await cloud.unlock(pass);
-  if (r.ok) location.hash = "platform";
-  else syncError(r.error ?? "That didn't work.");
+  if (!r.ok) return syncError(r.error ?? "That didn't work.");
+  // Recovered → make them set a fresh passphrase; a plain unlock goes straight in.
+  if (syncMode === "recovery") configureSyncKey("reset");
+  else location.hash = "platform";
 }
 
 syncEl<HTMLButtonElement>("#synckey-submit")?.addEventListener("click", () => void submitSyncKey());

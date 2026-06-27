@@ -11,6 +11,7 @@ import {
   createKeyMaterial,
   type KeyMaterial,
   type KeyMaterialDTO,
+  rewrapWithPassphrase,
   runSync,
   type SyncReport,
   unlockWithPassphrase,
@@ -206,11 +207,14 @@ export function registerCloudIpc(): void {
   // Where the user is in the key lifecycle: needs setup, needs unlock, or ready.
   ipcMain.handle("cloud:keyStatus", async () => {
     if (!token) return { signedIn: false, hasServerKey: false, unlocked: false };
-    let hasServerKey = false;
+    // Default to the NON-destructive path (unlock): only treat a key as absent on
+    // a clean "no key" — never offer Setup just because a check failed, or "Generate
+    // new" could overwrite an existing key and orphan the user's encrypted secrets.
+    let hasServerKey = true;
     try {
       hasServerKey = (await api().getKeys()) !== null;
     } catch {
-      // network/unauthorized — report best-effort
+      // couldn't check — keep hasServerKey = true (unlock), the safe default
     }
     return { signedIn: true, hasServerKey, unlocked: dek !== null };
   });
@@ -223,6 +227,13 @@ export function registerCloudIpc(): void {
       if (!passphrase || passphrase.length < 8)
         return { ok: false, error: "Use a passphrase of at least 8 characters." };
       try {
+        // Never overwrite an existing key — that would orphan already-synced secrets.
+        if (await api().getKeys()) {
+          return {
+            ok: false,
+            error: "You already have a sync key — unlock with your passphrase or recovery code.",
+          };
+        }
         const setup = await createKeyMaterial(passphrase);
         await api().putKeys(toKeyDTO(setup.material));
         dek = setup.dek;
@@ -261,6 +272,23 @@ export function registerCloudIpc(): void {
       dek = r.value;
       saveDek(dek);
       void doSync();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  });
+
+  // Set a NEW passphrase for the already-unlocked DEK (used after recovery).
+  // Re-wraps the same DEK — secrets stay decryptable, recovery code unchanged.
+  ipcMain.handle("cloud:resetPassphrase", async (_e, newPass: string): Promise<AuthResult> => {
+    if (!token || !dek) return { ok: false, error: "Unlock first." };
+    if (!newPass || newPass.length < 8)
+      return { ok: false, error: "Use a passphrase of at least 8 characters." };
+    try {
+      const dto = await api().getKeys();
+      if (!dto) return { ok: false, error: "No sync key to update." };
+      const updated = await rewrapWithPassphrase(fromKeyDTO(dto), dek, newPass);
+      await api().putKeys(toKeyDTO(updated));
       return { ok: true };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
