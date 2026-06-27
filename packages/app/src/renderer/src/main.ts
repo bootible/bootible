@@ -42,8 +42,18 @@ const DEVICE_BRAND: Record<string, string> = {
   "retroid-pocket": "retroid",
   "ayn-odin": "ayn",
 };
-// Logos that are black/dark monochrome — render white so they show on the dark UI.
-const FORCE_WHITE = new Set(["7zip", "ea", "ubisoft", "tailscale", "retroarch", "playnite", "obs"]);
+// Logos that are black/dark/low-contrast — render white so they read on the dark UI.
+const FORCE_WHITE = new Set([
+  "7zip",
+  "ea",
+  "ubisoft",
+  "tailscale",
+  "retroarch",
+  "playnite",
+  "obs",
+  "epic",
+  "gog",
+]);
 /** An <img> of the real brand logo (full colour), or a blank `.no-logo` span. */
 function logoEl(url: string | undefined, cls: string): HTMLElement {
   if (!url) return el("span", `${cls} no-logo`);
@@ -584,12 +594,21 @@ async function selectDeviceAndGo(id: string): Promise<void> {
 }
 
 /** A base card — the experience picker (charcoal/amber method-card style). */
+// Base → representative logo: Raw Windows, Steam Big Picture, Full ROG.
+const BASE_LOGO: Record<string, string | undefined> = {
+  raw: OS_LOGOS.windows,
+  "steam-bp": APP_LOGOS.steam,
+  "full-rog": DEVICE_LOGOS.rog,
+};
 function baseCard(base: BaseOption): HTMLElement {
   const card = el("button", "method-card") as HTMLButtonElement;
   card.type = "button";
   card.dataset.pick = "base";
   card.dataset.id = base.id;
-  const icon = el("span", "method-icon", base.recommended ? "★" : "◆");
+  const url = BASE_LOGO[base.id];
+  const icon = url
+    ? logoEl(url, "method-icon method-icon-img")
+    : el("span", "method-icon", base.recommended ? "★" : "◆");
   icon.setAttribute("aria-hidden", "true");
   const main = el("span", "method-main");
   main.append(el("span", "method-name", base.label), el("span", "method-desc", base.description));

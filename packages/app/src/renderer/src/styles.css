@@ -6,9 +6,9 @@
   --ink: #eceae3;
   --dim: #8b919c;
   --muted: #5f6671;
-  /* Sunset palette: orange = primary action, hot pink = accent, gold glow. */
-  --signal: #ff8a3d;
-  --signal-soft: rgba(255, 138, 61, 0.16);
+  /* Warm palette: amber = primary action, hot pink = accent (matches the logo). */
+  --signal: #f6a623;
+  --signal-soft: rgba(246, 166, 35, 0.16);
   --accent: #ff3d77;
   --accent-soft: rgba(255, 61, 119, 0.16);
   /* legacy alias used by count/label text — was undefined (unreadable); now a
@@ -2088,10 +2088,11 @@ body.is-strip [data-clean] {
 .force-white {
   filter: brightness(0) invert(1);
 }
-/* Platform/device card logo: larger, no box — just the logo. */
-.method-icon-img {
-  width: 52px;
-  height: 52px;
+/* Platform/device/base card logo: larger, no box — just the logo.
+   Double class beats .method-icon's background/radius (same-specificity order). */
+.method-icon.method-icon-img {
+  width: 56px;
+  height: 56px;
   padding: 0;
   object-fit: contain;
   background: none;
