@@ -229,6 +229,22 @@ const api = {
   onProvisionDone: (cb: (result: ProvisionResult) => void): void => {
     ipcRenderer.on("provision:done", (_e, result: ProvisionResult) => cb(result));
   },
+  cloud: {
+    status: (): Promise<{ signedIn: boolean; accountId?: string }> =>
+      ipcRenderer.invoke("cloud:status"),
+    signUpEmail: (b: {
+      email: string;
+      password: string;
+      name?: string;
+    }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke("cloud:signUpEmail", b),
+    signInEmail: (b: {
+      email: string;
+      password: string;
+    }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke("cloud:signInEmail", b),
+    signInSocial: (provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }> =>
+      ipcRenderer.invoke("cloud:signInSocial", provider),
+    signOut: (): Promise<{ ok: boolean }> => ipcRenderer.invoke("cloud:signOut"),
+  },
 };
 
 export type BootibleApi = typeof api;

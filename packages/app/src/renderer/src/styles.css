@@ -91,6 +91,10 @@ body {
   display: none;
 }
 
+body[data-view="welcome"] .view[data-view="welcome"] {
+  display: grid;
+}
+
 body[data-view="home"] .view[data-view="home"] {
   display: grid;
 }
@@ -2403,4 +2407,160 @@ body[data-view="connect"] .summary::before {
     grid-template-columns: 1fr;
     gap: 28px;
   }
+}
+
+/* ── Welcome / sign-in ─────────────────────────────────────────────────────── */
+.view[data-view="welcome"] {
+  place-items: center;
+  align-content: center;
+  min-height: 100%;
+  padding: 32px 20px;
+}
+
+.welcome-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.welcome-logo {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 22px var(--signal-soft));
+}
+
+.welcome-title {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--ink);
+}
+
+.welcome-sub {
+  margin: 0 0 6px;
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.welcome-providers {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.provider-btn {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: filter 0.12s ease, transform 0.02s ease;
+  color: #fff;
+}
+.provider-btn:hover {
+  filter: brightness(1.08);
+}
+.provider-btn:active {
+  transform: translateY(1px);
+}
+.p-google {
+  background: #fff;
+  color: #1f1f1f;
+  border-color: #dadce0;
+}
+.p-github {
+  background: #24292f;
+}
+.p-discord {
+  background: #5865f2;
+}
+.p-twitch {
+  background: #9146ff;
+}
+
+.welcome-or {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 4px 0;
+}
+.welcome-or::before,
+.welcome-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.welcome-email {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.welcome-input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.welcome-input:focus {
+  outline: none;
+  border-color: var(--signal);
+  box-shadow: 0 0 0 3px var(--signal-soft);
+}
+
+.welcome-email-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.welcome-email-actions .btn-primary,
+.welcome-email-actions .btn-ghost {
+  flex: 1;
+}
+
+.welcome-error {
+  margin: 4px 0 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.welcome-skip {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px;
+}
+.welcome-skip:hover {
+  color: var(--ink);
+}
+.welcome-skip .arrow {
+  color: var(--signal);
 }

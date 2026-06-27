@@ -66,6 +66,7 @@ import {
   shell,
   type WebContents,
 } from "electron";
+import { registerCloudIpc } from "./cloud";
 
 // Resource roots. In dev, schemas/registry live at the repo root and the USB
 // script under packages/app/resources. In a packaged app they're shipped as
@@ -1352,6 +1353,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  registerCloudIpc();
   ipcMain.handle("device:get", () => getDevice());
   ipcMain.handle("device:state", () => getDeviceState());
   ipcMain.handle("platforms:get", () => getPlatforms());

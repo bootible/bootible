@@ -6,6 +6,8 @@ const markImg = document.querySelector<HTMLImageElement>("#brand-mark");
 if (markImg) markImg.src = brandMark;
 const favicon = document.querySelector<HTMLLinkElement>("#favicon");
 if (favicon) favicon.href = brandMark;
+const welcomeLogo = document.querySelector<HTMLImageElement>("#welcome-logo");
+if (welcomeLogo) welcomeLogo.src = brandMark;
 
 // ── Brand / OS / app logos — rendered as CSS masks so the source colour
 //    (black, white, full-colour) is discarded and everything tints to palette. ──
@@ -334,6 +336,17 @@ interface BootibleApi {
   saveProfile(p: Profile): Promise<{ ok: boolean; name: string }>;
   loadProfile(name: string): Promise<Profile | null>;
   deleteProfile(name: string): Promise<{ ok: boolean }>;
+  cloud: {
+    status(): Promise<{ signedIn: boolean; accountId?: string }>;
+    signUpEmail(b: {
+      email: string;
+      password: string;
+      name?: string;
+    }): Promise<{ ok: boolean; error?: string }>;
+    signInEmail(b: { email: string; password: string }): Promise<{ ok: boolean; error?: string }>;
+    signInSocial(provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }>;
+    signOut(): Promise<{ ok: boolean }>;
+  };
 }
 
 declare global {
@@ -343,6 +356,7 @@ declare global {
 }
 
 const VIEWS = [
+  "welcome",
   "platform",
   "devices",
   "home",
@@ -397,7 +411,7 @@ function setApplyLabel(): void {
 
 /** Drive the active view from the URL hash so screens are deep-linkable. */
 function syncFromHash(): void {
-  const view = location.hash.replace(/^#/, "") || "platform";
+  const view = location.hash.replace(/^#/, "") || "welcome";
   show(view);
   if (view === "platform") void hydratePlatforms();
   if (view === "base") void hydrateBases();
@@ -2565,6 +2579,53 @@ document.addEventListener("click", (event) => {
     location.hash = "home";
   }
 });
+
+// ── Welcome / sign-in ───────────────────────────────────────────────────────
+const cloud = window.bootible?.cloud;
+
+function welcomeError(msg: string | null): void {
+  const el = document.querySelector<HTMLElement>("#welcome-error");
+  if (!el) return;
+  el.textContent = msg ?? "";
+  el.hidden = !msg;
+}
+
+async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
+  if (!cloud) return;
+  const email = document.querySelector<HTMLInputElement>("#welcome-email")?.value.trim() ?? "";
+  const password = document.querySelector<HTMLInputElement>("#welcome-pass")?.value ?? "";
+  if (!email || password.length < 8) {
+    welcomeError("Enter your email and an 8+ character password.");
+    return;
+  }
+  welcomeError(null);
+  const r =
+    mode === "signup"
+      ? await cloud.signUpEmail({ email, password })
+      : await cloud.signInEmail({ email, password });
+  if (r.ok) location.hash = "platform";
+  else welcomeError(r.error ?? "Sign-in failed.");
+}
+
+document.querySelector<HTMLFormElement>("#welcome-email-form")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  void doEmailAuth("signin");
+});
+document
+  .querySelector<HTMLButtonElement>("[data-auth='signup']")
+  ?.addEventListener("click", () => void doEmailAuth("signup"));
+
+// Social: token capture from the browser is the next step — keep it honest for now.
+for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-btn")) {
+  btn.addEventListener("click", () =>
+    welcomeError("Social sign-in is almost ready — use email or continue without an account."),
+  );
+}
+
+// Skip the welcome screen when there's already a valid session.
+void (async () => {
+  if (!location.hash && cloud && (await cloud.status()).signedIn) location.hash = "platform";
+})();
 
 // First render — run after all declarations so deep-linking #provision is safe.
 syncFromHash();
