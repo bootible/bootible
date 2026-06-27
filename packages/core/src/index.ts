@@ -31,6 +31,8 @@ export {
   unlockWithPassphrase,
   unlockWithRecovery,
 } from "./cloud-crypto";
+export type { LocalState, RemoteState, SyncAction } from "./cloud-sync";
+export { reconcile } from "./cloud-sync";
 export type {
   Artifact,
   ArtifactSchemas,
