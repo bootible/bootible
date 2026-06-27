@@ -2505,6 +2505,9 @@ body[data-view="connect"] .summary::before {
 
 .welcome-error {
   margin: 2px 0 0;
+  /* Always reserve ~2 lines so showing/clearing the message never reflows the card. */
+  min-height: 2.7em;
+  line-height: 1.35;
   color: var(--danger);
   font-size: 13px;
 }

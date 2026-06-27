@@ -2594,9 +2594,7 @@ const cloud = window.bootible?.cloud;
 
 function welcomeError(msg: string | null): void {
   const el = document.querySelector<HTMLElement>("#welcome-error");
-  if (!el) return;
-  el.textContent = msg ?? "";
-  el.hidden = !msg;
+  if (el) el.textContent = msg ?? ""; // space is reserved in CSS — no reflow
 }
 
 async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
@@ -2625,9 +2623,7 @@ function syncEl<T extends HTMLElement>(id: string): T | null {
 }
 function syncError(msg: string | null): void {
   const el = syncEl<HTMLElement>("#synckey-error");
-  if (!el) return;
-  el.textContent = msg ?? "";
-  el.hidden = !msg;
+  if (el) el.textContent = msg ?? "";
 }
 
 /** After sign-in, route to set/unlock the sync key, or straight in if ready. */
