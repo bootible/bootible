@@ -2617,6 +2617,8 @@ document.querySelector<HTMLButtonElement>("#account-signout")?.addEventListener(
   void (async () => {
     if (!cloud) return;
     await cloud.signOut();
+    const emailEl = document.querySelector<HTMLElement>("#account-email");
+    if (emailEl) emailEl.textContent = "";
     document.querySelector<HTMLElement>("#account")?.setAttribute("hidden", "");
     location.hash = "welcome";
   })();

@@ -2660,6 +2660,9 @@ body.booting .views {
   align-items: center;
   gap: 10px;
 }
+.account[hidden] {
+  display: none;
+}
 .account-email {
   color: var(--dim);
   font-size: 12px;
