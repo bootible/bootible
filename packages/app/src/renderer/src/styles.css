@@ -2420,7 +2420,9 @@ body[data-view="connect"] .summary::before {
 .view[data-view="welcome"] {
   /* 'safe' centring never clips the top when content is taller than the viewport */
   place-content: safe center;
-  justify-items: center;
+  /* Fixed-width track — without this the column is content-sized, so a message's
+     max-content width (its text on one line) shifts the whole centred card. */
+  grid-template-columns: min(900px, 100%);
   min-height: 100%;
   padding: 48px 40px;
 }
@@ -2603,7 +2605,7 @@ body[data-view="connect"] .summary::before {
 /* ── Sync key (passphrase setup / unlock / recovery) ───────────────────────── */
 .view[data-view="synckey"] {
   place-content: safe center;
-  justify-items: center;
+  grid-template-columns: min(420px, 100%);
   min-height: 100%;
   padding: 48px 40px;
 }
