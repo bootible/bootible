@@ -7,10 +7,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "db:generate": "better-auth generate --config ./scripts/auth.cli.ts --output ./migrations/0000_better_auth.sql -y",
-    "db:migrate:local": "wrangler d1 migrations apply bootible --local -y",
-    "db:migrate:remote": "wrangler d1 migrations apply bootible --remote -y",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "migrate:local": "wrangler d1 migrations apply bootible-local --local",
+    "migrate:staging": "wrangler d1 migrations apply bootible-staging --remote --env staging",
+    "migrate:production": "wrangler d1 migrations apply bootible --remote --env production",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",

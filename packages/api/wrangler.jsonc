@@ -6,14 +6,51 @@
   "compatibility_flags": ["nodejs_compat"],
   "account_id": "49f8d56506e37dc854ee7e0762bd592e",
   "observability": { "enabled": true },
+
+  // ── Local/dev ONLY (wrangler dev + --local). Never deployed; real deploys use --env. ──
   "d1_databases": [
     {
       "binding": "DATABASE",
-      "database_name": "bootible",
-      "database_id": "88f1d77d-3902-4f64-9291-c5ab5e768a34",
+      "database_name": "bootible-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
-  "kv_namespaces": [{ "binding": "KV", "id": "2366b28492f541c4af19f3c45abd9fdf" }],
-  "routes": [{ "pattern": "api.bootible.dev", "custom_domain": true }]
+  "kv_namespaces": [{ "binding": "KV", "id": "00000000000000000000000000000000" }],
+
+  "env": {
+    // ── Staging — net-new resources ──
+    "staging": {
+      "name": "bootible-api-staging",
+      "workers_dev": false,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "DATABASE",
+          "database_name": "bootible-staging",
+          "database_id": "650c2261-124f-47a8-a3a3-094ebdea30ac",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "135efcf2fe674f46bb2c7fb197ebba52" }],
+      "routes": [{ "pattern": "api.staging.bootible.dev", "custom_domain": true }]
+    },
+
+    // ── Production — reuses the already-created worker/D1/KV + api.bootible.dev ──
+    "production": {
+      "name": "bootible-api",
+      "workers_dev": false,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "DATABASE",
+          "database_name": "bootible",
+          "database_id": "88f1d77d-3902-4f64-9291-c5ab5e768a34",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "2366b28492f541c4af19f3c45abd9fdf" }],
+      "routes": [{ "pattern": "api.bootible.dev", "custom_domain": true }]
+    }
+  }
 }
