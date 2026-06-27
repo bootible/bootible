@@ -23,35 +23,39 @@
         <!-- ───────────────────── WELCOME / SIGN-IN (front door) ───────────────────── -->
         <main class="view welcome" data-view="welcome">
           <div class="welcome-card">
-            <img class="welcome-logo" id="welcome-logo" alt="bootible" />
-            <h1 class="welcome-title">bootible</h1>
-            <p class="welcome-sub">
-              Set up your handheld your way. Sign in to sync your profiles across machines — or
-              jump straight in, no account needed.
-            </p>
+            <section class="welcome-brand">
+              <img class="welcome-logo" id="welcome-logo" alt="bootible" />
+              <h1 class="welcome-title">bootible</h1>
+              <p class="welcome-sub">
+                Set up your handheld your way. Sign in to sync your profiles across machines —
+                or jump straight in, no account needed.
+              </p>
+            </section>
 
-            <div class="welcome-providers">
-              <button class="provider-btn p-google" type="button" data-provider="google">Continue with Google</button>
-              <button class="provider-btn p-github" type="button" data-provider="github">Continue with GitHub</button>
-              <button class="provider-btn p-discord" type="button" data-provider="discord">Continue with Discord</button>
-              <button class="provider-btn p-twitch" type="button" data-provider="twitch">Continue with Twitch</button>
-            </div>
+            <section class="welcome-form">
+              <form class="welcome-email" id="welcome-email-form" autocomplete="on">
+                <input class="welcome-input" id="welcome-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+                <input class="welcome-input" id="welcome-pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" minlength="8" required />
+                <div class="welcome-email-actions">
+                  <button class="btn-primary" type="submit" data-auth="signin">Sign in</button>
+                  <button class="btn-ghost" type="button" data-auth="signup">Create account</button>
+                </div>
+                <p class="welcome-error" id="welcome-error" role="alert" hidden></p>
+              </form>
 
-            <div class="welcome-or"><span>or use email</span></div>
+              <div class="welcome-or"><span>or continue with</span></div>
 
-            <form class="welcome-email" id="welcome-email-form" autocomplete="on">
-              <input class="welcome-input" id="welcome-email" type="email" placeholder="you@example.com" autocomplete="email" required />
-              <input class="welcome-input" id="welcome-pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" minlength="8" required />
-              <div class="welcome-email-actions">
-                <button class="btn-primary" type="submit" data-auth="signin">Sign in</button>
-                <button class="btn-ghost" type="button" data-auth="signup">Create account</button>
+              <div class="welcome-providers">
+                <button class="provider-ico" type="button" data-provider="google" data-mono="G" title="Continue with Google" aria-label="Continue with Google"></button>
+                <button class="provider-ico" type="button" data-provider="github" data-mono="GH" title="Continue with GitHub" aria-label="Continue with GitHub"></button>
+                <button class="provider-ico" type="button" data-provider="discord" data-mono="D" title="Continue with Discord" aria-label="Continue with Discord"></button>
+                <button class="provider-ico" type="button" data-provider="twitch" data-mono="T" title="Continue with Twitch" aria-label="Continue with Twitch"></button>
               </div>
-              <p class="welcome-error" id="welcome-error" role="alert" hidden></p>
-            </form>
 
-            <button class="welcome-skip" type="button" data-go="platform">
-              Continue without an account <span class="arrow" aria-hidden="true">→</span>
-            </button>
+              <button class="welcome-skip" type="button" data-go="platform">
+                Continue without an account <span class="arrow" aria-hidden="true">→</span>
+              </button>
+            </section>
           </div>
         </main>
 

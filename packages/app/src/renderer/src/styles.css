@@ -2411,15 +2411,24 @@ body[data-view="connect"] .summary::before {
 
 /* ── Welcome / sign-in ─────────────────────────────────────────────────────── */
 .view[data-view="welcome"] {
-  place-items: center;
-  align-content: center;
+  /* 'safe' centring never clips the top when content is taller than the viewport */
+  place-content: safe center;
+  justify-items: center;
   min-height: 100%;
-  padding: 32px 20px;
+  padding: 48px 40px;
+  overflow: auto;
 }
 
 .welcome-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 900px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 56px;
+}
+
+.welcome-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2428,97 +2437,45 @@ body[data-view="connect"] .summary::before {
 }
 
 .welcome-logo {
-  width: 88px;
-  height: 88px;
+  width: 168px;
+  height: 168px;
   object-fit: contain;
-  filter: drop-shadow(0 0 22px var(--signal-soft));
+  filter: drop-shadow(0 0 30px var(--signal-soft));
 }
 
 .welcome-title {
-  font-size: 30px;
+  font-size: 38px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   margin: 0;
   color: var(--ink);
 }
 
 .welcome-sub {
-  margin: 0 0 6px;
+  margin: 0;
   color: var(--dim);
   font-size: 14px;
-  line-height: 1.5;
-  max-width: 320px;
+  line-height: 1.55;
+  max-width: 340px;
 }
 
-.welcome-providers {
-  width: 100%;
+.welcome-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.provider-btn {
-  width: 100%;
-  padding: 11px 14px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  font: inherit;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: filter 0.12s ease, transform 0.02s ease;
-  color: #fff;
-}
-.provider-btn:hover {
-  filter: brightness(1.08);
-}
-.provider-btn:active {
-  transform: translateY(1px);
-}
-.p-google {
-  background: #fff;
-  color: #1f1f1f;
-  border-color: #dadce0;
-}
-.p-github {
-  background: #24292f;
-}
-.p-discord {
-  background: #5865f2;
-}
-.p-twitch {
-  background: #9146ff;
-}
-
-.welcome-or {
-  width: 100%;
-  display: flex;
-  align-items: center;
   gap: 12px;
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 4px 0;
-}
-.welcome-or::before,
-.welcome-or::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line);
+  width: 100%;
+  max-width: 380px;
 }
 
 .welcome-email {
-  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
 }
 
 .welcome-input {
   width: 100%;
-  padding: 11px 14px;
+  padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--bg-2);
@@ -2543,13 +2500,66 @@ body[data-view="connect"] .summary::before {
 }
 
 .welcome-error {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--danger);
   font-size: 13px;
 }
 
+.welcome-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 2px 0;
+}
+.welcome-or::before,
+.welcome-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.welcome-providers {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.provider-ico {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--dim);
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.02s ease;
+}
+.provider-ico:hover {
+  border-color: var(--signal);
+  background: #181b21;
+}
+.provider-ico:active {
+  transform: translateY(1px);
+}
+.provider-ico-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
 .welcome-skip {
-  margin-top: 10px;
+  margin-top: 6px;
+  align-self: center;
   background: none;
   border: none;
   color: var(--dim);
@@ -2563,4 +2573,20 @@ body[data-view="connect"] .summary::before {
 }
 .welcome-skip .arrow {
   color: var(--signal);
+}
+
+/* Stack to a single column on narrow windows */
+@media (max-width: 760px) {
+  .welcome-card {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    max-width: 400px;
+  }
+  .welcome-logo {
+    width: 120px;
+    height: 120px;
+  }
+  .welcome-form {
+    margin: 0 auto;
+  }
 }

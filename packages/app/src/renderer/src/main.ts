@@ -36,6 +36,10 @@ const DEVICE_LOGOS = logoMap(
     import: "default",
   }),
 );
+// Sign-in provider brand icons (full colour, on dark circular buttons).
+const AUTH_LOGOS = logoMap(
+  import.meta.glob("./assets/logos/auth/*.svg", { eager: true, query: "?url", import: "default" }),
+);
 // device id (registry) → brand-logo filename under devices/
 const DEVICE_BRAND: Record<string, string> = {
   "rog-ally": "rog",
@@ -2615,8 +2619,20 @@ document
   .querySelector<HTMLButtonElement>("[data-auth='signup']")
   ?.addEventListener("click", () => void doEmailAuth("signup"));
 
-// Social: token capture from the browser is the next step — keep it honest for now.
-for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-btn")) {
+// Social provider icons + interim handler. Real brand SVGs live in assets/logos/auth/
+// (discord present; google/github/twitch fall back to a monogram until dropped in).
+// Browser token capture is the next step.
+for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-ico")) {
+  const provider = btn.dataset.provider ?? "";
+  const url = AUTH_LOGOS[provider];
+  if (url) {
+    const img = el("img", "provider-ico-img") as HTMLImageElement;
+    img.src = url;
+    img.alt = "";
+    btn.appendChild(img);
+  } else {
+    btn.textContent = btn.dataset.mono ?? provider.charAt(0).toUpperCase();
+  }
   btn.addEventListener("click", () =>
     welcomeError("Social sign-in is almost ready — use email or continue without an account."),
   );
