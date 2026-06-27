@@ -2000,7 +2000,8 @@ body.is-strip [data-clean] {
 .pw-wrap {
   position: relative;
 }
-.pw-wrap .field-input {
+.pw-wrap .field-input,
+.pw-wrap .welcome-input {
   width: 100%;
   padding-right: 40px;
 }
