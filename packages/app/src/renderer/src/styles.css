@@ -2074,31 +2074,21 @@ body.is-strip [data-clean] {
   transform: translateY(-1px);
 }
 
-/* Masked logos — the SVG/PNG shape is painted with our palette, so source
-   colour (black/white/full-colour) is discarded and everything stays cohesive. */
+/* Real brand-colour logos (rendered as <img>, no tint). */
 .app-logo {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex: none;
-  background-color: var(--dim);
-  -webkit-mask: var(--logo) center / contain no-repeat;
-  mask: var(--logo) center / contain no-repeat;
+  object-fit: contain;
 }
 .app-logo.no-logo {
-  background: none;
+  visibility: hidden;
 }
-.app-row:hover .app-logo {
-  background-color: var(--ink);
-}
-.app-row:has(input:checked) .app-logo {
-  background-color: var(--accent);
-}
-/* Platform/device card logo: fills the 42px tile via mask instead of a glyph. */
-.method-icon-logo {
-  color: transparent;
-  background-color: var(--signal);
-  -webkit-mask: var(--logo) center / 62% no-repeat;
-  mask: var(--logo) center / 62% no-repeat;
+/* Platform/device card logo: real-colour image inside the 42px tile. */
+.method-icon-img {
+  padding: 7px;
+  object-fit: contain;
+  background: var(--panel);
 }
 
 .method-icon {

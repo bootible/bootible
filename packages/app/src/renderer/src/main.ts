@@ -43,11 +43,15 @@ const DEVICE_BRAND: Record<string, string> = {
   "retroid-pocket": "retroid",
   "ayn-odin": "ayn",
 };
-/** A span that masks `url` (tinted via CSS); falls back to a `.no-logo` blank. */
-function maskIcon(url: string | undefined, cls: string): HTMLElement {
-  const s = el("span", url ? cls : `${cls} no-logo`);
-  if (url) s.style.setProperty("--logo", `url("${url}")`);
-  return s;
+/** An <img> of the real brand logo (full colour), or a blank `.no-logo` span. */
+function logoEl(url: string | undefined, cls: string): HTMLElement {
+  if (!url) return el("span", `${cls} no-logo`);
+  const img = el("img", cls) as HTMLImageElement;
+  img.src = url;
+  img.alt = "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  return img;
 }
 
 interface DeviceSummary {
@@ -519,7 +523,7 @@ function pickCard(
   // Brand/OS logo (masked) when we have one, else a placeholder glyph.
   const logoUrl = kind === "platform" ? OS_LOGOS[id] : DEVICE_LOGOS[DEVICE_BRAND[id] ?? id];
   const icon = logoUrl
-    ? maskIcon(logoUrl, "method-icon method-icon-logo")
+    ? logoEl(logoUrl, "method-icon method-icon-img")
     : el("span", "method-icon", kind === "platform" ? "❖" : "◈");
   icon.setAttribute("aria-hidden", "true");
   const main = el("span", "method-main");
@@ -836,7 +840,7 @@ function appGroupNode(group: AppGroup): HTMLElement {
     if (a.module) cb.dataset.module = a.module;
     else cb.dataset.app = a.id;
     cb.checked = entryOn(a);
-    const logo = maskIcon(APP_LOGOS[a.id], "app-logo");
+    const logo = logoEl(APP_LOGOS[a.id], "app-logo");
     const meta = el("span", "app-meta");
     meta.append(el("span", "app-name", a.name));
     meta.append(el("span", "app-id", a.desc ?? a.wingetId ?? ""));
