@@ -6,9 +6,10 @@
 
 .DESCRIPTION
     Mirrors prepare-usb.ps1 (Windows) for the Linux/Deck carrier validated on real
-    hardware (see docs/v2/linux). The SteamOS recovery image ships bz2-compressed;
-    bz2 has no native Windows/PowerShell decoder, so the bootible app decompresses
-    it in Node and passes the raw .img here via -ImagePath. This script:
+    hardware (see docs/v2/linux). The app fetches the recovery image from the open
+    CDN index (steamdeck-images.steamos.cloud/recovery/) as a .img.zip and unzips
+    it natively (Windows handles zip), then passes the raw .img here via -ImagePath.
+    This script:
       1. confirms the target USB,
       2. takes it offline + raw-writes the .img (block-level, like dd),
       3. appends an exFAT "BOOTIBLE" partition in the free space,
