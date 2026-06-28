@@ -2660,6 +2660,25 @@ function welcomeError(msg: string | null): void {
   if (el) el.textContent = msg ?? ""; // space is reserved in CSS — no reflow
 }
 
+/** Disable a button + show a spinner while an async action runs, then restore. */
+async function withBusy<T>(
+  btn: HTMLButtonElement | null | undefined,
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("busy");
+  }
+  try {
+    return await fn();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove("busy");
+    }
+  }
+}
+
 async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
   if (!cloud) return;
   const email = document.querySelector<HTMLInputElement>("#welcome-email")?.value.trim() ?? "";
@@ -2669,10 +2688,12 @@ async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
     return;
   }
   welcomeError(null);
-  const r =
+  const btn = document.querySelector<HTMLButtonElement>(`[data-auth='${mode}']`);
+  const r = await withBusy(btn, () =>
     mode === "signup"
-      ? await cloud.signUpEmail({ email, password })
-      : await cloud.signInEmail({ email, password });
+      ? cloud.signUpEmail({ email, password })
+      : cloud.signInEmail({ email, password }),
+  );
   if (!r.ok) {
     welcomeError(r.error ?? "Sign-in failed.");
     return;
@@ -2849,7 +2870,9 @@ async function submitSyncKey(): Promise<void> {
   else location.hash = "platform";
 }
 
-syncEl<HTMLButtonElement>("#synckey-submit")?.addEventListener("click", () => void submitSyncKey());
+syncEl<HTMLButtonElement>("#synckey-submit")?.addEventListener("click", () =>
+  withBusy(syncEl<HTMLButtonElement>("#synckey-submit"), submitSyncKey),
+);
 syncEl<HTMLButtonElement>("#synckey-done")?.addEventListener("click", () => {
   location.hash = "platform";
 });
@@ -2886,7 +2909,9 @@ document.querySelector<HTMLButtonElement>("#twofa-verify")?.addEventListener("cl
     const code = document.querySelector<HTMLInputElement>("#twofa-code")?.value.trim() ?? "";
     twofaErr("#twofa-error", null);
     if (!code) return twofaErr("#twofa-error", "Enter the 6-digit code.");
-    const r = await cloud.verifyTotp(code);
+    const r = await withBusy(document.querySelector<HTMLButtonElement>("#twofa-verify"), () =>
+      cloud.verifyTotp(code),
+    );
     if (r.ok) await afterSignIn();
     else twofaErr("#twofa-error", r.error ?? "That code didn't match.");
   })();
@@ -2922,7 +2947,9 @@ document.querySelector<HTMLButtonElement>("#twofa-enable")?.addEventListener("cl
     const password = document.querySelector<HTMLInputElement>("#twofa-pass")?.value ?? "";
     twofaErr("#twofasetup-error", null);
     if (!password) return twofaErr("#twofasetup-error", "Enter your account password.");
-    const r = await cloud.enable2FA(password);
+    const r = await withBusy(document.querySelector<HTMLButtonElement>("#twofa-enable"), () =>
+      cloud.enable2FA(password),
+    );
     if (!r.ok) return twofaErr("#twofasetup-error", r.error ?? "Couldn't start setup.");
     const img = document.querySelector<HTMLImageElement>("#twofa-qr");
     if (img && r.totpURI) img.src = await QRCode.toDataURL(r.totpURI, { margin: 1, width: 200 });
@@ -2941,7 +2968,9 @@ document.querySelector<HTMLButtonElement>("#twofa-confirm")?.addEventListener("c
       document.querySelector<HTMLInputElement>("#twofa-confirm-code")?.value.trim() ?? "";
     twofaErr("#twofasetup-error2", null);
     if (!code) return twofaErr("#twofasetup-error2", "Enter a code from your app.");
-    const r = await cloud.verify2FASetup(code);
+    const r = await withBusy(document.querySelector<HTMLButtonElement>("#twofa-confirm"), () =>
+      cloud.verify2FASetup(code),
+    );
     if (!r.ok) return twofaErr("#twofasetup-error2", r.error ?? "That code didn't match.");
     await refreshAccount();
     location.hash = "platform";
@@ -2960,7 +2989,9 @@ document.querySelector<HTMLButtonElement>("#twofa-disable")?.addEventListener("c
     const password = document.querySelector<HTMLInputElement>("#twofa-disable-pass")?.value ?? "";
     twofaErr("#twofasetup-error3", null);
     if (!password) return twofaErr("#twofasetup-error3", "Enter your account password.");
-    const r = await cloud.disable2FA(password);
+    const r = await withBusy(document.querySelector<HTMLButtonElement>("#twofa-disable"), () =>
+      cloud.disable2FA(password),
+    );
     if (!r.ok) return twofaErr("#twofasetup-error3", r.error ?? "Couldn't disable 2FA.");
     await refreshAccount();
     location.hash = "platform";
@@ -3009,9 +3040,7 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-ico"))
     void (async () => {
       if (!cloud) return;
       welcomeError(null);
-      btn.disabled = true;
-      const r = await cloud.signInSocial(provider);
-      btn.disabled = false;
+      const r = await withBusy(btn, () => cloud.signInSocial(provider));
       if (r.ok) await afterSignIn();
       else if (r.error !== "Sign-in was cancelled.") welcomeError(r.error ?? "Sign-in failed.");
     })();

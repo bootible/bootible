@@ -2630,6 +2630,39 @@ body[data-view="connect"] .summary::before {
   padding: 8px;
 }
 
+/* Busy state: hide the label and show a spinner while an async action runs. */
+.btn-primary.busy,
+.btn-ghost.busy,
+.provider-ico.busy {
+  color: transparent !important;
+  pointer-events: none;
+  position: relative;
+}
+.btn-primary.busy::after,
+.btn-ghost.busy::after,
+.provider-ico.busy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  animation: btn-spin 0.6s linear infinite;
+}
+/* The amber primary button has dark text, so spin dark for contrast. */
+.btn-primary.busy::after {
+  border-color: rgba(14, 15, 18, 0.3);
+  border-top-color: #0e0f12;
+}
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .synckey-card {
   width: 100%;
   max-width: 420px;

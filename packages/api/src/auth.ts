@@ -74,7 +74,10 @@ export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, bas
                   user: { email: string };
                   url: string;
                 }) => {
-                  const { subject, html } = verificationEmail(url);
+                  // Land on a branded /verified page instead of the API root.
+                  const u = new URL(url);
+                  u.searchParams.set("callbackURL", "/verified");
+                  const { subject, html } = verificationEmail(u.toString());
                   await sendEmail(env, user.email, subject, html);
                 },
               },

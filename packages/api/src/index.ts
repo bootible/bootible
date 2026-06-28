@@ -77,6 +77,20 @@ fetch("/api/auth/sign-in/social",{method:"POST",headers:{"content-type":"applica
   );
 });
 
+// Landing page after a verification link is clicked (better-auth redirects here).
+app.get("/verified", (c) =>
+  c.html(
+    `<!doctype html><meta charset="utf-8"><title>Email verified</title>
+<body style="margin:0;height:100vh;display:grid;place-items:center;background:#0e0f12;color:#eceae3;font-family:system-ui,'Segoe UI',sans-serif">
+  <div style="text-align:center;max-width:380px;padding:24px">
+    <div style="font-size:40px;line-height:1">✓</div>
+    <h1 style="font-size:22px;margin:12px 0 8px">Email verified</h1>
+    <p style="color:#b7bcc6;line-height:1.5;margin:0">Your bootible account is confirmed. You can close this tab and head back to the app.</p>
+  </div>
+</body>`,
+  ),
+);
+
 app.get("/desktop/done", (c) => {
   const port = c.req.query("port") ?? "";
   const state = c.req.query("state") ?? "";
