@@ -199,6 +199,12 @@ async function runSocialSignIn(provider: string): Promise<AuthResult> {
   win.webContents.setUserAgent(
     win.webContents.getUserAgent().replace(/\s(Electron|bootible)\/\S+/g, ""),
   );
+  // Block popups + app deep-links (e.g. discord://) — navigating to an unknown
+  // protocol crashes Electron. Providers still complete fine in-window.
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (e, target) => {
+    if (!/^https?:\/\//i.test(target)) e.preventDefault();
+  });
 
   return new Promise<AuthResult>((resolve) => {
     let done = false;
@@ -236,7 +242,9 @@ async function runSocialSignIn(provider: string): Promise<AuthResult> {
     win.webContents.once("did-finish-load", () => {
       initiated = true;
       void win.webContents.executeJavaScript(
-        `fetch("/api/auth/sign-in/social", {
+        `document.body.style.cssText = "margin:0;height:100vh;display:grid;place-items:center;background:#0e0f12;color:#8b919c;font-family:system-ui,sans-serif";
+         document.body.innerHTML = "Signing you in\\u2026";
+         fetch("/api/auth/sign-in/social", {
            method: "POST",
            headers: { "content-type": "application/json" },
            credentials: "include",
