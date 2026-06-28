@@ -90,6 +90,12 @@ body {
   background: var(--muted);
 }
 
+/* The hidden attribute must always win, even over components with an explicit
+   display (flex/grid) — otherwise toggled-off panels stay visible. */
+[hidden] {
+  display: none !important;
+}
+
 .view {
   display: none;
 }
