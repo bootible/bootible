@@ -7,7 +7,9 @@ purpose: { north-star: 100 }
 
 # North star: Linux handheld provisioning
 
-What great looks like, from the user's seat. Each line is checkable yes/no against a running system. Grounded in two facts established before this was written: the **USB data-partition carrier is validated on real hardware**, and **v1 already provisions the Deck end-to-end via Ansible** (`deck.sh` + roles) — so v2 reuses that engine rather than rebuilding the payload. See [[steamos-bazzite-provisioning]] findings.
+What great looks like, from the user's seat. Each line is checkable yes/no against a running system. Grounded in two facts established before this was written: the **USB data-partition carrier is validated on real hardware**, and **v1 already provisions the Deck end-to-end via Ansible** (`deck.sh` + roles).
+
+**Engine decision:** v2 **ports the proven v1 logic into a native runner** (single TS + bash stack, under the test gate) — using the v1 Ansible roles as the *spec*, not running Ansible on-device, and not inventing the payload from scratch. Chosen for long-term project health (one stack, gated, vitest-covered, clean carrier/cloud integration) over the lower-effort "reuse Ansible at runtime" path; the cost is one hardware re-validation pass (which the carrier+install flow needs anyway). See [[steamos-bazzite-provisioning]] findings.
 
 ## The core promise
 
@@ -42,4 +44,4 @@ What great looks like, from the user's seat. Each line is checkable yes/no again
 
 ## How we'll know it's true
 
-The validated carrier (declarations 2–5) + the existing v1 Ansible engine (declaration 6) mean most of this is **wiring proven parts together**. The new work is: the app's config-generating UI (1), the USB writer's decompress + append-partition step (3), and the on-device entry that reads config from the `BOOTIBLE` partition and runs the v1 playbook (5). The flows and design will specify those seams.
+The validated carrier (declarations 2–5) plus the v1 Ansible roles as a **proven spec** mean the risk is in re-validation, not invention. The new work is: the app's config-generating UI (1), the USB writer's decompress + append-partition step (3), and a **native on-device runner ported from the v1 roles** that reads config from the `BOOTIBLE` partition and applies it (5–7) — single stack, under the test gate, validated in one hardware pass. The flows and design will specify those seams.
