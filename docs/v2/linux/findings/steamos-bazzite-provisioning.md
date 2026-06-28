@@ -87,7 +87,11 @@ Both are immutable; **what you install and how decides whether it survives an OS
 
 - **SteamOS download entry point (resolved):** [help.steampowered.com/.../65B4-2AA3-5F37-4227](https://help.steampowered.com/en/faqs/view/65B4-2AA3-5F37-4227) → [store.steampowered.com/steamos/download/?ver=steamdeck](https://store.steampowered.com/steamos/download/?ver=steamdeck). The `?ver=` param selects the image (Deck recovery here).
 - **⚠️ The recovery image is bz2-compressed (`.img.bz2`) — the USB-writer MUST decompress to the raw `.img` before flashing.** Flashers (Balena Etcher) **stall** when pointed at the compressed file (reproduced; community confirms). So the Linux USB-writer's pipeline is: download `.img.bz2` → **decompress** → write `.img` → append `BOOTIBLE-DATA`. (Windows has no native bz2 — bundle/shell a decompressor, or decompress in-app.)
-- **Carrier mechanism (spiking):** append a second partition (`BOOTIBLE-DATA`, FAT32) in the free space after the flashed recovery image, carrying the bootible payload. Append must come *after* the flash; Windows partition-create needs an **elevated** context (`diskpart`/Storage cmdlets fail non-elevated). Readability in recovery + installed SteamOS is the spike's open question.
+- **Carrier mechanism (✅ VALIDATED on a real Steam Deck, 28 Jun 2026):** append an **exFAT** partition in the free space after the flashed recovery image, carrying the payload. Proven readable **and executable** (`bash …/verify.sh` ran) from **both** the SteamOS **recovery desktop** and **installed SteamOS** (Desktop Mode). Specifics:
+  - **exFAT works even in the minimal recovery env** — no FAT32 fallback needed (keeps the no-4 GB-file-limit benefit).
+  - **Volume label ≤ 11 chars** (FAT/exFAT limit; `BOOTIBLE-DATA` was rejected). **Standardize on label `BOOTIBLE`**; the on-device script finds the partition by that label.
+  - Append happens *after* the flash; Windows partition-create needs an **elevated** context (`diskpart`/Storage cmdlets fail non-elevated). Disk Management GUI offers exFAT at full size but FAT32 only ≤32 GB → the app will use elevated `diskpart`.
+  - **SteamOS partition layout confirmed:** `nvme0n1` p1–p3 esp/efi (vfat), p4/p5 `rootfs` (btrfs, A/B), p6/p7 `var-A`/`var-B` (ext4), p8 `home` (ext4) — useful for the later inject/firstboot path (discover by label, not node).
 
 ## Open questions (need verification before design locks)
 
