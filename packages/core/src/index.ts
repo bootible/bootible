@@ -60,6 +60,7 @@ export {
   PASSWORD_MANAGERS,
   passwordManagers,
 } from "./deck-apps";
+export { buildDeckBundle } from "./deck-bundle";
 export type {
   DeckConfig,
   DeckDeckyConfig,
