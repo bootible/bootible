@@ -86,11 +86,15 @@ const payload = (o: Partial<ProfilePayload> & { id: string }): ProfilePayload =>
 describe("runSync", () => {
   it("pushes a local-only profile (encrypts secrets, marks synced)", async () => {
     const { api, store: remote } = fakeApi();
-    const { store, m } = fakeStore([localProfile({ id: "a", secrets: { pw: "x" } })]);
+    // A sentinel value with non-base64 chars (!, @) so it can NEVER appear inside
+    // the base64 ciphertext by chance — the old check used a base64-safe string and
+    // flaked when random output happened to contain it.
+    const secret = "PLAINTEXT!secret@value";
+    const { store, m } = fakeStore([localProfile({ id: "a", secrets: { pw: secret } })]);
     const rep = await runSync(api, dek, store);
     expect(rep.pushed).toContain("a");
     expect(remote.get("a")?.secrets_enc).toBeTruthy();
-    expect(remote.get("a")?.secrets_enc).not.toContain("pw"); // encrypted, not plaintext
+    expect(remote.get("a")?.secrets_enc).not.toContain(secret); // encrypted, not plaintext
     expect(m.get("a")?.lastSyncedVersion).toBe(1);
   });
 
