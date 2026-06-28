@@ -1,4 +1,4 @@
-import { deckyStoreNames, flatpakRefs, passwordManagers } from "./deck-apps";
+import { flatpakRefs, passwordManagers } from "./deck-apps";
 import type { DeckConfig } from "./deck-config";
 import { normalizeDeckConfig } from "./deck-config";
 
@@ -124,11 +124,12 @@ function deckyBlock(cfg: DeckConfig): string {
     `sudo chown -R "$USER:$USER" "$HOME/homebrew" 2>/dev/null || true`,
     `install -d "$HOME/homebrew/plugins"`,
   ];
-  const names = deckyStoreNames(cfg.decky.plugins);
+  // plugins are store names (live-pulled by the app); resolve each to its latest
+  // hash via the Decky store, download + extract, then RESTART the loader so the
+  // plugins actually register (the missing step that broke manual installs in v1).
+  const names = cfg.decky.plugins;
   if (names.length > 0) {
     const arr = names.map((n) => `"${n.replace(/"/g, '\\"')}"`).join(" ");
-    // Resolve each store name → latest version hash via the Decky store, then
-    // download + extract the plugin zip. python3 is always present on SteamOS.
     lines.push(
       `say "Installing ${names.length} Decky plugin(s)"`,
       `STORE="$(curl -fsSL https://plugins.deckbrew.xyz/plugins || echo '[]')"`,
@@ -139,6 +140,8 @@ function deckyBlock(cfg: DeckConfig): string {
       `    python3 -m zipfile -e /tmp/decky-plugin.zip "$HOME/homebrew/plugins/" && ok "plugin: $NAME" || warn "plugin failed: $NAME"`,
       `done`,
       `rm -f /tmp/decky-plugin.zip`,
+      `sudo chown -R "$USER:$USER" "$HOME/homebrew/plugins" 2>/dev/null || true`,
+      `sudo systemctl restart plugin_loader 2>/dev/null || true`,
     );
   }
   lines.push(`ok "decky ready (restart Steam to see it)"`);

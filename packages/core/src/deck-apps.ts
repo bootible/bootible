@@ -40,7 +40,7 @@ export const FLATPAK_APPS: readonly FlatpakApp[] = [
   { id: "plex", ref: "tv.plex.PlexDesktop", name: "Plex", category: "Media" },
   {
     id: "jellyfin",
-    ref: "com.github.iwalton3.jellyfin-media-player",
+    ref: "org.jellyfin.JellyfinDesktop", // renamed from com.github.iwalton3.jellyfin-media-player (v2.0)
     name: "Jellyfin",
     category: "Media",
   },
@@ -133,54 +133,66 @@ export function flatpakRefs(ids: readonly string[]): string[] {
 }
 
 /**
- * Decky Loader plugin catalog (from the v1 `decky_plugins` config). `storeName`
- * is the exact name in the official Decky store (plugins.deckbrew.xyz), which the
- * generated script resolves to a download hash.
+ * Decky Loader plugins. Rather than a hardcoded catalog (which rots — plugins
+ * come and go, and hashes change every release), bootible **live-pulls** the
+ * current list from the official store at runtime and lets the user pick. A small
+ * recommended set seeds the defaults. `DeckConfig.decky.plugins` holds store
+ * names (the store's `name` field), which the generated script resolves to a hash.
  */
-export interface DeckyPlugin {
-  id: string;
-  storeName: string;
+export const DECKY_STORE_URL = "https://plugins.deckbrew.xyz/plugins";
+
+/** Default-on picks for a new user (store names). */
+export const RECOMMENDED_DECKY_PLUGINS: readonly string[] = [
+  "PowerTools",
+  "ProtonDB Badges",
+  "SteamGridDB",
+];
+
+/** One plugin as surfaced to the picker (projected from the live store entry). */
+export interface DeckyStorePlugin {
   name: string;
-  recommended?: boolean;
+  author: string;
+  description: string;
+  tags: string[];
+  version: string;
+  downloads: number;
+  imageUrl?: string;
 }
 
-export const DECKY_PLUGINS: readonly DeckyPlugin[] = [
-  {
-    id: "powertools",
-    storeName: "PowerTools",
-    name: "PowerTools (CPU/GPU control)",
-    recommended: true,
-  },
-  {
-    id: "protondb-badges",
-    storeName: "ProtonDB Badges",
-    name: "ProtonDB Badges",
-    recommended: true,
-  },
-  { id: "steamgriddb", storeName: "SteamGridDB", name: "SteamGridDB (artwork)", recommended: true },
-  { id: "hltb", storeName: "HLTB for Deck", name: "HowLongToBeat" },
-  { id: "playtime", storeName: "PlayTime", name: "PlayTime tracking" },
-  { id: "autosuspend", storeName: "AutoSuspend", name: "AutoSuspend" },
-  { id: "battery-tracker", storeName: "Battery Tracker", name: "Battery Tracker" },
-  { id: "isthereanydeal", storeName: "IsThereAnyDeal for Deck", name: "IsThereAnyDeal" },
-  { id: "css-loader", storeName: "CSS Loader", name: "CSS Loader (themes)" },
-  { id: "animation-changer", storeName: "Animation Changer", name: "Animation Changer" },
-  { id: "bluetooth", storeName: "Bluetooth", name: "Bluetooth" },
-  { id: "tailscale-control", storeName: "Tailscale Control", name: "Tailscale Control" },
-  { id: "kde-connect", storeName: "KDE Connect", name: "KDE Connect" },
-  { id: "decky-cloud-save", storeName: "Decky Cloud Save", name: "Decky Cloud Save" },
-  { id: "deckmtp", storeName: "DeckMTP", name: "DeckMTP (file transfer)" },
-  { id: "autoflatpaks", storeName: "AutoFlatpaks", name: "AutoFlatpaks" },
-  { id: "discord-status", storeName: "Discord Status", name: "Discord Status" },
-  { id: "decky-notifications", storeName: "Decky Notifications", name: "Decky Notifications" },
-  { id: "magicpods", storeName: "MagicPods", name: "MagicPods" },
-] as const;
+interface RawStorePlugin {
+  name?: string;
+  author?: string;
+  description?: string;
+  tags?: string[];
+  visible?: boolean;
+  downloads?: number;
+  image_url?: string;
+  versions?: { name?: string; hash?: string }[];
+}
 
-const PLUGIN_BY_ID = new Map(DECKY_PLUGINS.map((p) => [p.id, p]));
-
-/** Resolve chosen plugin ids to their Decky store names, skipping unknown ids. */
-export function deckyStoreNames(ids: readonly string[]): string[] {
-  return ids.map((id) => PLUGIN_BY_ID.get(id)?.storeName).filter((n): n is string => !!n);
+/**
+ * Fetch the live Decky plugin list for the picker. Public + unauthenticated;
+ * pass a fetch impl (Electron main / tests). Hidden (visible:false) entries are
+ * dropped and the list is sorted by popularity.
+ */
+export async function fetchDeckyPlugins(
+  fetchImpl: typeof fetch = fetch,
+): Promise<DeckyStorePlugin[]> {
+  const res = await fetchImpl(DECKY_STORE_URL);
+  if (!res.ok) throw new Error(`Decky store ${res.status}`);
+  const raw = (await res.json()) as RawStorePlugin[];
+  return raw
+    .filter((p) => p.visible !== false && p.name)
+    .map((p) => ({
+      name: p.name as string,
+      author: p.author ?? "",
+      description: p.description ?? "",
+      tags: p.tags ?? [],
+      version: p.versions?.[0]?.name ?? "",
+      downloads: p.downloads ?? 0,
+      imageUrl: p.image_url,
+    }))
+    .sort((a, b) => b.downloads - a.downloads);
 }
 
 /**

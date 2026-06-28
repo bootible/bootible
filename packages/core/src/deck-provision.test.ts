@@ -60,11 +60,12 @@ describe("generateDeckProvision", () => {
     expect(generateDeckProvision({})).not.toContain("hostnamectl");
   });
 
-  it("installs Decky + chosen plugins by store name", () => {
-    const s = generateDeckProvision({ decky: { enabled: true, plugins: ["powertools"] } });
+  it("installs Decky + chosen plugins (store names) and restarts the loader", () => {
+    const s = generateDeckProvision({ decky: { enabled: true, plugins: ["PowerTools"] } });
     expect(s).toContain("decky-installer");
-    expect(s).toContain('"PowerTools"'); // store name in the loop
+    expect(s).toContain('"PowerTools"'); // store name passed straight to the loop
     expect(s).toContain("plugins.deckbrew.xyz/plugins");
+    expect(s).toContain("systemctl restart plugin_loader"); // the v1 fix
   });
 
   it("skips Decky when disabled", () => {

@@ -17,9 +17,11 @@ export interface DeckSshConfig {
   authorizedKeys: string[];
 }
 
+import { RECOMMENDED_DECKY_PLUGINS } from "./deck-apps";
+
 export interface DeckDeckyConfig {
   enabled: boolean;
-  /** Decky plugin ids (see DECKY_PLUGINS in deck-apps.ts). */
+  /** Decky plugin store names (from the live store; see fetchDeckyPlugins). */
   plugins: string[];
 }
 
@@ -66,7 +68,7 @@ export const DEFAULT_DECK_CONFIG: DeckConfig = {
   createSnapshot: true,
   flatpakApps: ["flatseal"], // the one v1 default
   ssh: { enabled: false, port: 22, authorizedKeys: [] },
-  decky: { enabled: true, plugins: ["powertools", "protondb-badges", "steamgriddb"] },
+  decky: { enabled: true, plugins: [...RECOMMENDED_DECKY_PLUGINS] },
   proton: { ge: true, protonUpQt: true, protontricks: true },
   emudeck: false,
   emulationStorage: "auto",
