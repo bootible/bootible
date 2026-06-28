@@ -1,4 +1,4 @@
-import { flatpakRefs } from "./deck-apps";
+import { deckyStoreNames, flatpakRefs } from "./deck-apps";
 import type { DeckConfig } from "./deck-config";
 import { normalizeDeckConfig } from "./deck-config";
 
@@ -10,8 +10,10 @@ import { normalizeDeckConfig } from "./deck-config";
  * password, takes a btrfs snapshot first, installs only via Flatpak (--user,
  * survives updates), and allowlists any /etc change so a SteamOS update can't wipe it.
  *
- * This slice covers: base scaffold + Flatpak apps + SSH. Later slices append
- * Decky/Proton/EmuDeck/Tailscale/Sunshine/Waydroid blocks to the same script.
+ * Covers: base scaffold, Flatpak apps, SSH, Decky + plugins, Proton tools
+ * (GE/ProtonUp-Qt/protontricks), EmuDeck staging, Sunshine/VNC, Tailscale, and
+ * Waydroid staging. (Still to port: StickDeck, Distrobox password managers.)
+ * JSON parsing + unzip use python3, which is always present on SteamOS.
  */
 
 const FLATHUB_REPO = "https://dl.flathub.org/repo/flathub.flatpakrepo";
@@ -70,14 +72,8 @@ BOOTIBLE_EOF
 function flatpakBlock(cfg: DeckConfig): string {
   const refs = flatpakRefs(cfg.flatpakApps);
   if (refs.length === 0) return "";
-  const installs = refs
-    .map(
-      (ref) =>
-        `flatpak install --user --noninteractive --or-update flathub ${ref} || warn "failed: ${ref}"`,
-    )
-    .join("\n");
   return `say "Installing ${refs.length} Flatpak app(s)"
-${installs}
+${refs.map(fpInstall).join("\n")}
 ok "flatpak apps done"`;
 }
 
@@ -117,6 +113,114 @@ BOOTIBLE_KEYS`,
   return lines.join("\n");
 }
 
+const fpInstall = (ref: string) =>
+  `flatpak install --user --noninteractive --or-update flathub ${ref} || warn "failed: ${ref}"`;
+
+function deckyBlock(cfg: DeckConfig): string {
+  if (!cfg.decky.enabled) return "";
+  const lines = [
+    `say "Installing Decky Loader"`,
+    `curl -L https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh | sh || warn "decky install failed"`,
+    `sudo chown -R "$USER:$USER" "$HOME/homebrew" 2>/dev/null || true`,
+    `install -d "$HOME/homebrew/plugins"`,
+  ];
+  const names = deckyStoreNames(cfg.decky.plugins);
+  if (names.length > 0) {
+    const arr = names.map((n) => `"${n.replace(/"/g, '\\"')}"`).join(" ");
+    // Resolve each store name → latest version hash via the Decky store, then
+    // download + extract the plugin zip. python3 is always present on SteamOS.
+    lines.push(
+      `say "Installing ${names.length} Decky plugin(s)"`,
+      `STORE="$(curl -fsSL https://plugins.deckbrew.xyz/plugins || echo '[]')"`,
+      `for NAME in ${arr}; do`,
+      `  HASH="$(printf '%s' "$STORE" | python3 -c "import sys,json,os; d=json.load(sys.stdin); p=next((x for x in d if x.get('name')==os.environ['N']),None); print(p['versions'][0]['hash'] if p and p.get('versions') else '')" N="$NAME" 2>/dev/null)"`,
+      `  if [ -z "$HASH" ]; then warn "plugin not found: $NAME"; continue; fi`,
+      `  curl -fsSL "https://cdn.tzatzikiweeb.moe/file/steam-deck-homebrew/versions/$HASH.zip" -o /tmp/decky-plugin.zip && \\`,
+      `    python3 -m zipfile -e /tmp/decky-plugin.zip "$HOME/homebrew/plugins/" && ok "plugin: $NAME" || warn "plugin failed: $NAME"`,
+      `done`,
+      `rm -f /tmp/decky-plugin.zip`,
+    );
+  }
+  lines.push(`ok "decky ready (restart Steam to see it)"`);
+  return lines.join("\n");
+}
+
+function protonBlock(cfg: DeckConfig): string {
+  const lines: string[] = [];
+  if (cfg.proton.protonUpQt || cfg.proton.protontricks || cfg.proton.ge)
+    lines.push(`say "Proton tools"`);
+  if (cfg.proton.protonUpQt) lines.push(fpInstall("net.davidotek.pupgui2"));
+  if (cfg.proton.protontricks) lines.push(fpInstall("com.github.Matoking.protontricks"));
+  if (cfg.proton.ge) {
+    lines.push(
+      `say "Installing latest Proton-GE"`,
+      `install -d "$HOME/.steam/root/compatibilitytools.d"`,
+      `GE_URL="$(curl -fsSL https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if a['name'].endswith('.tar.gz')),''))" 2>/dev/null)"`,
+      `if [ -n "$GE_URL" ]; then`,
+      `  curl -fsSL "$GE_URL" -o /tmp/proton-ge.tar.gz && \\`,
+      `    tar -xzf /tmp/proton-ge.tar.gz -C "$HOME/.steam/root/compatibilitytools.d/" && ok "Proton-GE installed" || warn "Proton-GE extract failed"`,
+      `  rm -f /tmp/proton-ge.tar.gz`,
+      `else warn "Proton-GE: use ProtonUp-Qt (release lookup failed)"; fi`,
+    );
+  }
+  return lines.join("\n");
+}
+
+function emudeckBlock(cfg: DeckConfig): string {
+  if (!cfg.emudeck) return "";
+  // auto/internal → ~/Emulation; sdcard → the first SD mount if present.
+  const path =
+    cfg.emulationStorage === "sdcard" ? `\${SDCARD:-$HOME/Emulation}` : `$HOME/Emulation`;
+  return `say "Staging EmuDeck"
+SDCARD="$(ls -d /run/media/*/* 2>/dev/null | head -1)"
+EMU="${path}"
+for d in roms bios saves states; do install -d "$EMU/$d"; done
+install -d "$HOME/Desktop"
+curl -fsSL https://www.emudeck.com/EmuDeck.desktop -o "$HOME/Desktop/EmuDeck.desktop" && chmod +x "$HOME/Desktop/EmuDeck.desktop" || warn "EmuDeck download failed"
+ok "EmuDeck staged at $EMU — run the wizard from Desktop"`;
+}
+
+function streamingBlock(cfg: DeckConfig): string {
+  const lines: string[] = [];
+  if (cfg.sunshine || cfg.vnc) lines.push(`say "Streaming / remote"`);
+  if (cfg.sunshine) lines.push(fpInstall("dev.lizardbyte.app.Sunshine"));
+  if (cfg.vnc) lines.push(fpInstall("org.tigervnc.vncviewer"));
+  return lines.join("\n");
+}
+
+function tailscaleBlock(cfg: DeckConfig): string {
+  if (!cfg.tailscale) return "";
+  return `say "Installing Tailscale"
+if ! command -v tailscale >/dev/null 2>&1; then
+  (
+    trap 'sudo steamos-readonly enable 2>/dev/null || true' EXIT
+    sudo steamos-readonly disable 2>/dev/null || true
+    curl -fsSL https://tailscale.com/install.sh | sh || warn "tailscale install failed"
+  )
+fi
+sudo systemctl enable --now tailscaled 2>/dev/null || true
+ok "Tailscale installed — run 'tailscale up' to log in"`;
+}
+
+function waydroidBlock(cfg: DeckConfig): string {
+  if (!cfg.waydroid) return "";
+  return `say "Staging Waydroid installer"
+install -d "$HOME/Applications" "$HOME/Desktop"
+if [ ! -x /usr/bin/waydroid ]; then
+  git clone --depth 1 https://github.com/ryanrudolfoba/SteamOS-Waydroid-Installer.git "$HOME/Applications/SteamOS-Waydroid-Installer" 2>/dev/null || (cd "$HOME/Applications/SteamOS-Waydroid-Installer" && git pull) || warn "waydroid clone failed"
+  cat > "$HOME/Desktop/Waydroid Installer.desktop" <<'BOOTIBLE_WD'
+[Desktop Entry]
+Name=Waydroid Installer
+Exec=$HOME/Applications/SteamOS-Waydroid-Installer/steamos-waydroid-installer.sh
+Terminal=true
+Type=Application
+Categories=System;
+BOOTIBLE_WD
+  chmod +x "$HOME/Desktop/Waydroid Installer.desktop"
+fi
+ok "Waydroid installer staged — run it from Desktop"`;
+}
+
 export function generateDeckProvision(input: Partial<DeckConfig>): string {
   const cfg = normalizeDeckConfig(input);
   const blocks: string[] = [HEADER];
@@ -128,11 +232,19 @@ sudo hostnamectl set-hostname ${JSON.stringify(cfg.hostname)}`);
   }
   blocks.push(FLATHUB);
 
-  const fp = flatpakBlock(cfg);
-  if (fp) blocks.push(fp);
-  const ssh = sshBlock(cfg);
-  if (ssh) blocks.push(ssh);
+  for (const block of [
+    flatpakBlock(cfg),
+    deckyBlock(cfg),
+    protonBlock(cfg),
+    emudeckBlock(cfg),
+    streamingBlock(cfg),
+    tailscaleBlock(cfg),
+    sshBlock(cfg),
+    waydroidBlock(cfg),
+  ]) {
+    if (block) blocks.push(block);
+  }
 
-  blocks.push(`say "Done. Restart to Gaming Mode to see your apps."`);
+  blocks.push(`say "Done. Restart to Gaming Mode to see your apps + Decky."`);
   return `${blocks.join("\n\n")}\n`;
 }

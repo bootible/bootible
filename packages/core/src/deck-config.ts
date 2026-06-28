@@ -17,6 +17,19 @@ export interface DeckSshConfig {
   authorizedKeys: string[];
 }
 
+export interface DeckDeckyConfig {
+  enabled: boolean;
+  /** Decky plugin ids (see DECKY_PLUGINS in deck-apps.ts). */
+  plugins: string[];
+}
+
+export interface DeckProtonConfig {
+  /** Install the latest Proton-GE into compatibilitytools.d. */
+  ge: boolean;
+  protonUpQt: boolean;
+  protontricks: boolean;
+}
+
 export interface DeckConfig {
   /** Optional hostname to set; empty/undefined keeps the current one. */
   hostname?: string;
@@ -25,25 +38,63 @@ export interface DeckConfig {
   /** Chosen Flatpak app ids (see FLATPAK_APPS in deck-apps.ts). */
   flatpakApps: string[];
   ssh: DeckSshConfig;
+  decky: DeckDeckyConfig;
+  proton: DeckProtonConfig;
+  /** Stage EmuDeck (creates the Emulation tree + drops the launcher; wizard is manual). */
+  emudeck: boolean;
+  /** Where the Emulation tree lives. */
+  emulationStorage: "auto" | "internal" | "sdcard";
+  /** Sunshine game-streaming server (Moonlight client is a Flatpak app). */
+  sunshine: boolean;
+  vnc: boolean;
+  tailscale: boolean;
+  /** Stage the Waydroid installer (Android; the installer itself is interactive). */
+  waydroid: boolean;
 }
 
 export const DEFAULT_DECK_CONFIG: DeckConfig = {
   createSnapshot: true,
   flatpakApps: ["flatseal"], // the one v1 default
   ssh: { enabled: false, port: 22, authorizedKeys: [] },
+  decky: { enabled: true, plugins: ["powertools", "protondb-badges", "steamgriddb"] },
+  proton: { ge: true, protonUpQt: true, protontricks: true },
+  emudeck: false,
+  emulationStorage: "auto",
+  sunshine: false,
+  vnc: false,
+  tailscale: false,
+  waydroid: false,
 };
 
 /** Fill any missing fields with defaults — tolerant of partial configs from the UI/carrier. */
 export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): DeckConfig {
   const p = partial ?? {};
+  const d = DEFAULT_DECK_CONFIG;
   return {
     hostname: p.hostname?.trim() || undefined,
-    createSnapshot: p.createSnapshot ?? DEFAULT_DECK_CONFIG.createSnapshot,
-    flatpakApps: [...new Set(p.flatpakApps ?? DEFAULT_DECK_CONFIG.flatpakApps)],
+    createSnapshot: p.createSnapshot ?? d.createSnapshot,
+    flatpakApps: [...new Set(p.flatpakApps ?? d.flatpakApps)],
     ssh: {
       enabled: p.ssh?.enabled ?? false,
       port: p.ssh?.port ?? 22,
       authorizedKeys: (p.ssh?.authorizedKeys ?? []).map((k) => k.trim()).filter(Boolean),
     },
+    decky: {
+      enabled: p.decky?.enabled ?? d.decky.enabled,
+      plugins: [
+        ...new Set(p.decky?.plugins ?? (p.decky?.enabled === false ? [] : d.decky.plugins)),
+      ],
+    },
+    proton: {
+      ge: p.proton?.ge ?? d.proton.ge,
+      protonUpQt: p.proton?.protonUpQt ?? d.proton.protonUpQt,
+      protontricks: p.proton?.protontricks ?? d.proton.protontricks,
+    },
+    emudeck: p.emudeck ?? d.emudeck,
+    emulationStorage: p.emulationStorage ?? d.emulationStorage,
+    sunshine: p.sunshine ?? d.sunshine,
+    vnc: p.vnc ?? d.vnc,
+    tailscale: p.tailscale ?? d.tailscale,
+    waydroid: p.waydroid ?? d.waydroid,
   };
 }

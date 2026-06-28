@@ -59,4 +59,42 @@ describe("generateDeckProvision", () => {
     expect(generateDeckProvision({ hostname: "vengeance" })).toContain("hostnamectl set-hostname");
     expect(generateDeckProvision({})).not.toContain("hostnamectl");
   });
+
+  it("installs Decky + chosen plugins by store name", () => {
+    const s = generateDeckProvision({ decky: { enabled: true, plugins: ["powertools"] } });
+    expect(s).toContain("decky-installer");
+    expect(s).toContain('"PowerTools"'); // store name in the loop
+    expect(s).toContain("plugins.deckbrew.xyz/plugins");
+  });
+
+  it("skips Decky when disabled", () => {
+    const s = generateDeckProvision({ decky: { enabled: false, plugins: [] } });
+    expect(s).not.toContain("decky-installer");
+  });
+
+  it("installs Proton tools + Proton-GE", () => {
+    const s = generateDeckProvision({ proton: { ge: true, protonUpQt: true, protontricks: true } });
+    expect(s).toContain("net.davidotek.pupgui2"); // ProtonUp-Qt
+    expect(s).toContain("com.github.Matoking.protontricks");
+    expect(s).toContain("proton-ge-custom/releases/latest");
+    expect(s).toContain("compatibilitytools.d");
+  });
+
+  it("stages EmuDeck folders + launcher", () => {
+    const s = generateDeckProvision({ emudeck: true });
+    expect(s).toContain("emudeck.com/EmuDeck.desktop");
+    expect(s).toContain("for d in roms bios saves states");
+  });
+
+  it("installs Sunshine and Tailscale when enabled", () => {
+    const s = generateDeckProvision({ sunshine: true, tailscale: true });
+    expect(s).toContain("dev.lizardbyte.app.Sunshine");
+    expect(s).toContain("tailscale.com/install.sh");
+    expect(s).toContain("systemctl enable --now tailscaled");
+  });
+
+  it("stages the Waydroid installer when enabled", () => {
+    const s = generateDeckProvision({ waydroid: true });
+    expect(s).toContain("SteamOS-Waydroid-Installer");
+  });
 });

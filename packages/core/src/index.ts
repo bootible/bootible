@@ -51,9 +51,14 @@ export type {
   TargetsManifest,
 } from "./config";
 export { buildConfig, deepMerge, loadArtifact, serializeConfig } from "./config";
-export type { FlatpakApp } from "./deck-apps";
-export { FLATPAK_APPS, flatpakRefs } from "./deck-apps";
-export type { DeckConfig, DeckSshConfig } from "./deck-config";
+export type { DeckyPlugin, FlatpakApp } from "./deck-apps";
+export { DECKY_PLUGINS, deckyStoreNames, FLATPAK_APPS, flatpakRefs } from "./deck-apps";
+export type {
+  DeckConfig,
+  DeckDeckyConfig,
+  DeckProtonConfig,
+  DeckSshConfig,
+} from "./deck-config";
 export { DEFAULT_DECK_CONFIG, normalizeDeckConfig } from "./deck-config";
 export { generateDeckProvision } from "./deck-provision";
 export { getDisplayTweakCommands } from "./display";

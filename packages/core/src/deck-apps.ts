@@ -131,3 +131,54 @@ const APP_BY_ID = new Map(FLATPAK_APPS.map((a) => [a.id, a]));
 export function flatpakRefs(ids: readonly string[]): string[] {
   return ids.map((id) => APP_BY_ID.get(id)?.ref).filter((r): r is string => !!r);
 }
+
+/**
+ * Decky Loader plugin catalog (from the v1 `decky_plugins` config). `storeName`
+ * is the exact name in the official Decky store (plugins.deckbrew.xyz), which the
+ * generated script resolves to a download hash.
+ */
+export interface DeckyPlugin {
+  id: string;
+  storeName: string;
+  name: string;
+  recommended?: boolean;
+}
+
+export const DECKY_PLUGINS: readonly DeckyPlugin[] = [
+  {
+    id: "powertools",
+    storeName: "PowerTools",
+    name: "PowerTools (CPU/GPU control)",
+    recommended: true,
+  },
+  {
+    id: "protondb-badges",
+    storeName: "ProtonDB Badges",
+    name: "ProtonDB Badges",
+    recommended: true,
+  },
+  { id: "steamgriddb", storeName: "SteamGridDB", name: "SteamGridDB (artwork)", recommended: true },
+  { id: "hltb", storeName: "HLTB for Deck", name: "HowLongToBeat" },
+  { id: "playtime", storeName: "PlayTime", name: "PlayTime tracking" },
+  { id: "autosuspend", storeName: "AutoSuspend", name: "AutoSuspend" },
+  { id: "battery-tracker", storeName: "Battery Tracker", name: "Battery Tracker" },
+  { id: "isthereanydeal", storeName: "IsThereAnyDeal for Deck", name: "IsThereAnyDeal" },
+  { id: "css-loader", storeName: "CSS Loader", name: "CSS Loader (themes)" },
+  { id: "animation-changer", storeName: "Animation Changer", name: "Animation Changer" },
+  { id: "bluetooth", storeName: "Bluetooth", name: "Bluetooth" },
+  { id: "tailscale-control", storeName: "Tailscale Control", name: "Tailscale Control" },
+  { id: "kde-connect", storeName: "KDE Connect", name: "KDE Connect" },
+  { id: "decky-cloud-save", storeName: "Decky Cloud Save", name: "Decky Cloud Save" },
+  { id: "deckmtp", storeName: "DeckMTP", name: "DeckMTP (file transfer)" },
+  { id: "autoflatpaks", storeName: "AutoFlatpaks", name: "AutoFlatpaks" },
+  { id: "discord-status", storeName: "Discord Status", name: "Discord Status" },
+  { id: "decky-notifications", storeName: "Decky Notifications", name: "Decky Notifications" },
+  { id: "magicpods", storeName: "MagicPods", name: "MagicPods" },
+] as const;
+
+const PLUGIN_BY_ID = new Map(DECKY_PLUGINS.map((p) => [p.id, p]));
+
+/** Resolve chosen plugin ids to their Decky store names, skipping unknown ids. */
+export function deckyStoreNames(ids: readonly string[]): string[] {
+  return ids.map((id) => PLUGIN_BY_ID.get(id)?.storeName).filter((n): n is string => !!n);
+}
