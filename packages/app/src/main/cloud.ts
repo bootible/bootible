@@ -2,7 +2,8 @@
  * Cloud client (Electron main). Holds the better-auth session token in the OS
  * keychain (safeStorage) and authenticates the API via Authorization: Bearer.
  * Email/password signs in fully in-process (reads the set-auth-token header);
- * social sign-in opens the system browser (token capture lands next).
+ * social sign-in runs the provider OAuth in an in-app window and reads the
+ * resulting session cookie (which is the bearer token).
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,7 +18,7 @@ import {
   unlockWithPassphrase,
   unlockWithRecovery,
 } from "@bootible/core";
-import { app, ipcMain, safeStorage, shell } from "electron";
+import { app, BrowserWindow, session as electronSession, ipcMain, safeStorage } from "electron";
 import { makeLocalStore } from "./profiles-store";
 
 const API_BASE = process.env.BOOTIBLE_API_BASE ?? "https://api.bootible.dev";
@@ -170,6 +171,67 @@ async function emailAuth(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Network error" };
   }
+}
+
+/**
+ * Social sign-in: run the provider OAuth in an in-app window, then read the
+ * session cookie it leaves on our origin — that value IS the bearer token (the
+ * bearer plugin uses the session-cookie value as the token). The system browser
+ * can't be used because we can't read its cookies.
+ */
+async function runSocialSignIn(provider: string): Promise<AuthResult> {
+  if (!PROVIDERS.has(provider)) return { ok: false, error: "Unknown provider." };
+  let url: string;
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/sign-in/social`, {
+      method: "POST",
+      headers: { "content-type": "application/json", Origin: ORIGIN },
+      body: JSON.stringify({ provider, callbackURL: API_BASE }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { url?: string };
+    if (!data.url) return { ok: false, error: "Couldn't start sign-in." };
+    url = data.url;
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+
+  const ses = electronSession.fromPartition("bootible-oauth");
+  const win = new BrowserWindow({
+    width: 480,
+    height: 760,
+    parent: BrowserWindow.getAllWindows()[0],
+    modal: true,
+    autoHideMenuBar: true,
+    title: "Sign in",
+    webPreferences: { session: ses, nodeIntegration: false, contextIsolation: true },
+  });
+  // Strip Electron/app tokens from the UA so providers (esp. Google) don't reject
+  // the window as an insecure embedded web view.
+  win.webContents.setUserAgent(
+    win.webContents.getUserAgent().replace(/\s(Electron|bootible)\/\S+/g, ""),
+  );
+
+  return new Promise<AuthResult>((resolve) => {
+    let done = false;
+    const finish = async (current: string): Promise<void> => {
+      // Success once we're back on our own origin (the callbackURL), past /api/auth.
+      if (done || !current.startsWith(API_BASE) || current.includes("/api/auth/")) return;
+      const cookies = await ses.cookies.get({ url: API_BASE });
+      const sc = cookies.find((c) => c.name.includes("session_token"));
+      if (!sc?.value) return;
+      done = true;
+      token = sc.value;
+      saveToken(token);
+      win.close();
+      resolve({ ok: true });
+    };
+    win.webContents.on("did-navigate", (_e, u) => void finish(u));
+    win.webContents.on("did-redirect-navigation", (_e, u) => void finish(u));
+    win.on("closed", () => {
+      if (!done) resolve({ ok: false, error: "Sign-in was cancelled." });
+    });
+    void win.loadURL(url);
+  });
 }
 
 /** Run a full profile sync when signed in + unlocked. Best-effort (offline-safe). */
@@ -437,25 +499,6 @@ export function registerCloudIpc(): void {
   // Manual / post-save sync trigger. Returns the report, or null if not ready.
   ipcMain.handle("cloud:syncNow", () => doSync());
 
-  // Social: ask better-auth for the provider authorize URL, open it in the system
-  // browser (providers block embedded webviews). Token capture is the next step.
-  ipcMain.handle(
-    "cloud:signInSocial",
-    async (_e, provider: string): Promise<AuthResult & { opened?: boolean }> => {
-      if (!PROVIDERS.has(provider)) return { ok: false, error: "unknown provider" };
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/sign-in/social`, {
-          method: "POST",
-          headers: { "content-type": "application/json", Origin: ORIGIN },
-          body: JSON.stringify({ provider, callbackURL: "bootible://auth-callback" }),
-        });
-        const data = (await res.json().catch(() => ({}))) as { url?: string };
-        if (!data.url) return { ok: false, error: "no authorize url" };
-        await shell.openExternal(data.url);
-        return { ok: true, opened: true };
-      } catch (e) {
-        return { ok: false, error: e instanceof Error ? e.message : "Network error" };
-      }
-    },
-  );
+  // Social: run the provider OAuth in an in-app window, capture the session.
+  ipcMain.handle("cloud:signInSocial", (_e, provider: string) => runSocialSignIn(provider));
 }

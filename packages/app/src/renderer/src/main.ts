@@ -3005,9 +3005,17 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-ico"))
   } else {
     btn.textContent = btn.dataset.mono ?? provider.charAt(0).toUpperCase();
   }
-  btn.addEventListener("click", () =>
-    welcomeError("Social sign-in is almost ready — use email or continue without an account."),
-  );
+  btn.addEventListener("click", () => {
+    void (async () => {
+      if (!cloud) return;
+      welcomeError(null);
+      btn.disabled = true;
+      const r = await cloud.signInSocial(provider);
+      btn.disabled = false;
+      if (r.ok) await afterSignIn();
+      else if (r.error !== "Sign-in was cancelled.") welcomeError(r.error ?? "Sign-in failed.");
+    })();
+  });
 }
 
 // First render. Resolve the session BEFORE painting so a signed-in user doesn't
