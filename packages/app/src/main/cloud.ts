@@ -181,21 +181,10 @@ async function emailAuth(
  */
 async function runSocialSignIn(provider: string): Promise<AuthResult> {
   if (!PROVIDERS.has(provider)) return { ok: false, error: "Unknown provider." };
-  let url: string;
-  try {
-    const res = await fetch(`${API_BASE}/api/auth/sign-in/social`, {
-      method: "POST",
-      headers: { "content-type": "application/json", Origin: ORIGIN },
-      body: JSON.stringify({ provider, callbackURL: API_BASE }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { url?: string };
-    if (!data.url) return { ok: false, error: "Couldn't start sign-in." };
-    url = data.url;
-  } catch (e) {
-    return { ok: false, error: errMsg(e) };
-  }
 
   const ses = electronSession.fromPartition("bootible-oauth");
+  await ses.clearStorageData({ storages: ["cookies"] }); // clean slate per attempt
+
   const win = new BrowserWindow({
     width: 480,
     height: 760,
@@ -213,24 +202,49 @@ async function runSocialSignIn(provider: string): Promise<AuthResult> {
 
   return new Promise<AuthResult>((resolve) => {
     let done = false;
-    const finish = async (current: string): Promise<void> => {
-      // Success once we're back on our own origin (the callbackURL), past /api/auth.
-      if (done || !current.startsWith(API_BASE) || current.includes("/api/auth/")) return;
-      const cookies = await ses.cookies.get({ url: API_BASE });
-      const sc = cookies.find((c) => c.name.includes("session_token"));
-      if (!sc?.value) return;
+    let initiated = false;
+    const settle = (r: AuthResult) => {
+      if (done) return;
       done = true;
+      win.close();
+      resolve(r);
+    };
+    const onUrl = async (current: string): Promise<void> => {
+      if (done || !initiated) return;
+      if (current.includes("/api/auth/error")) {
+        const code = new URL(current).searchParams.get("error") ?? "failed";
+        return settle({ ok: false, error: `Provider sign-in failed (${code}).` });
+      }
+      // Success once we're back on our own origin (the callbackURL), past /api/auth.
+      if (!current.startsWith(API_BASE) || current.includes("/api/auth/")) return;
+      const sc = (await ses.cookies.get({ url: API_BASE })).find((c) =>
+        c.name.includes("session_token"),
+      );
+      if (!sc?.value) return;
       token = sc.value;
       saveToken(token);
-      win.close();
-      resolve({ ok: true });
+      settle({ ok: true });
     };
-    win.webContents.on("did-navigate", (_e, u) => void finish(u));
-    win.webContents.on("did-redirect-navigation", (_e, u) => void finish(u));
+    win.webContents.on("did-navigate", (_e, u) => void onUrl(u));
+    win.webContents.on("did-redirect-navigation", (_e, u) => void onUrl(u));
     win.on("closed", () => {
       if (!done) resolve({ ok: false, error: "Sign-in was cancelled." });
     });
-    void win.loadURL(url);
+
+    // Load our origin first, then start sign-in IN the window session so the OAuth
+    // state cookie is set here (a main-process fetch would set it elsewhere → state_mismatch).
+    win.webContents.once("did-finish-load", () => {
+      initiated = true;
+      void win.webContents.executeJavaScript(
+        `fetch("/api/auth/sign-in/social", {
+           method: "POST",
+           headers: { "content-type": "application/json" },
+           credentials: "include",
+           body: JSON.stringify({ provider: ${JSON.stringify(provider)}, callbackURL: location.origin }),
+         }).then((r) => r.json()).then((d) => { if (d.url) location.href = d.url; })`,
+      );
+    });
+    void win.loadURL(API_BASE);
   });
 }
 
