@@ -19,6 +19,7 @@
         <span class="sysbar-right">
           <span class="account" id="account" hidden>
             <span class="account-email" id="account-email"></span>
+            <button class="account-signout" id="account-2fa" type="button" hidden>Set up 2FA</button>
             <button class="account-signout" id="account-signout" type="button">Sign out</button>
           </span>
           <span class="sysstatus"><span class="led"></span><span class="sysstatus-text">v2 · local</span></span>
@@ -103,6 +104,52 @@
                 <button class="btn-ghost" id="recovery-copy" type="button">Copy recovery code</button>
               </div>
               <button class="btn-primary" id="synckey-done" type="button">I've saved it — continue</button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── TWO-FACTOR (sign-in challenge) ───────────────────── -->
+        <main class="view synckey" data-view="twofa">
+          <div class="synckey-card">
+            <h1 class="setup-title">Two-factor code</h1>
+            <p class="setup-sub">Enter the 6-digit code from your authenticator app.</p>
+            <div class="synckey-form">
+              <input class="welcome-input" id="twofa-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6" />
+              <button class="btn-primary" id="twofa-verify" type="button">Verify</button>
+              <p class="welcome-error" id="twofa-error" role="alert"></p>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── TWO-FACTOR SETUP (enroll / disable) ───────────────────── -->
+        <main class="view synckey" data-view="twofasetup">
+          <div class="synckey-card">
+            <h1 class="setup-title" id="twofasetup-title">Set up two-factor</h1>
+            <p class="setup-sub" id="twofasetup-sub">Add an authenticator app as a second factor for signing in.</p>
+
+            <div class="synckey-form" id="twofa-step-pass">
+              <input class="welcome-input" id="twofa-pass" type="password" placeholder="Your account password" autocomplete="current-password" />
+              <button class="btn-primary" id="twofa-enable" type="button">Continue</button>
+              <button class="welcome-skip" type="button" data-go="platform">Cancel</button>
+              <p class="welcome-error" id="twofasetup-error" role="alert"></p>
+            </div>
+
+            <div class="synckey-form" id="twofa-step-verify" hidden>
+              <img class="twofa-qr" id="twofa-qr" alt="Scan in your authenticator app" />
+              <p class="setup-sub">Scan this in your authenticator app, then enter a code to confirm.</p>
+              <div class="recovery-code" id="twofa-backup"></div>
+              <button class="btn-ghost" id="twofa-backup-copy" type="button">Copy backup codes</button>
+              <input class="welcome-input" id="twofa-confirm-code" type="text" inputmode="numeric" placeholder="123456" maxlength="6" />
+              <button class="btn-primary" id="twofa-confirm" type="button">Turn on 2FA</button>
+              <p class="welcome-error" id="twofasetup-error2" role="alert"></p>
+            </div>
+
+            <div class="synckey-form" id="twofa-step-disable" hidden>
+              <p class="setup-sub">Two-factor is on. Enter your password to turn it off.</p>
+              <input class="welcome-input" id="twofa-disable-pass" type="password" placeholder="Your account password" autocomplete="current-password" />
+              <button class="btn-primary" id="twofa-disable" type="button">Turn off 2FA</button>
+              <button class="welcome-skip" type="button" data-go="platform">Back</button>
+              <p class="welcome-error" id="twofasetup-error3" role="alert"></p>
             </div>
           </div>
         </main>
