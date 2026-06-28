@@ -48,6 +48,47 @@ app.use("*", async (c, next) => {
 // All better-auth endpoints (sign-in, callbacks, session).
 app.all("/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
 
+// ── Desktop OAuth hand-off ───────────────────────────────────────────────────
+// The Electron app opens /desktop/start in the SYSTEM browser (which has the
+// user's provider sessions and doesn't crash like an embedded window). We begin
+// social sign-in there, then /desktop/done hands the session token to the app's
+// loopback server (127.0.0.1:<port>).
+const DESKTOP_PROVIDERS = new Set(["google", "github", "discord", "twitch"]);
+
+const validHandoff = (port: string, state: string) =>
+  /^\d{1,5}$/.test(port) && /^[a-f0-9]{16,64}$/i.test(state);
+
+app.get("/desktop/start", (c) => {
+  const provider = c.req.query("provider") ?? "";
+  const port = c.req.query("port") ?? "";
+  const state = c.req.query("state") ?? "";
+  if (!DESKTOP_PROVIDERS.has(provider) || !validHandoff(port, state)) {
+    return c.text("bad request", 400);
+  }
+  const done = `${new URL(c.req.url).origin}/desktop/done?port=${port}&state=${state}`;
+  return c.html(
+    `<!doctype html><meta charset="utf-8"><title>Signing in…</title>
+<body style="margin:0;height:100vh;display:grid;place-items:center;background:#0e0f12;color:#8b919c;font-family:system-ui,sans-serif">Signing you in…
+<script>
+fetch("/api/auth/sign-in/social",{method:"POST",headers:{"content-type":"application/json"},credentials:"include",body:JSON.stringify({provider:${JSON.stringify(provider)},callbackURL:${JSON.stringify(done)}})})
+ .then(function(r){return r.json()}).then(function(d){if(d&&d.url){location.href=d.url}else{document.body.textContent="Couldn't start sign-in."}})
+ .catch(function(){document.body.textContent="Couldn't start sign-in."});
+</script>`,
+  );
+});
+
+app.get("/desktop/done", (c) => {
+  const port = c.req.query("port") ?? "";
+  const state = c.req.query("state") ?? "";
+  if (!validHandoff(port, state)) return c.text("bad request", 400);
+  const loop = `http://127.0.0.1:${port}/?state=${state}`;
+  const cookie = c.req.header("cookie") ?? "";
+  const m = cookie.match(/(?:^|;\s*)[^=;]*session_token[^=;]*=([^;]+)/);
+  return c.redirect(
+    m?.[1] ? `${loop}&token=${encodeURIComponent(m[1])}` : `${loop}&error=no_session`,
+  );
+});
+
 /** Resolve the signed-in account id, or null. */
 async function accountId(c: Ctx): Promise<string | null> {
   const session = await c.get("auth").api.getSession({ headers: c.req.raw.headers });

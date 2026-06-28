@@ -1262,10 +1262,6 @@ function createWindow(): void {
   }
 }
 
-// Some provider OAuth pages crash the GPU process (command_buffer access
-// violation) and take the app down. This UI doesn't need GPU acceleration.
-app.disableHardwareAcceleration();
-
 app.whenReady().then(() => {
   registerCloudIpc();
   ipcMain.handle("device:get", () => getDevice());

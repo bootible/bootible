@@ -5,7 +5,9 @@
  * social sign-in runs the provider OAuth in an in-app window and reads the
  * resulting session cookie (which is the bearer token).
  */
+import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { join } from "node:path";
 import {
   CloudApi,
@@ -18,14 +20,7 @@ import {
   unlockWithPassphrase,
   unlockWithRecovery,
 } from "@bootible/core";
-import {
-  app,
-  BrowserWindow,
-  session as electronSession,
-  ipcMain,
-  safeStorage,
-  shell,
-} from "electron";
+import { app, ipcMain, safeStorage, shell } from "electron";
 import { makeLocalStore } from "./profiles-store";
 
 const API_BASE = process.env.BOOTIBLE_API_BASE ?? "https://api.bootible.dev";
@@ -181,92 +176,60 @@ async function emailAuth(
 }
 
 /**
- * Social sign-in: run the provider OAuth in an in-app window, then read the
- * session cookie it leaves on our origin — that value IS the bearer token (the
- * bearer plugin uses the session-cookie value as the token). The system browser
- * can't be used because we can't read its cookies.
+ * Social sign-in, the RFC 8252 way: open the provider OAuth in the SYSTEM browser
+ * (which already has the user's provider sessions and doesn't crash like an
+ * embedded window), and receive the session token on a one-shot loopback server.
+ * A random `state` nonce ties the browser round-trip to this listener.
+ * Worker side: /desktop/start begins sign-in, /desktop/done posts the token here.
  */
 async function runSocialSignIn(provider: string): Promise<AuthResult> {
   if (!PROVIDERS.has(provider)) return { ok: false, error: "Unknown provider." };
-
-  const ses = electronSession.fromPartition("bootible-oauth");
-  await ses.clearStorageData({ storages: ["cookies"] }); // clean slate per attempt
-
-  const win = new BrowserWindow({
-    width: 600,
-    height: 820,
-    autoHideMenuBar: true,
-    title: "Sign in",
-    webPreferences: { session: ses, nodeIntegration: false, contextIsolation: true },
-  });
-  // Strip Electron/app tokens from the UA so providers (esp. Google) don't reject
-  // the window as an insecure embedded web view.
-  win.webContents.setUserAgent(
-    win.webContents.getUserAgent().replace(/\s(Electron|bootible)\/\S+/g, ""),
-  );
-  // App deep-links (e.g. discord:// to hand off to the desktop app) must NOT be
-  // navigated to in-window — open them in the OS instead. The window stays on the
-  // provider's "continue here" page and redirects back once auth completes.
-  const handleExternal = (target: string): boolean => {
-    if (/^https?:\/\//i.test(target)) return false;
-    void shell.openExternal(target);
-    return true;
-  };
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    handleExternal(url);
-    return { action: "deny" };
-  });
-  win.webContents.on("will-navigate", (e, target) => {
-    if (handleExternal(target)) e.preventDefault();
-  });
+  const state = randomBytes(16).toString("hex");
 
   return new Promise<AuthResult>((resolve) => {
-    let done = false;
-    let initiated = false;
-    const settle = (r: AuthResult) => {
-      if (done) return;
-      done = true;
-      win.close();
+    let settled = false;
+    const finish = (r: AuthResult): void => {
+      if (settled) return;
+      settled = true;
+      server.close();
       resolve(r);
     };
-    const onUrl = async (current: string): Promise<void> => {
-      if (done || !initiated) return;
-      if (current.includes("/api/auth/error")) {
-        const code = new URL(current).searchParams.get("error") ?? "failed";
-        return settle({ ok: false, error: `Provider sign-in failed (${code}).` });
+
+    const server = createServer((req, res) => {
+      const url = new URL(req.url ?? "/", "http://127.0.0.1");
+      if (url.searchParams.get("state") !== state) {
+        res.writeHead(204).end(); // favicon / stray request — ignore
+        return;
       }
-      // Success once we're back on our own origin (the callbackURL), past /api/auth.
-      if (!current.startsWith(API_BASE) || current.includes("/api/auth/")) return;
-      const sc = (await ses.cookies.get({ url: API_BASE })).find((c) =>
-        c.name.includes("session_token"),
+      const tok = url.searchParams.get("token");
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(
+        `<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:grid;place-items:center;background:#0e0f12;color:#eceae3;font-family:system-ui,sans-serif">${
+          tok
+            ? "You're signed in to bootible — you can close this tab."
+            : "Sign-in didn't complete. Close this tab and try again."
+        }</body>`,
       );
-      if (!sc?.value) return;
-      token = sc.value;
-      saveToken(token);
-      settle({ ok: true });
-    };
-    win.webContents.on("did-navigate", (_e, u) => void onUrl(u));
-    win.webContents.on("did-redirect-navigation", (_e, u) => void onUrl(u));
-    win.on("closed", () => {
-      if (!done) resolve({ ok: false, error: "Sign-in was cancelled." });
+      if (tok) {
+        token = decodeURIComponent(tok);
+        saveToken(token);
+        finish({ ok: true });
+      } else {
+        finish({ ok: false, error: url.searchParams.get("error") ?? "Sign-in failed." });
+      }
     });
 
-    // Load our origin first, then start sign-in IN the window session so the OAuth
-    // state cookie is set here (a main-process fetch would set it elsewhere → state_mismatch).
-    win.webContents.once("did-finish-load", () => {
-      initiated = true;
-      void win.webContents.executeJavaScript(
-        `document.body.style.cssText = "margin:0;height:100vh;display:grid;place-items:center;background:#0e0f12;color:#8b919c;font-family:system-ui,sans-serif";
-         document.body.innerHTML = "Signing you in\\u2026";
-         fetch("/api/auth/sign-in/social", {
-           method: "POST",
-           headers: { "content-type": "application/json" },
-           credentials: "include",
-           body: JSON.stringify({ provider: ${JSON.stringify(provider)}, callbackURL: location.origin }),
-         }).then((r) => r.json()).then((d) => { if (d.url) location.href = d.url; })`,
+    server.on("error", () =>
+      finish({ ok: false, error: "Couldn't start the local sign-in listener." }),
+    );
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      const port = typeof addr === "object" && addr ? addr.port : 0;
+      void shell.openExternal(
+        `${API_BASE}/desktop/start?provider=${encodeURIComponent(provider)}&port=${port}&state=${state}`,
       );
     });
-    void win.loadURL(API_BASE);
+    setTimeout(() => finish({ ok: false, error: "Sign-in timed out." }), 5 * 60 * 1000);
   });
 }
 
