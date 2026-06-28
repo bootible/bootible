@@ -1,4 +1,3 @@
-import type { IncomingRequestCfProperties } from "@cloudflare/workers-types";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAuth } from "./auth";
@@ -31,10 +30,18 @@ app.use(
   }),
 );
 
-// Per-request better-auth instance (needs env + cf + the request origin as baseURL).
+// better-auth instance, cached per origin per isolate. Re-creating it on every
+// request (plugins + D1 dialect setup) is a big slice of the auth latency; geolocation
+// is off so no per-request cf context is needed.
+const authByOrigin = new Map<string, ReturnType<typeof createAuth>>();
 app.use("*", async (c, next) => {
-  const cf = (c.req.raw as unknown as { cf?: IncomingRequestCfProperties }).cf;
-  c.set("auth", createAuth(c.env, cf, new URL(c.req.url).origin));
+  const origin = new URL(c.req.url).origin;
+  let auth = authByOrigin.get(origin);
+  if (!auth) {
+    auth = createAuth(c.env, undefined, origin);
+    authByOrigin.set(origin, auth);
+  }
+  c.set("auth", auth);
   await next();
 });
 

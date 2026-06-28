@@ -2967,6 +2967,22 @@ document.querySelector<HTMLButtonElement>("#twofa-disable")?.addEventListener("c
   })();
 });
 
+// Enter in any field on the sync-key / 2FA cards triggers the visible primary button.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement)) return;
+  const card = t.closest(".synckey-card");
+  if (!card) return;
+  const btn = Array.from(card.querySelectorAll<HTMLButtonElement>(".btn-primary")).find(
+    (b) => b.offsetParent !== null,
+  );
+  if (btn) {
+    e.preventDefault();
+    btn.click();
+  }
+});
+
 document.querySelector<HTMLFormElement>("#welcome-email-form")?.addEventListener("submit", (e) => {
   e.preventDefault();
   void doEmailAuth("signin");
