@@ -93,6 +93,7 @@ app.get("/test", (c) => {
     <button data-act="signin">Sign in</button>
     <button data-act="signout">Sign out</button>
     <button data-act="session">Get session</button>
+    <button data-act="accounts">List accounts</button>
     <button data-act="forgot">Forgot password</button>
   </div>
   <div style="margin:8px 0">2FA:
@@ -123,6 +124,7 @@ app.get("/test", (c) => {
         else if (a === "forgot") call("request-password-reset", { email: email(), redirectTo: location.origin + "/reset-password" });
         else if (a === "totp") call("two-factor/verify-totp", { code: document.getElementById("totp").value });
         else if (a === "session") fetch("/api/auth/get-session", { credentials: "include" }).then(function (r) { return r.json().then(function (d) { out({ status: r.status, body: d }); }); });
+        else if (a === "accounts") fetch("/api/auth/list-accounts", { credentials: "include" }).then(function (r) { return r.json().then(function (d) { out({ status: r.status, body: d }); }); });
       };
     });
     document.querySelectorAll("[data-social]").forEach(function (b) {
