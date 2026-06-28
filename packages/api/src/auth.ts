@@ -30,6 +30,7 @@ function socialProviders(env: Bindings) {
  */
 export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, baseURL?: string) {
   return betterAuth({
+    appName: "bootible",
     baseURL,
     secret: env?.BETTER_AUTH_SECRET,
     ...withCloudflare(
@@ -46,8 +47,9 @@ export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, bas
         // Bearer plugin: the desktop app stores the session token (from the
         // set-auth-token response header) in safeStorage and sends it as
         // Authorization: Bearer — cleaner than cookies for a native client.
-        // twoFactor: optional TOTP (authenticator app) second factor.
-        plugins: [bearer(), twoFactor()],
+        // twoFactor: optional TOTP (authenticator app) second factor. issuer is
+        // what authenticator apps show as the account name (bootible: <email>).
+        plugins: [bearer(), twoFactor({ issuer: "bootible" })],
         // The desktop social-sign-in redirect target (custom protocol) must be trusted.
         trustedOrigins: ["bootible://"],
       },
