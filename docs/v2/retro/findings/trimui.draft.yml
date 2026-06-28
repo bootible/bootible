@@ -1,0 +1,83 @@
+# DRAFT proposed registry entry for the TrimUI Brick — NOT yet live in
+# registry/devices/ (that needs the host-media-prep executor + a firmware-options
+# UI first). Schema-valid against schemas/device.schema.json. Versions are
+# pinned at BUILD time, not here. Source: docs/v2/retro/findings/trimui-brick.md.
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bootible/bootible/main/schemas/device.schema.json
+id: trimui-brick
+name: TrimUI Brick / Brick Hammer
+provisioning_models:
+  - host-media-prep
+# One microSD holds firmware + content (no OS/games split). FAT32+MBR default —
+# exFAT corrupts over time on the Brick. >32 GB needs the "Large FAT32" path.
+media:
+  kind: microsd
+  fs: fat32
+firmware:
+  default: nextui
+  options:
+    nextui:
+      name: NextUI
+      method: extract            # copy files to card root
+      source: github:LoveRetro/NextUI
+      recommended: true
+      notes: MinUI fork — WiFi, RetroAchievements, art scraping. Newcomer default.
+    minui:
+      name: MinUI
+      method: extract
+      source: github:shauninman/MinUI
+      notes: Minimalist. MinUI.zip stays a ZIP at root (do not extract).
+    stock:
+      name: Stock (TrimUI)
+      method: image+extract       # .awimg recovery-flash + assets_brick SD package
+      source: github:trimui/firmware_brick + github:trimui/assets_brick
+      notes: Two parts, separate repos. assets package needs 7-Zip.
+    knulli:
+      name: Knulli
+      method: image               # dd/etcher; multi-partition; SHARE=exFAT (Gladiator+)
+      source: github:knulli-cfw/distribution
+      notes: Batocera family. roms in /userdata/roms/<lowercase>. Verify Brick tier.
+    muos:
+      name: muOS
+      method: image
+      source: muos.dev            # TUI-BRICK image
+      notes: MustardOS. Image-flash.
+    # crossmix: NOT supported on the Brick yet (v1.4.0 unreleased as of mid-2026).
+    # SunnyMix-OS is the beta Brick port of CrossMix — add when stable.
+# Default scaffold for the file-extract (MinUI/NextUI) family on a FAT32 card.
+# Image firmwares (Knulli/muOS) define their own layout after flashing.
+layout:
+  dirs:
+    - Roms
+    - BIOS
+    - Saves
+capabilities:
+  great:
+    - nes
+    - sms
+    - gb
+    - gbc
+    - gba
+    - snes
+    - genesis
+    - gamegear
+    - ngp
+    - atari2600
+    - ps1
+  varies:           # n64/psp: SoC marginal AND no analog sticks → "poor controls"
+    - nds
+    - dreamcast
+    - n64
+    - psp
+  none:
+    - saturn
+    - ps2
+    - gamecube
+    - wii
+guide: https://www.joeysretrohandhelds.com/guides/nextui-setup-guide/
+notes: >-
+  No analog sticks — N64/PSP rate "poor controls" even where the SoC copes (the
+  Smart Pro, same SoC + sticks, rates them higher; consider a per-device control
+  flag when implementing). Brick Hammer = identical board, metal shell — same
+  firmware. NOT the same device as the "Brick Hammer Pro U" (Snapdragon/Android).
+  Match firmware to model — cross-flashing bricks the device. Firmware versions
+  drift; pin per build and re-verify. See docs/v2/retro/findings/trimui-brick.md.
