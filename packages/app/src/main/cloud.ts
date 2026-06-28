@@ -124,6 +124,15 @@ function fromKeyDTO(d: KeyMaterialDTO): KeyMaterial {
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : "Something went wrong");
 
+/** Persist a rotated bearer token from a response's set-auth-token header. */
+function captureToken(res: Response): void {
+  const t = res.headers.get("set-auth-token");
+  if (t) {
+    token = t;
+    saveToken(t);
+  }
+}
+
 interface AuthResult {
   ok: boolean;
   error?: string;
@@ -369,6 +378,7 @@ export function registerCloudIpc(): void {
           backupCodes?: string[];
         };
         if (!res.ok) return { ok: false, error: d.message ?? "Couldn't start 2FA setup." };
+        captureToken(res);
         return { ok: true, totpURI: d.totpURI, backupCodes: d.backupCodes };
       } catch (e) {
         return { ok: false, error: errMsg(e) };
@@ -393,6 +403,7 @@ export function registerCloudIpc(): void {
         const d = (await res.json().catch(() => ({}))) as { message?: string };
         return { ok: false, error: d.message ?? "That code didn't match." };
       }
+      captureToken(res); // enabling 2FA rotates the session token
       return { ok: true };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
@@ -416,6 +427,7 @@ export function registerCloudIpc(): void {
         const d = (await res.json().catch(() => ({}))) as { message?: string };
         return { ok: false, error: d.message ?? "Couldn't disable 2FA." };
       }
+      captureToken(res);
       return { ok: true };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
