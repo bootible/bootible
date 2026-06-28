@@ -230,8 +230,12 @@ const api = {
     ipcRenderer.on("provision:done", (_e, result: ProvisionResult) => cb(result));
   },
   cloud: {
-    status: (): Promise<{ signedIn: boolean; accountId?: string; email?: string }> =>
-      ipcRenderer.invoke("cloud:status"),
+    status: (): Promise<{
+      signedIn: boolean;
+      accountId?: string;
+      email?: string;
+      twoFactorEnabled?: boolean;
+    }> => ipcRenderer.invoke("cloud:status"),
     signUpEmail: (b: {
       email: string;
       password: string;
@@ -256,6 +260,16 @@ const api = {
       ipcRenderer.invoke("cloud:unlockRecovery", code),
     resetPassphrase: (passphrase: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke("cloud:resetPassphrase", passphrase),
+    verifyTotp: (code: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke("cloud:verifyTotp", code),
+    enable2FA: (
+      password: string,
+    ): Promise<{ ok: boolean; error?: string; totpURI?: string; backupCodes?: string[] }> =>
+      ipcRenderer.invoke("cloud:enable2FA", password),
+    verify2FASetup: (code: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke("cloud:verify2FASetup", code),
+    disable2FA: (password: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke("cloud:disable2FA", password),
     syncNow: (): Promise<{
       pulled: string[];
       pushed: string[];

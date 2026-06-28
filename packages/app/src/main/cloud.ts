@@ -54,6 +54,10 @@ function clearToken(): void {
 }
 
 let token: string | null = null;
+// When sign-in needs a second factor, better-auth sets a short-lived cookie and
+// withholds the session token until verify-totp. A native client has no cookie
+// jar, so we capture it here and replay it on the verify call.
+let pendingCookie: string | null = null;
 
 function api(): CloudApi {
   return new CloudApi({
@@ -125,16 +129,29 @@ interface AuthResult {
   error?: string;
 }
 
-/** Email sign-up/in: POST, capture the bearer token from the set-auth-token header. */
-async function emailAuth(path: string, body: unknown): Promise<AuthResult> {
+/** Email sign-up/in: capture the bearer token, or signal a required 2FA step. */
+async function emailAuth(
+  path: string,
+  body: unknown,
+): Promise<AuthResult & { twoFactor?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/api/auth/${path}`, {
       method: "POST",
       headers: { "content-type": "application/json", Origin: ORIGIN },
       body: JSON.stringify(body),
     });
-    const data = (await res.json().catch(() => ({}))) as { message?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      twoFactorRedirect?: boolean;
+    };
     if (!res.ok) return { ok: false, error: data.message ?? `Failed (HTTP ${res.status})` };
+    if (data.twoFactorRedirect) {
+      // 2FA required — stash the pending cookie for the verify-totp call.
+      const sc =
+        (res.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
+      pendingCookie = sc.map((c) => c.split(";")[0]).join("; ") || null;
+      return { ok: true, twoFactor: true };
+    }
     const t = res.headers.get("set-auth-token");
     if (t) {
       token = t;
@@ -171,13 +188,20 @@ export function registerCloudIpc(): void {
         clearToken();
         return { signedIn: false };
       }
-      const s = (await res.json()) as { user?: { id?: string; email?: string } } | null;
+      const s = (await res.json()) as {
+        user?: { id?: string; email?: string; twoFactorEnabled?: boolean };
+      } | null;
       if (!s?.user?.id) {
         token = null;
         clearToken();
         return { signedIn: false };
       }
-      return { signedIn: true, accountId: s.user.id, email: s.user.email };
+      return {
+        signedIn: true,
+        accountId: s.user.id,
+        email: s.user.email,
+        twoFactorEnabled: !!s.user.twoFactorEnabled,
+      };
     } catch {
       // Network down — keep the cached session rather than signing out.
       return { signedIn: true };
@@ -289,6 +313,109 @@ export function registerCloudIpc(): void {
       if (!dto) return { ok: false, error: "No sync key to update." };
       const updated = await rewrapWithPassphrase(fromKeyDTO(dto), dek, newPass);
       await api().putKeys(toKeyDTO(updated));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  });
+
+  // ── Two-factor (TOTP) ──────────────────────────────────────────────────────
+  // Complete a sign-in second factor: replay the pending cookie, get the token.
+  ipcMain.handle("cloud:verifyTotp", async (_e, code: string): Promise<AuthResult> => {
+    if (!pendingCookie) return { ok: false, error: "No sign-in in progress." };
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/two-factor/verify-totp`, {
+        method: "POST",
+        headers: { "content-type": "application/json", Origin: ORIGIN, Cookie: pendingCookie },
+        body: JSON.stringify({ code, trustDevice: false }),
+      });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { message?: string };
+        return { ok: false, error: d.message ?? "That code didn't match." };
+      }
+      const t = res.headers.get("set-auth-token");
+      if (t) {
+        token = t;
+        saveToken(t);
+      }
+      pendingCookie = null;
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  });
+
+  // Begin enrollment: returns the TOTP URI (for a QR) + one-time backup codes.
+  ipcMain.handle(
+    "cloud:enable2FA",
+    async (
+      _e,
+      password: string,
+    ): Promise<AuthResult & { totpURI?: string; backupCodes?: string[] }> => {
+      if (!token) return { ok: false, error: "Not signed in" };
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/two-factor/enable`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            Origin: ORIGIN,
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ password }),
+        });
+        const d = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          totpURI?: string;
+          backupCodes?: string[];
+        };
+        if (!res.ok) return { ok: false, error: d.message ?? "Couldn't start 2FA setup." };
+        return { ok: true, totpURI: d.totpURI, backupCodes: d.backupCodes };
+      } catch (e) {
+        return { ok: false, error: errMsg(e) };
+      }
+    },
+  );
+
+  // Confirm enrollment with a code from the authenticator app.
+  ipcMain.handle("cloud:verify2FASetup", async (_e, code: string): Promise<AuthResult> => {
+    if (!token) return { ok: false, error: "Not signed in" };
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/two-factor/verify-totp`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Origin: ORIGIN,
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code }),
+      });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { message?: string };
+        return { ok: false, error: d.message ?? "That code didn't match." };
+      }
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  });
+
+  // Turn 2FA off (requires the password).
+  ipcMain.handle("cloud:disable2FA", async (_e, password: string): Promise<AuthResult> => {
+    if (!token) return { ok: false, error: "Not signed in" };
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/two-factor/disable`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Origin: ORIGIN,
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { message?: string };
+        return { ok: false, error: d.message ?? "Couldn't disable 2FA." };
+      }
       return { ok: true };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
