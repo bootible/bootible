@@ -83,9 +83,15 @@ Both are immutable; **what you install and how decides whether it survives an OS
 
 ---
 
+## Confirmed during the carrier spike (build requirements)
+
+- **SteamOS download entry point (resolved):** [help.steampowered.com/.../65B4-2AA3-5F37-4227](https://help.steampowered.com/en/faqs/view/65B4-2AA3-5F37-4227) → [store.steampowered.com/steamos/download/?ver=steamdeck](https://store.steampowered.com/steamos/download/?ver=steamdeck). The `?ver=` param selects the image (Deck recovery here).
+- **⚠️ The recovery image is bz2-compressed (`.img.bz2`) — the USB-writer MUST decompress to the raw `.img` before flashing.** Flashers (Balena Etcher) **stall** when pointed at the compressed file (reproduced; community confirms). So the Linux USB-writer's pipeline is: download `.img.bz2` → **decompress** → write `.img` → append `BOOTIBLE-DATA`. (Windows has no native bz2 — bundle/shell a decompressor, or decompress in-app.)
+- **Carrier mechanism (spiking):** append a second partition (`BOOTIBLE-DATA`, FAT32) in the free space after the flashed recovery image, carrying the bootible payload. Append must come *after* the flash; Windows partition-create needs an **elevated** context (`diskpart`/Storage cmdlets fail non-elevated). Readability in recovery + installed SteamOS is the spike's open question.
+
 ## Open questions (need verification before design locks)
 
-1. **SteamOS 3.8 generic installer** — exact download URL, partition scheme, and whether it offers the Deck image's four recovery options (`help.steampowered.com/.../65B4-2AA3-5F37-4227` wasn't retrievable).
+1. **SteamOS 3.8 generic (non-Deck) installer** — partition scheme and whether it offers the Deck image's four recovery options (the spike uses the Deck recovery image; the generic AMD installer may differ).
 2. **ROG Ally controller support on SteamOS 3.8** — is there an HHD equivalent in the generic image, or is Bazzite the only good Ally path?
 3. **Decky persistence across a SteamOS A/B update** — does the user-space service re-register without a re-run?
 4. **Sunshine Flatpak app ID** — verify current ID on Flathub before hardcoding.
