@@ -19,8 +19,10 @@ What great looks like, from the user's seat. Each line is checkable yes/no again
 
 **Build (desktop app)**
 1. A user can pick **Steam Deck** in the app and choose what they want — apps, emulation, Decky plugins, streaming, SSH, password manager, SD-card layout — **without hand-editing any YAML**. (v1 required editing a private-repo `config.yml`; v2 makes that a UI.)
-2. The app produces **one USB** that both installs SteamOS *and* carries the user's configuration.
-3. The USB writer **downloads, decompresses, and writes Valve's stock recovery image unmodified**, then appends a `BOOTIBLE` exFAT partition holding the generated config — we never hack Valve's image.
+2. The user picks one of **two delivery paths** (like the Windows method-picker):
+   - **Provision-only USB ("post-setup")** — bootible formats a stick to exFAT `BOOTIBLE` and writes the payload. The user resets/installs SteamOS themselves ([Valve recovery](https://help.steampowered.com/en/faqs/view/1B71-EDF2-EB6D-2BB3)) or uses their existing install, then runs `provision.sh`. **No image fetch/flash** — also works on an already-set-up Deck. The simpler, lower-risk path; ship first.
+   - **Full reimage USB** — bootible fetches the recovery `.img.zip` from the open CDN index, writes it unmodified, and appends the `BOOTIBLE` payload partition. One USB that wipes, installs, and provisions.
+3. For the full-reimage path the writer **downloads, decompresses, and writes Valve's stock recovery image unmodified**, then appends a `BOOTIBLE` exFAT partition holding the generated config — we never hack Valve's image. (Provision-only skips straight to the partition.)
 
 **Install + apply (on the device)**
 4. Booting the USB and choosing **Reimage** installs **stock SteamOS** — bootible has changed nothing about the OS itself.
