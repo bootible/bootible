@@ -253,6 +253,8 @@ const api = {
     }> => ipcRenderer.invoke("cloud:signInEmail", b),
     resendVerification: (email: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke("cloud:resendVerification", email),
+    requestPasswordReset: (email: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke("cloud:requestPasswordReset", email),
     signInSocial: (provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }> =>
       ipcRenderer.invoke("cloud:signInSocial", provider),
     signOut: (): Promise<{ ok: boolean }> => ipcRenderer.invoke("cloud:signOut"),

@@ -366,6 +366,7 @@ interface BootibleApi {
     }): Promise<{ ok: boolean; error?: string; twoFactor?: boolean; needsVerification?: boolean }>;
     signInSocial(provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }>;
     resendVerification(email: string): Promise<{ ok: boolean; error?: string }>;
+    requestPasswordReset(email: string): Promise<{ ok: boolean; error?: string }>;
     signOut(): Promise<{ ok: boolean }>;
     keyStatus(): Promise<{ signedIn: boolean; hasServerKey: boolean; unlocked: boolean }>;
     setupKey(passphrase: string): Promise<{ ok: boolean; error?: string; recoveryCode?: string }>;
@@ -3049,6 +3050,26 @@ document.querySelector<HTMLButtonElement>("#verify-resend")?.addEventListener("c
 });
 document.querySelector<HTMLButtonElement>("#verify-back")?.addEventListener("click", () => {
   location.hash = "welcome";
+});
+
+// Forgot password: email a reset link (completed on the Worker /reset-password page).
+document.querySelector<HTMLButtonElement>("#forgot-pw")?.addEventListener("click", (e) => {
+  void (async () => {
+    if (!cloud) return;
+    const email = document.querySelector<HTMLInputElement>("#welcome-email")?.value.trim() ?? "";
+    if (!email) {
+      welcomeError("Enter your email above, then tap Forgot password.");
+      return;
+    }
+    const r = await withBusy(e.currentTarget as HTMLButtonElement, () =>
+      cloud.requestPasswordReset(email),
+    );
+    welcomeError(
+      r.ok
+        ? `Reset link sent to ${email} — check your inbox.`
+        : (r.error ?? "Couldn't send the reset email."),
+    );
+  })();
 });
 
 // Social provider icons + interim handler. Real brand SVGs live in assets/logos/auth/

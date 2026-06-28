@@ -77,6 +77,39 @@ fetch("/api/auth/sign-in/social",{method:"POST",headers:{"content-type":"applica
   );
 });
 
+// Password-reset page: better-auth redirects the email link here with ?token=…
+// (or ?error=INVALID_TOKEN). Collects a new password and posts reset-password.
+app.get("/reset-password", (c) =>
+  c.html(
+    `<!doctype html><meta charset="utf-8"><title>Reset password</title>
+<body style="margin:0;height:100vh;display:grid;place-items:center;background:#0e0f12;color:#eceae3;font-family:system-ui,'Segoe UI',sans-serif">
+  <div style="width:340px;max-width:90vw;padding:24px">
+    <h1 style="font-size:22px;margin:0 0 16px">Reset your password</h1>
+    <form id="f">
+      <input id="pw" type="password" placeholder="New password (8+ characters)" minlength="8" required
+        style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #2a2d35;background:#15171c;color:#eceae3;margin:0 0 12px" />
+      <button type="submit" style="width:100%;padding:12px;border:0;border-radius:8px;background:#f0a000;color:#0e0f12;font-weight:600;cursor:pointer">Set new password</button>
+    </form>
+    <p id="msg" style="color:#b7bcc6;line-height:1.5;margin:16px 0 0"></p>
+  </div>
+  <script>
+    var q = new URLSearchParams(location.search);
+    var token = q.get("token"), msg = document.getElementById("msg"), f = document.getElementById("f");
+    if (!token || q.get("error")) { f.style.display = "none"; msg.textContent = "This reset link is invalid or has expired. Request a new one from the app."; }
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var pw = document.getElementById("pw").value;
+      msg.textContent = "Updating…";
+      fetch("/api/auth/reset-password", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newPassword: pw, token: token }) })
+        .then(function (r) { return r.ok ? r : r.json().then(function (d) { throw new Error(d.message || "Reset failed"); }); })
+        .then(function () { f.style.display = "none"; msg.textContent = "Password updated. Head back to bootible and sign in."; })
+        .catch(function (err) { msg.textContent = err.message; });
+    });
+  </script>
+</body>`,
+  ),
+);
+
 // Landing page after a verification link is clicked (better-auth redirects here).
 app.get("/verified", (c) =>
   c.html(

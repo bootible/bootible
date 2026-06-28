@@ -505,6 +505,24 @@ export function registerCloudIpc(): void {
   // Social: run the provider OAuth in an in-app window, capture the session.
   ipcMain.handle("cloud:signInSocial", (_e, provider: string) => runSocialSignIn(provider));
 
+  // Request a password-reset email (link lands on the Worker /reset-password page).
+  ipcMain.handle("cloud:requestPasswordReset", async (_e, email: string): Promise<AuthResult> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/request-password-reset`, {
+        method: "POST",
+        headers: { "content-type": "application/json", Origin: ORIGIN },
+        body: JSON.stringify({ email, redirectTo: `${API_BASE}/reset-password` }),
+      });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { message?: string };
+        return { ok: false, error: d.message ?? "Couldn't send the reset email." };
+      }
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  });
+
   // Resend the email-verification link.
   ipcMain.handle("cloud:resendVerification", async (_e, email: string): Promise<AuthResult> => {
     try {
