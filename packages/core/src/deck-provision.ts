@@ -121,8 +121,9 @@ function deckyBlock(cfg: DeckConfig): string {
   const lines = [
     `say "Installing Decky Loader"`,
     `curl -L https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh | sh || warn "decky install failed"`,
-    `sudo chown -R "$USER:$USER" "$HOME/homebrew" 2>/dev/null || true`,
-    `install -d "$HOME/homebrew/plugins"`,
+    // The plugin_loader service runs as root and owns ~/homebrew/plugins, so the
+    // plugins dir is root-owned — ensure it with sudo (a plain mkdir as deck fails).
+    `sudo mkdir -p "$HOME/homebrew/plugins"`,
   ];
   // plugins are store names (live-pulled by the app); resolve each to its latest
   // hash via the Decky store, download + extract, then RESTART the loader so the
@@ -137,7 +138,8 @@ function deckyBlock(cfg: DeckConfig): string {
       `  HASH="$(printf '%s' "$STORE" | N="$NAME" python3 -c "import sys,json,os; d=json.load(sys.stdin); p=next((x for x in d if x.get('name')==os.environ['N']),None); print(p['versions'][0]['hash'] if p and p.get('versions') else '')" 2>/dev/null || echo "")"`,
       `  if [ -z "$HASH" ]; then warn "plugin not found: $NAME"; continue; fi`,
       `  curl -fsSL "https://cdn.tzatzikiweeb.moe/file/steam-deck-homebrew/versions/$HASH.zip" -o /tmp/decky-plugin.zip && \\`,
-      `    python3 -m zipfile -e /tmp/decky-plugin.zip "$HOME/homebrew/plugins/" && ok "plugin: $NAME" || warn "plugin failed: $NAME"`,
+      // extract as root (the plugins dir is root-owned); chown back to deck after.
+      `    sudo python3 -m zipfile -e /tmp/decky-plugin.zip "$HOME/homebrew/plugins/" && ok "plugin: $NAME" || warn "plugin failed: $NAME"`,
       `done`,
       `rm -f /tmp/decky-plugin.zip`,
       `sudo chown -R "$USER:$USER" "$HOME/homebrew/plugins" 2>/dev/null || true`,

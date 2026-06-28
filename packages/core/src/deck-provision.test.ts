@@ -71,6 +71,9 @@ describe("generateDeckProvision", () => {
     // (caught on real hardware, 29 Jun).
     expect(s).toContain('N="$NAME" python3');
     expect(s).not.toMatch(/python3 -c "[^"]*" N="\$NAME"/);
+    // plugins extract as root — the loader service owns ~/homebrew/plugins, so a
+    // non-sudo extract hits Permission denied (caught on real hardware, 29 Jun).
+    expect(s).toContain("sudo python3 -m zipfile -e");
   });
 
   it("skips Decky when disabled", () => {
