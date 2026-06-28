@@ -60,6 +60,19 @@ purpose: { findings: 85, research: 15 }
 - **PortMaster "Ready to Run"** free/open titles — Cave Story (freeware), 2048, Celeste Classic. ⚠️ **Avoid** the IP-risky decomps (AM2R, SM64-decomp, Sonic decomps) even though PortMaster lists them.
 - **Pico-8** runs great but the engine is **commercial** (~$15) → not day-one.
 
+## ★ Grout (RomM client) — first-class content enabler
+
+**[Grout](https://grout.romm.app/)** is the official RomM client for Linux retro handhelds (by the RomM team). On-device it does **wireless game downloads** from the user's RomM library, **box-art**, **BIOS download + verify**, **save sync** (cross-device), and **platform mapping** (RomM platform → the device's ROM dirs). It explicitly supports **NextUI, Knulli, MinUI, muOS, and TrimUI** — i.e. all of our v1 firmwares.
+
+**Why it matters for bootible (and the legal model):** bootible **installs/enables Grout** as part of provisioning; the **user** then pulls *their own* games, BIOS, and saves from *their own* RomM instance over Wi-Fi. bootible sources **nothing** — it lays firmware + scaffold + the Grout enabler, and Grout fills the content from the user's server. This is the concrete realization of the v2 principle *"RomM = link/recommend, never provision."*
+
+What it hands us for free:
+- **The content-population story** — legally, without bootible touching a single ROM.
+- **BIOS placement + verification** — solves footguns F4 (BIOS naming/case) for users who use it.
+- **Save sync + round-trip** — covers the backup story (§3c) via the user's RomM rather than us copying files off the card.
+
+**Build note:** Grout has **per-firmware install paths** (`grout.romm.app/getting-started/install-{nextui,knulli,trimui}`), so the host-prep executor can offer **"Install Grout (RomM client)"** as an option per firmware (default ON for users who have RomM). Treat it as a registry-level **enabler**, not content. Versions/paths are **verify-at-build-time** like everything else.
+
 ## Footguns a host-prep tool must handle
 
 1. **Wrong-model firmware = brick.** Each model has its own repo (`firmware_brick`/`assets_brick`); refuse mismatched files. **F1, highest severity.**
@@ -72,6 +85,18 @@ purpose: { findings: 85, research: 15 }
 8. **CrossMix not on Brick yet** — don't offer it (offer SunnyMix as beta, or omit).
 9. **1024×768 assets** — themes/bezels built for other models will be wrong.
 10. **FAT32 4 GB/file** — irrelevant for ROMs, but image-firmware must be *flashed* (dd), never copied as a file.
+
+## v1 firmware scope (decided)
+
+Support **three** firmwares first — **NextUI**, **Knulli**, **Default OS (stock)** — chosen because they cover **every host-prep mechanic** between them, so the executor is fully exercised:
+
+| Firmware | Mechanic proven | Role |
+|---|---|---|
+| **NextUI** | file-extract → FAT32 card | newcomer default, minimal+featured |
+| **Knulli** | image-flash (dd/etcher), multi-partition | most capable (Batocera/EmulationStation) |
+| **Default OS** | recovery `.awimg` + assets-extract (two-part) | manufacturer baseline |
+
+MinUI (another extract) and muOS (another image) become **pure data adds** afterward — no new executor code. CrossMix/SunnyMix wait until Brick-ready.
 
 ## What this means for bootible
 

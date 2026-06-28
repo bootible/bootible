@@ -14,6 +14,8 @@ media:
   fs: fat32
 firmware:
   default: nextui
+  # v1 TrimUI scope = these THREE — they exercise every host-prep mechanic
+  # (file-extract, image-flash, and stock's recovery+assets two-parter).
   options:
     nextui:
       name: NextUI
@@ -21,28 +23,20 @@ firmware:
       source: github:LoveRetro/NextUI
       recommended: true
       notes: MinUI fork — WiFi, RetroAchievements, art scraping. Newcomer default.
-    minui:
-      name: MinUI
-      method: extract
-      source: github:shauninman/MinUI
-      notes: Minimalist. MinUI.zip stays a ZIP at root (do not extract).
-    stock:
-      name: Stock (TrimUI)
-      method: image+extract       # .awimg recovery-flash + assets_brick SD package
-      source: github:trimui/firmware_brick + github:trimui/assets_brick
-      notes: Two parts, separate repos. assets package needs 7-Zip.
     knulli:
       name: Knulli
       method: image               # dd/etcher; multi-partition; SHARE=exFAT (Gladiator+)
       source: github:knulli-cfw/distribution
-      notes: Batocera family. roms in /userdata/roms/<lowercase>. Verify Brick tier.
-    muos:
-      name: muOS
-      method: image
-      source: muos.dev            # TUI-BRICK image
-      notes: MustardOS. Image-flash.
-    # crossmix: NOT supported on the Brick yet (v1.4.0 unreleased as of mid-2026).
-    # SunnyMix-OS is the beta Brick port of CrossMix — add when stable.
+      notes: Batocera family — EmulationStation, most capable. roms in /userdata/roms/<lowercase>. Verify Brick tier.
+    stock:
+      name: Default OS (TrimUI stock)
+      method: image+extract       # .awimg recovery-flash + assets_brick SD package
+      source: github:trimui/firmware_brick + github:trimui/assets_brick
+      notes: Two parts, separate repos. assets package needs 7-Zip. Manufacturer baseline.
+    # --- Deferred (each is the same mechanic as one above → pure data add later) ---
+    # minui:  extract (like NextUI, more minimal)  — github:shauninman/MinUI
+    # muos:   image   (like Knulli)                — muos.dev TUI-BRICK
+    # crossmix/SunnyMix: not Brick-ready (v1.4.0 unreleased; SunnyMix beta)
 # Default scaffold for the file-extract (MinUI/NextUI) family on a FAT32 card.
 # Image firmwares (Knulli/muOS) define their own layout after flashing.
 layout:
@@ -81,3 +75,7 @@ notes: >-
   firmware. NOT the same device as the "Brick Hammer Pro U" (Snapdragon/Android).
   Match firmware to model — cross-flashing bricks the device. Firmware versions
   drift; pin per build and re-verify. See docs/v2/retro/findings/trimui-brick.md.
+  GROUT (RomM client, grout.romm.app) should be offered as an installable ENABLER
+  per firmware (supports NextUI/Knulli/TrimUI) — bootible installs it; the user
+  pulls their OWN games/BIOS/saves from their OWN RomM. Needs a new schema field
+  (e.g. `enablers`) — not yet in device.schema.json.
