@@ -28,7 +28,6 @@ import {
   buildUsbBundle,
   checkModules,
   type DeckConfig,
-  type DeckyStorePlugin,
   type DeviceEntry,
   type DeviceProfile,
   type DeviceSummary,
@@ -37,6 +36,7 @@ import {
   deviceProfile,
   deviceSummary,
   type Exec,
+  FLATPAK_APPS,
   fetchDeckyPlugins,
   type GroupSummary,
   generateBootstrapScript,
@@ -140,7 +140,7 @@ function targetDevice(): DeviceEntry | null {
 function getPlatforms(): { id: string; label: string; blurb: string; status: string }[] {
   const registry = loadRegistryEntries();
   return PLATFORMS.map((p) => {
-    const ready = registry.some((d) => platformForOs(d.os) === p.id && !!deviceProfile(d.id));
+    const ready = registry.some((d) => platformForOs(d.os) === p.id && buildable(d));
     return { id: p.id, label: p.label, blurb: p.blurb, status: ready ? "ready" : "coming-soon" };
   });
 }
@@ -154,7 +154,7 @@ function getDevices(platformId: string): { id: string; name: string; status: str
     .map((d) => ({
       id: d.id,
       name: d.name,
-      status: deviceProfile(d.id) ? "ready" : "coming-soon",
+      status: buildable(d) ? "ready" : "coming-soon",
     }));
   const roadmap = ROADMAP_DEVICES.filter((r) => r.platform === platformId).map((r) => ({
     id: r.id,
@@ -170,7 +170,7 @@ function getDevices(platformId: string): { id: string; name: string; status: str
  *  summary screen, or null if it isn't a real, ready device. */
 function selectDeviceById(id: string): DeviceSummary | null {
   const entry = loadRegistryEntries().find((d) => d.id === id);
-  if (!entry || !deviceProfile(entry.id)) return null;
+  if (!entry || !buildable(entry)) return null;
   selectedDeviceId = entry.id;
   return deviceSummary(entry);
 }
@@ -178,6 +178,12 @@ function selectDeviceById(id: string): DeviceSummary | null {
 /** The provisioning profile (catalog + bundles + executor) for a device. */
 function profileFor(device: DeviceEntry | null): DeviceProfile | null {
   return device ? deviceProfile(device.id) : null;
+}
+
+/** A device is buildable when it has a Windows-style DeviceProfile OR its OS
+ *  uses the SteamOS/Linux host-carrier flow (which has no DeviceProfile). */
+function buildable(device: DeviceEntry): boolean {
+  return !!deviceProfile(device.id) || usesDeckCarrier(device.os);
 }
 
 interface PlanModule {
@@ -1409,6 +1415,7 @@ app.whenReady().then(() => {
   ipcMain.handle("usb:eject", (_event, drive: string) => ejectUsb(drive));
   ipcMain.handle("usb:format", (_event, drive: string) => formatUsbDrive(drive));
   ipcMain.handle("usb:disks", () => listUsbDisks());
+  ipcMain.handle("deck:apps", () => FLATPAK_APPS);
   ipcMain.handle("deck:plugins", () => fetchDeckyPlugins());
   ipcMain.handle("deck:writeProvisionUsb", (event, req: DeckProvisionUsbRequest) =>
     writeDeckProvisionUsb(event.sender, req),

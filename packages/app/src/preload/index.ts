@@ -4,6 +4,7 @@ import type {
   DeckConfig,
   DeckyStorePlugin,
   DeviceSummary,
+  FlatpakApp,
   GroupSummary,
   ModuleStateReport,
   ProvisioningMethod,
@@ -207,6 +208,7 @@ const api = {
   buildUsb: (req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null> =>
     ipcRenderer.invoke("usb:build", req),
   getUsbDisks: (): Promise<UsbDisk[]> => ipcRenderer.invoke("usb:disks"),
+  getDeckApps: (): Promise<FlatpakApp[]> => ipcRenderer.invoke("deck:apps"),
   getDeckyPlugins: (): Promise<DeckyStorePlugin[]> => ipcRenderer.invoke("deck:plugins"),
   writeDeckProvisionUsb: (req: DeckProvisionUsbRequest): Promise<{ started: boolean }> =>
     ipcRenderer.invoke("deck:writeProvisionUsb", req),

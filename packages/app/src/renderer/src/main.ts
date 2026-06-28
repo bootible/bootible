@@ -84,6 +84,8 @@ function logoEl(url: string | undefined, cls: string): HTMLElement {
 interface DeviceSummary {
   id: string;
   name: string;
+  /** Raw OS id ("steamos", "windows") — routes the Deck carrier vs Windows flow. */
+  os: string;
   system: string;
   provisioning: string;
   emulationCount: number;
@@ -265,6 +267,45 @@ interface UsbProgress {
   status: "running" | "done" | "error";
 }
 
+// ── Steam Deck / SteamOS carrier types (Path A: provision-only USB) ──
+interface FlatpakApp {
+  id: string;
+  name: string;
+  category: string;
+}
+
+interface DeckyStorePlugin {
+  name: string;
+  author: string;
+  description: string;
+  tags: string[];
+  downloads: number;
+  version: string;
+  imageUrl: string;
+}
+
+/** The renderer's view of DeckConfig (Partial — buildDeckBundle normalizes). */
+interface DeckConfig {
+  hostname?: string;
+  createSnapshot: boolean;
+  flatpakApps: string[];
+  ssh: { enabled: boolean; port: number; authorizedKeys: string[] };
+  decky: { enabled: boolean; plugins: string[] };
+  proton: { ge: boolean; protonUpQt: boolean; protontricks: boolean };
+  emudeck: boolean;
+  emulationStorage: "auto" | "internal" | "sdcard";
+  sunshine: boolean;
+  vnc: boolean;
+  tailscale: boolean;
+  waydroid: boolean;
+  stickdeck: boolean;
+}
+
+interface DeckProvisionUsbReq {
+  driveLetter: string;
+  config: Partial<DeckConfig>;
+}
+
 interface UsbWriteReq extends UsbBuildRequest {
   diskNumber: number;
   isoPath?: string;
@@ -335,6 +376,9 @@ interface BootibleApi {
   openPath(path: string): Promise<string>;
   applyDevice(req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }>;
   getUsbDisks(): Promise<UsbDisk[]>;
+  getDeckApps(): Promise<FlatpakApp[]>;
+  getDeckyPlugins(): Promise<DeckyStorePlugin[]>;
+  writeDeckProvisionUsb(req: DeckProvisionUsbReq): Promise<{ started: boolean }>;
   getIsoCatalog(): Promise<IsoOption[]>;
   browseIso(): Promise<string | null>;
   writeUsb(req: UsbWriteReq): Promise<{ started: boolean }>;
@@ -414,6 +458,8 @@ const VIEWS = [
   "wifi",
   "review",
   "usbwrite",
+  "deck",
+  "deckwrite",
   "watch",
   "connect",
   "provision",
@@ -483,6 +529,8 @@ function syncFromHash(): void {
     renderReviewPlan();
   }
   if (view === "usbwrite") void hydrateUsbWrite();
+  if (view === "deck") void hydrateDeck();
+  if (view === "deckwrite") void hydrateDeckWrite();
   if (view === "watch") {
     void window.bootible?.startDiscovery?.();
     renderDiscovered();
@@ -649,6 +697,21 @@ async function selectDeviceAndGo(id: string): Promise<void> {
   fill("system", device.system);
   fill("device-sub", `${device.system} handheld — selected.`);
   fill("base-eyebrow", `Your ${device.name}`);
+  // The Deck (SteamOS) uses the host-carrier flow, not the Windows base/customise
+  // wizard — point the home "Set up" button at the Deck config screen.
+  const isDeck = usesDeckCarrierOs(device.os);
+  const setupBtn = document.querySelector<HTMLElement>(
+    '.view[data-view="home"] .actions [data-go]',
+  );
+  if (setupBtn) setupBtn.dataset.go = isDeck ? "deck" : "base";
+  const flowLine = document.querySelector<HTMLElement>(
+    '.view[data-view="home"] .readout .rline:nth-child(3) .rval',
+  );
+  if (flowLine) {
+    flowLine.textContent = isDeck
+      ? "configure (you install SteamOS)"
+      : "wipe → install → configure";
+  }
   location.hash = "home";
 }
 
@@ -1328,6 +1391,13 @@ let catalog: GroupSummary[] = [];
 let deviceName = "ROG Ally X";
 let selectedDeviceId = "";
 let selectedBaseId = "";
+
+/** OSes provisioned via the SteamOS/Linux host-carrier flow (mirrors core's
+ *  usesDeckCarrier — kept in sync; SteamOS today, Bazzite later). */
+const CARRIER_OSES = new Set(["steamos"]);
+function usesDeckCarrierOs(os: string): boolean {
+  return CARRIER_OSES.has(os);
+}
 let loadedProfileName = ""; // the profile currently loaded (drives Update vs Save-as-new)
 let hostSshKeys: HostSshKey[] = [];
 const selectedKeyIds = new Set<string>();
@@ -2273,6 +2343,9 @@ async function startUsbWrite(): Promise<void> {
 }
 
 function onUsbProgress(event: UsbProgress): void {
+  // The Deck provision-only write shares the usb:progress channel but has its own
+  // progress UI + finish behaviour (onDeckProgress) — don't double-handle it here.
+  if (document.body.dataset.view === "deckwrite") return;
   const msg = document.querySelector("#uw-msg");
   const fill = document.querySelector<HTMLElement>("#uw-fill");
   const pct = document.querySelector("#uw-pct");
@@ -2291,6 +2364,343 @@ function onUsbProgress(event: UsbProgress): void {
 }
 
 window.bootible?.onUsbProgress?.(onUsbProgress);
+
+// ── Steam Deck config + provision-only USB (Path A) ──────────────────────────
+
+const RECOMMENDED_DECKY = ["PowerTools", "ProtonDB Badges", "SteamGridDB"];
+
+/** The Deck choices — the single source of truth (buildDeckBundle normalizes). */
+const deckState: DeckConfig = {
+  hostname: undefined,
+  createSnapshot: true,
+  flatpakApps: ["flatseal"],
+  ssh: { enabled: false, port: 22, authorizedKeys: [] },
+  decky: { enabled: true, plugins: [...RECOMMENDED_DECKY] },
+  proton: { ge: true, protonUpQt: true, protontricks: true },
+  emudeck: false,
+  emulationStorage: "auto",
+  sunshine: false,
+  vnc: false,
+  tailscale: false,
+  waydroid: false,
+  stickdeck: false,
+};
+let deckDisk = ""; // selected USB drive letter, e.g. "E"
+
+/** A checkbox row bound to a setter on deckState. */
+function deckCheck(
+  label: string,
+  checked: boolean,
+  onChange: (v: boolean) => void,
+  hint?: string,
+): HTMLElement {
+  const row = el("label", "deck-row");
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = checked;
+  cb.addEventListener("change", () => {
+    onChange(cb.checked);
+    updateDeckSummary();
+  });
+  row.append(cb, el("span", "deck-row-label", label));
+  if (hint) row.append(el("span", "deck-row-hint muted", hint));
+  return row;
+}
+
+function deckSection(title: string): HTMLElement {
+  const sec = el("section", "uw-section deck-section");
+  sec.append(el("p", "uw-label", title));
+  return sec;
+}
+
+function updateDeckSummary(): void {
+  const n =
+    deckState.flatpakApps.length + (deckState.decky.enabled ? deckState.decky.plugins.length : 0);
+  const sum = document.querySelector("#deck-summary");
+  if (sum) {
+    sum.textContent = `${n} item${n === 1 ? "" : "s"} selected — Decky ${deckState.decky.enabled ? "on" : "off"}.`;
+  }
+}
+
+async function hydrateDeck(): Promise<void> {
+  const body = document.querySelector<HTMLElement>("#deck-body");
+  if (!body) return;
+  const api = window.bootible;
+  body.replaceChildren();
+
+  const sys = deckSection("System");
+  sys.append(
+    deckCheck("Btrfs snapshot before changes (safe rollback)", deckState.createSnapshot, (v) => {
+      deckState.createSnapshot = v;
+    }),
+  );
+  const host = document.createElement("input");
+  host.type = "text";
+  host.className = "uw-select";
+  host.placeholder = "Hostname (optional)";
+  host.value = deckState.hostname ?? "";
+  host.addEventListener("input", () => {
+    deckState.hostname = host.value.trim() || undefined;
+  });
+  sys.append(host);
+  body.append(sys);
+
+  const decky = deckSection("Decky Loader");
+  decky.append(
+    deckCheck("Install Decky Loader", deckState.decky.enabled, (v) => {
+      deckState.decky.enabled = v;
+      document.querySelector("#deck-plugins")?.toggleAttribute("hidden", !v);
+    }),
+  );
+  const plugins = el("div", "deck-plugins");
+  plugins.id = "deck-plugins";
+  if (!deckState.decky.enabled) plugins.hidden = true;
+  plugins.append(el("p", "muted", "Loading the plugin store…"));
+  decky.append(plugins);
+  body.append(decky);
+
+  const proton = deckSection("Proton & compatibility");
+  proton.append(
+    deckCheck("Proton-GE (latest)", deckState.proton.ge, (v) => {
+      deckState.proton.ge = v;
+    }),
+    deckCheck("ProtonUp-Qt", deckState.proton.protonUpQt, (v) => {
+      deckState.proton.protonUpQt = v;
+    }),
+    deckCheck("protontricks", deckState.proton.protontricks, (v) => {
+      deckState.proton.protontricks = v;
+    }),
+  );
+  body.append(proton);
+
+  const emu = deckSection("Emulation");
+  emu.append(
+    deckCheck(
+      "EmuDeck (creates the Emulation tree + launcher; wizard is manual)",
+      deckState.emudeck,
+      (v) => {
+        deckState.emudeck = v;
+      },
+    ),
+  );
+  body.append(emu);
+
+  const remote = deckSection("Streaming & remote");
+  remote.append(
+    deckCheck("Sunshine (stream games from the Deck)", deckState.sunshine, (v) => {
+      deckState.sunshine = v;
+    }),
+    deckCheck("VNC remote desktop", deckState.vnc, (v) => {
+      deckState.vnc = v;
+    }),
+    deckCheck("Tailscale (mesh VPN)", deckState.tailscale, (v) => {
+      deckState.tailscale = v;
+    }),
+  );
+  remote.append(
+    deckCheck("SSH server", deckState.ssh.enabled, (v) => {
+      deckState.ssh.enabled = v;
+      document.querySelector("#deck-ssh-keys")?.toggleAttribute("hidden", !v);
+    }),
+  );
+  const keys = document.createElement("textarea");
+  keys.id = "deck-ssh-keys";
+  keys.className = "uw-select";
+  keys.placeholder = "Authorized SSH public keys, one per line";
+  keys.rows = 3;
+  keys.value = deckState.ssh.authorizedKeys.join("\n");
+  if (!deckState.ssh.enabled) keys.hidden = true;
+  keys.addEventListener("input", () => {
+    deckState.ssh.authorizedKeys = keys.value
+      .split("\n")
+      .map((k) => k.trim())
+      .filter(Boolean);
+  });
+  remote.append(keys);
+  body.append(remote);
+
+  const extras = deckSection("Extras");
+  extras.append(
+    deckCheck("Waydroid (Android apps; installer is interactive)", deckState.waydroid, (v) => {
+      deckState.waydroid = v;
+    }),
+    deckCheck("StickDeck (use the Deck as a PC controller)", deckState.stickdeck, (v) => {
+      deckState.stickdeck = v;
+    }),
+  );
+  body.append(extras);
+
+  const appsSec = deckSection("Apps (Flatpak)");
+  const appsBox = el("div", "deck-apps");
+  appsBox.id = "deck-apps";
+  appsBox.append(el("p", "muted", "Loading apps…"));
+  appsSec.append(appsBox);
+  body.append(appsSec);
+
+  updateDeckSummary();
+
+  if (api?.getDeckApps) {
+    try {
+      renderDeckApps(appsBox, await api.getDeckApps());
+    } catch {
+      appsBox.replaceChildren(el("p", "muted", "Couldn't load the app list."));
+    }
+  }
+  if (api?.getDeckyPlugins) {
+    try {
+      renderDeckPlugins(plugins, await api.getDeckyPlugins());
+    } catch {
+      plugins.replaceChildren(
+        el("p", "muted", "Couldn't reach the Decky store — the defaults will be used."),
+      );
+    }
+  }
+}
+
+function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
+  box.replaceChildren(
+    ...apps.map((app) =>
+      deckCheck(
+        app.name,
+        deckState.flatpakApps.includes(app.id),
+        (v) => {
+          const set = new Set(deckState.flatpakApps);
+          if (v) set.add(app.id);
+          else set.delete(app.id);
+          deckState.flatpakApps = [...set];
+        },
+        app.category,
+      ),
+    ),
+  );
+}
+
+function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
+  if (list.length === 0) {
+    box.replaceChildren(el("p", "muted", "No plugins returned — the defaults will be used."));
+    return;
+  }
+  box.replaceChildren(
+    ...list.map((p) =>
+      deckCheck(
+        p.name,
+        deckState.decky.plugins.includes(p.name),
+        (v) => {
+          const set = new Set(deckState.decky.plugins);
+          if (v) set.add(p.name);
+          else set.delete(p.name);
+          deckState.decky.plugins = [...set];
+        },
+        (p.description ?? "").slice(0, 60),
+      ),
+    ),
+  );
+}
+
+async function hydrateDeckWrite(): Promise<void> {
+  await refreshDeckDisks();
+  updateDeckWriteButton();
+}
+
+async function refreshDeckDisks(): Promise<void> {
+  const api = window.bootible;
+  const list = document.querySelector<HTMLElement>("#deck-disk-list");
+  if (!api?.getUsbDisks || !list) return;
+  let disks: UsbDisk[] = [];
+  try {
+    disks = await api.getUsbDisks();
+  } catch {}
+  if (disks.length === 0) {
+    list.replaceChildren(
+      el("p", "muted", "No removable USB drives found. Plug one in, then Refresh."),
+    );
+    return;
+  }
+  list.replaceChildren(
+    ...disks.map((disk) => {
+      const letter = (disk.letters.match(/[A-Za-z](?=:)/)?.[0] ?? "").toUpperCase();
+      const btn = el("button", "uw-disk deck-disk") as HTMLButtonElement;
+      btn.type = "button";
+      btn.dataset.letter = letter;
+      btn.disabled = !letter;
+      if (letter && letter === deckDisk) btn.classList.add("is-sel");
+      const title =
+        disk.label && disk.letters ? `${disk.label} (${disk.letters})` : disk.letters || disk.name;
+      const detail = [
+        disk.name,
+        `${disk.sizeGb} GB`,
+        letter ? "" : "no drive letter — format it in Explorer first",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      btn.append(el("span", "uw-disk-name", title), el("span", "uw-disk-size", detail));
+      return btn;
+    }),
+  );
+}
+
+function updateDeckWriteButton(): void {
+  const btn = document.querySelector<HTMLButtonElement>("#deck-write-btn");
+  const confirmed =
+    document.querySelector<HTMLInputElement>("#deck-erase-confirm")?.checked ?? false;
+  if (btn) btn.disabled = !(confirmed && deckDisk);
+}
+
+async function startDeckWrite(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.writeDeckProvisionUsb || !deckDisk) return;
+  document.querySelector('[data-view="deckwrite"] .uw-go')?.setAttribute("hidden", "");
+  document.querySelector("#deck-progress")?.removeAttribute("hidden");
+  onDeckProgress({
+    pct: 1,
+    message: "Formatting — accept the admin (UAC) prompt…",
+    status: "running",
+  });
+  const result = await api.writeDeckProvisionUsb({ driveLetter: deckDisk, config: deckState });
+  if (result && !result.started) {
+    onDeckProgress({ pct: 0, message: "Couldn't start the write.", status: "error" });
+  }
+}
+
+function onDeckProgress(event: UsbProgress): void {
+  if (document.body.dataset.view !== "deckwrite") return;
+  const msg = document.querySelector("#deck-msg");
+  const fill = document.querySelector<HTMLElement>("#deck-fill");
+  const pct = document.querySelector("#deck-pct");
+  if (msg) msg.textContent = event.message;
+  if (fill) fill.style.width = `${event.pct}%`;
+  if (pct) {
+    pct.textContent =
+      event.status === "error"
+        ? "Failed — see the message above."
+        : event.status === "done"
+          ? "Done — eject it and run bootible/provision.sh on your Deck."
+          : `${event.pct}% — keep the app open.`;
+  }
+}
+
+window.bootible?.onUsbProgress?.(onDeckProgress);
+
+document.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest("#deck-disk-refresh")) {
+    void refreshDeckDisks();
+    return;
+  }
+  const disk = target.closest<HTMLElement>(".deck-disk");
+  if (disk) {
+    deckDisk = disk.dataset.letter ?? "";
+    for (const d of document.querySelectorAll(".deck-disk"))
+      d.classList.toggle("is-sel", d === disk);
+    updateDeckWriteButton();
+    return;
+  }
+  if (target.closest("#deck-write-btn")) void startDeckWrite();
+});
+
+document.addEventListener("change", (event) => {
+  if ((event.target as HTMLElement).id === "deck-erase-confirm") updateDeckWriteButton();
+});
 
 // ── device discovery (watch screen) ─────────────────────────────────────────
 const discovered = new Map<string, DiscoveredDevice>();
@@ -2552,10 +2962,11 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const disk = target.closest<HTMLElement>(".uw-disk");
+  const disk = target.closest<HTMLElement>(".uw-disk:not(.deck-disk)");
   if (disk) {
     usbState.disk = Number(disk.dataset.disk);
-    for (const d of document.querySelectorAll(".uw-disk")) d.classList.toggle("is-sel", d === disk);
+    for (const d of document.querySelectorAll(".uw-disk:not(.deck-disk)"))
+      d.classList.toggle("is-sel", d === disk);
     updateWriteButton();
     return;
   }

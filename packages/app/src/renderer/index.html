@@ -875,6 +875,61 @@
           </div>
         </main>
 
+        <!-- ───────────────────── STEAM DECK CONFIG (SteamOS carrier) ───────────────────── -->
+        <main class="view setup" data-view="deck">
+          <div class="setup-head">
+            <p class="eyebrow" data-field="base-eyebrow">Your Steam Deck</p>
+            <h1 class="setup-title">Configure your Deck</h1>
+            <p class="setup-sub">
+              Pick what bootible sets up. It builds a USB you run on the Deck (Desktop Mode) — your
+              games and SteamOS install stay put.
+            </p>
+          </div>
+          <div class="customise-body" id="deck-body"><p class="muted">Loading options…</p></div>
+          <div class="customise-foot">
+            <p class="customise-summary" id="deck-summary"></p>
+            <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="deckwrite">Build USB <span class="arrow" aria-hidden="true">→</span></button>
+              <button class="btn-ghost" type="button" data-back>Back</button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── DECK USB WRITE (provision-only) ───────────────────── -->
+        <main class="view setup" data-view="deckwrite">
+          <div class="setup-head">
+            <p class="eyebrow">Build a USB</p>
+            <h1 class="setup-title">Write the bootible stick</h1>
+            <p class="setup-sub">
+              Pick the USB to erase — bootible formats it (exFAT, labelled BOOTIBLE) and copies your
+              setup onto it. On the Deck in Desktop Mode, open it and run bootible/provision.sh.
+            </p>
+          </div>
+          <div class="usbwrite-body">
+            <section class="uw-section">
+              <p class="uw-label">USB drive <button class="linkbtn" type="button" id="deck-disk-refresh">refresh</button></p>
+              <div class="uw-disks" id="deck-disk-list"><p class="muted">Scanning for removable drives…</p></div>
+            </section>
+            <section class="uw-section uw-go">
+              <label class="uw-confirm">
+                <input type="checkbox" id="deck-erase-confirm" />
+                <span>I understand this <strong>erases</strong> the selected drive</span>
+              </label>
+              <div class="done-actions">
+                <button class="btn-primary" type="button" id="deck-write-btn" disabled>
+                  Write USB <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <button class="btn-ghost" type="button" data-back>Back</button>
+              </div>
+            </section>
+            <section class="uw-section uw-progress" id="deck-progress" hidden>
+              <p class="provision-now" id="deck-msg">Starting…</p>
+              <div class="progress"><div class="progress-fill" id="deck-fill" style="width: 0%"></div></div>
+              <p class="progress-meta" id="deck-pct">Working… keep the app open.</p>
+            </section>
+          </div>
+        </main>
+
         <!-- ───────────────────── WATCH (the device announces itself) ───────────────────── -->
         <main class="view setup" data-view="watch">
           <div class="setup-head">

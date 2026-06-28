@@ -2,7 +2,7 @@
 id: steamdeck
 name: Steam Deck / Deck OLED
 provisioning_models:
-  - on-device
+  - host-media-prep
 os: steamos
 capabilities:
   great:
