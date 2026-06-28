@@ -18,7 +18,14 @@ import {
   unlockWithPassphrase,
   unlockWithRecovery,
 } from "@bootible/core";
-import { app, BrowserWindow, session as electronSession, ipcMain, safeStorage } from "electron";
+import {
+  app,
+  BrowserWindow,
+  session as electronSession,
+  ipcMain,
+  safeStorage,
+  shell,
+} from "electron";
 import { makeLocalStore } from "./profiles-store";
 
 const API_BASE = process.env.BOOTIBLE_API_BASE ?? "https://api.bootible.dev";
@@ -186,10 +193,8 @@ async function runSocialSignIn(provider: string): Promise<AuthResult> {
   await ses.clearStorageData({ storages: ["cookies"] }); // clean slate per attempt
 
   const win = new BrowserWindow({
-    width: 480,
-    height: 760,
-    parent: BrowserWindow.getAllWindows()[0],
-    modal: true,
+    width: 600,
+    height: 820,
     autoHideMenuBar: true,
     title: "Sign in",
     webPreferences: { session: ses, nodeIntegration: false, contextIsolation: true },
@@ -199,11 +204,20 @@ async function runSocialSignIn(provider: string): Promise<AuthResult> {
   win.webContents.setUserAgent(
     win.webContents.getUserAgent().replace(/\s(Electron|bootible)\/\S+/g, ""),
   );
-  // Block popups + app deep-links (e.g. discord://) — navigating to an unknown
-  // protocol crashes Electron. Providers still complete fine in-window.
-  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  // App deep-links (e.g. discord:// to hand off to the desktop app) must NOT be
+  // navigated to in-window — open them in the OS instead. The window stays on the
+  // provider's "continue here" page and redirects back once auth completes.
+  const handleExternal = (target: string): boolean => {
+    if (/^https?:\/\//i.test(target)) return false;
+    void shell.openExternal(target);
+    return true;
+  };
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    handleExternal(url);
+    return { action: "deny" };
+  });
   win.webContents.on("will-navigate", (e, target) => {
-    if (!/^https?:\/\//i.test(target)) e.preventDefault();
+    if (handleExternal(target)) e.preventDefault();
   });
 
   return new Promise<AuthResult>((resolve) => {

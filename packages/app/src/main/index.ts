@@ -57,14 +57,7 @@ import {
   UNIVERSAL_FLOOR,
   type UsbBuildSpec,
 } from "@bootible/core";
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  shell,
-  type WebContents,
-} from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from "electron";
 import { registerCloudIpc } from "./cloud";
 import {
   deleteProfile,
@@ -1268,6 +1261,10 @@ function createWindow(): void {
     win.loadFile(join(__dirname, "../renderer/index.html"), hash ? { hash } : undefined);
   }
 }
+
+// Some provider OAuth pages crash the GPU process (command_buffer access
+// violation) and take the app down. This UI doesn't need GPU acceleration.
+app.disableHardwareAcceleration();
 
 app.whenReady().then(() => {
   registerCloudIpc();
