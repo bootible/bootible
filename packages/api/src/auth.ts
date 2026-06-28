@@ -44,6 +44,17 @@ export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, bas
       {
         emailAndPassword: { enabled: true },
         socialProviders: env ? socialProviders(env) : {},
+        // Auto-link a social sign-in to an existing same-email account. All four
+        // providers return a verified email, so this is safe (and avoids
+        // account_not_linked when the existing account isn't email-verified yet —
+        // email verification lands with Resend). trustedProviders linking does not
+        // require the existing account to be verified.
+        account: {
+          accountLinking: {
+            enabled: true,
+            trustedProviders: ["google", "github", "discord", "twitch"],
+          },
+        },
         // Bearer plugin: the desktop app stores the session token (from the
         // set-auth-token response header) in safeStorage and sends it as
         // Authorization: Bearer — cleaner than cookies for a native client.
