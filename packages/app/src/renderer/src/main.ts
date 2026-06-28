@@ -1,5 +1,12 @@
 import "./styles.css";
 import brandMark from "./assets/bootible-mark.png";
+import wordlistRaw from "./wordlist.txt?raw";
+
+// EFF diceware wordlist (7776 words) for generating real word-passphrases.
+const WORDLIST = wordlistRaw
+  .split("\n")
+  .map((w) => w.trim())
+  .filter(Boolean);
 
 // Brand mark in the sysbar + window favicon (Vite resolves the hashed URL).
 const markImg = document.querySelector<HTMLImageElement>("#brand-mark");
@@ -2661,22 +2668,10 @@ function syncError(msg: string | null): void {
   if (el) el.textContent = msg ?? "";
 }
 
-/** A strong, readable random passphrase (~120 bits, Crockford base32, grouped). */
+/** A diceware passphrase: 6 random words from the EFF list (~77 bits). */
 function genPassphrase(): string {
-  const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
-  const bytes = crypto.getRandomValues(new Uint8Array(15));
-  let out = "";
-  let bits = 0;
-  let val = 0;
-  for (const b of bytes) {
-    val = (val << 8) | b;
-    bits += 8;
-    while (bits >= 5) {
-      out += ALPHABET[(val >>> (bits - 5)) & 31];
-      bits -= 5;
-    }
-  }
-  return (out.match(/.{1,4}/g) ?? [out]).join("-");
+  const rand = crypto.getRandomValues(new Uint32Array(6));
+  return Array.from(rand, (r) => WORDLIST[r % WORDLIST.length] ?? "").join(" ");
 }
 
 async function copyToClipboard(text: string, btn: HTMLButtonElement): Promise<void> {
