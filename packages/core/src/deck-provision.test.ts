@@ -66,6 +66,11 @@ describe("generateDeckProvision", () => {
     expect(s).toContain('"PowerTools"'); // store name passed straight to the loop
     expect(s).toContain("plugins.deckbrew.xyz/plugins");
     expect(s).toContain("systemctl restart plugin_loader"); // the v1 fix
+    // The plugin name MUST be an env-var PREFIX (N="$NAME" python3 …), not a
+    // trailing arg — otherwise os.environ['N'] throws and set -e kills the run
+    // (caught on real hardware, 29 Jun).
+    expect(s).toContain('N="$NAME" python3');
+    expect(s).not.toMatch(/python3 -c "[^"]*" N="\$NAME"/);
   });
 
   it("skips Decky when disabled", () => {

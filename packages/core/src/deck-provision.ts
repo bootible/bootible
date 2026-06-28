@@ -134,7 +134,7 @@ function deckyBlock(cfg: DeckConfig): string {
       `say "Installing ${names.length} Decky plugin(s)"`,
       `STORE="$(curl -fsSL https://plugins.deckbrew.xyz/plugins || echo '[]')"`,
       `for NAME in ${arr}; do`,
-      `  HASH="$(printf '%s' "$STORE" | python3 -c "import sys,json,os; d=json.load(sys.stdin); p=next((x for x in d if x.get('name')==os.environ['N']),None); print(p['versions'][0]['hash'] if p and p.get('versions') else '')" N="$NAME" 2>/dev/null)"`,
+      `  HASH="$(printf '%s' "$STORE" | N="$NAME" python3 -c "import sys,json,os; d=json.load(sys.stdin); p=next((x for x in d if x.get('name')==os.environ['N']),None); print(p['versions'][0]['hash'] if p and p.get('versions') else '')" 2>/dev/null || echo "")"`,
       `  if [ -z "$HASH" ]; then warn "plugin not found: $NAME"; continue; fi`,
       `  curl -fsSL "https://cdn.tzatzikiweeb.moe/file/steam-deck-homebrew/versions/$HASH.zip" -o /tmp/decky-plugin.zip && \\`,
       `    python3 -m zipfile -e /tmp/decky-plugin.zip "$HOME/homebrew/plugins/" && ok "plugin: $NAME" || warn "plugin failed: $NAME"`,
