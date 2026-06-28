@@ -33,7 +33,9 @@
         }
       ],
       "kv_namespaces": [{ "binding": "KV", "id": "135efcf2fe674f46bb2c7fb197ebba52" }],
-      "routes": [{ "pattern": "api.staging.bootible.dev", "custom_domain": true }]
+      "routes": [{ "pattern": "api.staging.bootible.dev", "custom_domain": true }],
+      // Match this to the subdomain you verify in Resend. RESEND_API_KEY is a secret.
+      "vars": { "EMAIL_FROM": "bootible <noreply@updates.bootible.dev>" }
     },
 
     // ── Production — reuses the already-created worker/D1/KV + api.bootible.dev ──
@@ -50,7 +52,9 @@
         }
       ],
       "kv_namespaces": [{ "binding": "KV", "id": "2366b28492f541c4af19f3c45abd9fdf" }],
-      "routes": [{ "pattern": "api.bootible.dev", "custom_domain": true }]
+      "routes": [{ "pattern": "api.bootible.dev", "custom_domain": true }],
+      // Match this to the subdomain you verify in Resend. RESEND_API_KEY is a secret.
+      "vars": { "EMAIL_FROM": "bootible <noreply@updates.bootible.dev>" }
     }
   }
 }

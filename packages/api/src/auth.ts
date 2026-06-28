@@ -2,6 +2,7 @@ import type { IncomingRequestCfProperties } from "@cloudflare/workers-types";
 import { betterAuth } from "better-auth";
 import { bearer, twoFactor } from "better-auth/plugins";
 import { withCloudflare } from "better-auth-cloudflare";
+import { resetPasswordEmail, sendEmail, verificationEmail } from "./email";
 import type { Bindings } from "./env";
 
 const pair = (id?: string, secret?: string) =>
@@ -42,7 +43,43 @@ export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, bas
         kv: env?.KV,
       },
       {
-        emailAndPassword: { enabled: true },
+        emailAndPassword: {
+          enabled: true,
+          // Password reset email (Resend). Only wired at runtime (env present).
+          ...(env
+            ? {
+                sendResetPassword: async ({
+                  user,
+                  url,
+                }: {
+                  user: { email: string };
+                  url: string;
+                }) => {
+                  const { subject, html } = resetPasswordEmail(url);
+                  await sendEmail(env, user.email, subject, html);
+                },
+              }
+            : {}),
+        },
+        // Email verification on sign-up (Resend). Verifying clears the account so
+        // social sign-in can link to it. Sign-in is NOT blocked on verification yet.
+        ...(env
+          ? {
+              emailVerification: {
+                sendOnSignUp: true,
+                sendVerificationEmail: async ({
+                  user,
+                  url,
+                }: {
+                  user: { email: string };
+                  url: string;
+                }) => {
+                  const { subject, html } = verificationEmail(url);
+                  await sendEmail(env, user.email, subject, html);
+                },
+              },
+            }
+          : {}),
         socialProviders: env ? socialProviders(env) : {},
         // Auto-link a social sign-in to an existing same-email account. All four
         // providers return a verified email, so this is safe (and avoids

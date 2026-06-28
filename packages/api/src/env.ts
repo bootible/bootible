@@ -16,4 +16,8 @@ export interface Bindings {
   DISCORD_CLIENT_SECRET?: string;
   TWITCH_CLIENT_ID?: string;
   TWITCH_CLIENT_SECRET?: string;
+  /** Resend API key (secret) — when present, verification + reset emails send. */
+  RESEND_API_KEY?: string;
+  /** From address for transactional email, e.g. "bootible <noreply@send.bootible.dev>". */
+  EMAIL_FROM?: string;
 }
