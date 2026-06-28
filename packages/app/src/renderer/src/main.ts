@@ -1941,7 +1941,8 @@ async function runExport(): Promise<void> {
 function gatherUsbRequest(): UsbBuildRequest {
   const val = (sel: string) =>
     document.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel)?.value.trim() ?? "";
-  const mode = document.body.dataset.account === "microsoft" ? "microsoft" : "local";
+  const mode: "local" | "microsoft" =
+    document.body.dataset.account === "microsoft" ? "microsoft" : "local";
   const account =
     mode === "local"
       ? { mode, username: val("#acct-user") || "ally", password: val("#acct-pass") || undefined }
@@ -2705,7 +2706,7 @@ document.addEventListener("change", (event) => {
 // ── device discovery (watch screen) ─────────────────────────────────────────
 const discovered = new Map<string, DiscoveredDevice>();
 // Verify results survive the 5s beacon re-renders, keyed by device IP.
-const verifyResults = new Map<string, { reachable: boolean; output: string }>();
+const verifyResults = new Map<string, { reachable: boolean; output: string; alias?: string }>();
 
 /** Render the discovered devices, the build we just made first. */
 function renderDiscovered(): void {

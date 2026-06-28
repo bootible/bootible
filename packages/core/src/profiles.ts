@@ -36,6 +36,6 @@ export function deviceProfile(id: string): DeviceProfile | null {
 const CARRIER_OSES = new Set(["steamos"]);
 
 /** True when a device's OS builds via the Deck/Linux host-carrier flow. */
-export function usesDeckCarrier(os: string): boolean {
-  return CARRIER_OSES.has(os);
+export function usesDeckCarrier(os: string | undefined): boolean {
+  return os !== undefined && CARRIER_OSES.has(os);
 }

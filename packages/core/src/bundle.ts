@@ -27,6 +27,8 @@ export interface UsbBuildSpec {
   uiLanguage?: string;
   /** Region/keyboard BCP-47 locale. Omitted → autounattend default (en-NZ). */
   locale?: string;
+  /** Windows edition string the app assembled, e.g. "Windows 11 Pro". */
+  edition?: string;
   /** Build token for LAN discovery. When set, a beacon agent is staged that
    *  broadcasts this id so the desktop can find the device. */
   buildId?: string;

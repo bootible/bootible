@@ -20,6 +20,8 @@ export interface DeviceEntry {
   id: string;
   name: string;
   provisioning_models: ProvisioningModel[];
+  /** Registry OS id ("steamos", "windows", …); drives platform + carrier routing. */
+  os?: string;
   capabilities?: Capabilities;
   detect?: DeviceDetect;
   [key: string]: unknown;
