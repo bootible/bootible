@@ -95,6 +95,10 @@ app.get("/test", (c) => {
     <button data-act="session">Get session</button>
     <button data-act="forgot">Forgot password</button>
   </div>
+  <div style="margin:8px 0">2FA:
+    <input id="totp" inputmode="numeric" placeholder="123456" style="width:90px;padding:8px;background:#15171c;color:#eceae3;border:1px solid #2a2d35;border-radius:6px">
+    <button data-act="totp">Verify code</button>
+  </div>
   <div style="margin:8px 0">Social:
     <button data-social="google">Google</button>
     <button data-social="github">GitHub</button>
@@ -117,6 +121,7 @@ app.get("/test", (c) => {
         else if (a === "signin") call("sign-in/email", { email: email(), password: pw() });
         else if (a === "signout") call("sign-out", {});
         else if (a === "forgot") call("request-password-reset", { email: email(), redirectTo: location.origin + "/reset-password" });
+        else if (a === "totp") call("two-factor/verify-totp", { code: document.getElementById("totp").value });
         else if (a === "session") fetch("/api/auth/get-session", { credentials: "include" }).then(function (r) { return r.json().then(function (d) { out({ status: r.status, body: d }); }); });
       };
     });
