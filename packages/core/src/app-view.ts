@@ -4,6 +4,9 @@ import type { DeviceEntry } from "./registry";
 export interface DeviceSummary {
   id: string;
   name: string;
+  /** Raw OS registry id, e.g. "steamos" — used by the renderer to route to the
+   *  right provisioning flow (the SteamOS/Deck carrier vs the Windows wizard). */
+  os: string;
   /** Human display of the device's OS, e.g. "Windows". */
   system: string;
   /** The device's primary provisioning model. */
@@ -52,6 +55,7 @@ export function deviceSummary(entry: DeviceEntry): DeviceSummary {
   return {
     id: entry.id,
     name: entry.name,
+    os,
     system: prettyOs(os),
     provisioning: entry.provisioning_models[0] ?? "guided",
     emulationCount: entry.capabilities?.great?.length ?? 0,

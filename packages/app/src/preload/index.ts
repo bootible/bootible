@@ -1,6 +1,8 @@
 import type {
   AppGroup,
   Bundle,
+  DeckConfig,
+  DeckyStorePlugin,
   DeviceSummary,
   GroupSummary,
   ModuleStateReport,
@@ -151,6 +153,12 @@ export interface UsbProgress {
   status: "running" | "done" | "error";
 }
 
+/** Path A — build a provision-only Deck USB: format + carry the payload. */
+export interface DeckProvisionUsbRequest {
+  driveLetter: string;
+  config: Partial<DeckConfig>;
+}
+
 // The renderer surface. Each call forwards to a main-process IPC handler that
 // drives @bootible/core. Provisioning streams step events back over the
 // provision:step / provision:done channels.
@@ -199,6 +207,9 @@ const api = {
   buildUsb: (req: UsbBuildRequest): Promise<{ stagingPath: string; command: string } | null> =>
     ipcRenderer.invoke("usb:build", req),
   getUsbDisks: (): Promise<UsbDisk[]> => ipcRenderer.invoke("usb:disks"),
+  getDeckyPlugins: (): Promise<DeckyStorePlugin[]> => ipcRenderer.invoke("deck:plugins"),
+  writeDeckProvisionUsb: (req: DeckProvisionUsbRequest): Promise<{ started: boolean }> =>
+    ipcRenderer.invoke("deck:writeProvisionUsb", req),
   getIsoCatalog: (): Promise<IsoOption[]> => ipcRenderer.invoke("iso:catalog"),
   getLanguages: (): Promise<LanguageOption[]> => ipcRenderer.invoke("languages:get"),
   getRegions: (): Promise<RegionOption[]> => ipcRenderer.invoke("regions:get"),

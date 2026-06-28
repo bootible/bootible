@@ -20,11 +20,15 @@ import {
   type Base,
   BEACON_PORT,
   type Bundle,
+  type BundleFile,
   baseById,
   baseModuleIds,
   buildConfig,
+  buildDeckBundle,
   buildUsbBundle,
   checkModules,
+  type DeckConfig,
+  type DeckyStorePlugin,
   type DeviceEntry,
   type DeviceProfile,
   type DeviceSummary,
@@ -33,6 +37,7 @@ import {
   deviceProfile,
   deviceSummary,
   type Exec,
+  fetchDeckyPlugins,
   type GroupSummary,
   generateBootstrapScript,
   generateStripLauncher,
@@ -56,6 +61,7 @@ import {
   serializeConfig,
   UNIVERSAL_FLOOR,
   type UsbBuildSpec,
+  usesDeckCarrier,
 } from "@bootible/core";
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from "electron";
 import { registerCloudIpc } from "./cloud";
@@ -1052,6 +1058,75 @@ function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean
   return { started: true };
 }
 
+// ── Steam Deck / SteamOS carrier (Path A: provision-only USB) ────────────────
+
+export interface DeckProvisionUsbRequest {
+  /** Drive letter of the USB to format + carry the payload, e.g. "E" or "E:". */
+  driveLetter: string;
+  /** The user's Deck choices → DeckConfig (buildDeckBundle normalizes it). */
+  config: Partial<DeckConfig>;
+}
+
+/**
+ * Path A — provision-only USB. Format the chosen stick to exFAT (label BOOTIBLE)
+ * and copy the generated payload (provision.sh + config.json + README) onto it.
+ * The user installs/keeps SteamOS themselves (Valve recovery, or an existing
+ * install), then runs provision.sh from the stick. No image flash — far simpler
+ * and lower risk than the full reimage path, and it works on an already-set-up
+ * Deck too. Progress streams on the same `usb:progress` channel the writer uses.
+ */
+function writeDeckProvisionUsb(
+  sender: WebContents,
+  req: DeckProvisionUsbRequest,
+): { started: boolean } {
+  const letter = (req.driveLetter.replace(/[:\\]/g, "")[0] ?? "").toUpperCase();
+  const emit = (pct: number, message: string, status = "running"): void => {
+    if (!sender.isDestroyed()) sender.send("usb:progress", { pct, message, status });
+  };
+  if (!/^[A-Z]$/.test(letter)) {
+    emit(0, "Pick a USB drive first.", "error");
+    return { started: false };
+  }
+
+  // Generate the payload up front so a config error never touches the stick.
+  let files: BundleFile[];
+  try {
+    emit(5, "Building the bootible payload");
+    files = buildDeckBundle(req.config);
+  } catch (error) {
+    emit(0, `Couldn't build the payload: ${(error as Error).message}`, "error");
+    return { started: false };
+  }
+
+  emit(20, "Formatting the USB as exFAT (BOOTIBLE) — one admin prompt");
+  if (!formatUsbDrive(letter).ok) {
+    emit(0, "Formatting the USB failed (was the admin prompt declined?).", "error");
+    return { started: false };
+  }
+
+  try {
+    emit(70, "Copying the payload onto the USB");
+    const root = `${letter}:\\`;
+    for (const file of files) {
+      const dest = join(root, file.path);
+      mkdirSync(dirname(dest), { recursive: true });
+      // Plain UTF-8, no BOM: provision.sh is a bash script run on SteamOS, so a
+      // BOM would break the shebang. buildDeckBundle emits LF line endings.
+      writeFileSync(dest, file.content, "utf8");
+    }
+  } catch (error) {
+    emit(0, `Copying the payload failed: ${(error as Error).message}`, "error");
+    return { started: false };
+  }
+
+  emit(
+    100,
+    "Done. On the Deck (Desktop Mode), open the BOOTIBLE drive and run bootible/provision.sh — then follow README.txt.",
+    "done",
+  );
+  return { started: true };
+}
+
 // ── in-app USB writer: disks + ISO source ───────────────────────────────────
 
 export interface UsbDisk {
@@ -1334,6 +1409,10 @@ app.whenReady().then(() => {
   ipcMain.handle("usb:eject", (_event, drive: string) => ejectUsb(drive));
   ipcMain.handle("usb:format", (_event, drive: string) => formatUsbDrive(drive));
   ipcMain.handle("usb:disks", () => listUsbDisks());
+  ipcMain.handle("deck:plugins", () => fetchDeckyPlugins());
+  ipcMain.handle("deck:writeProvisionUsb", (event, req: DeckProvisionUsbRequest) =>
+    writeDeckProvisionUsb(event.sender, req),
+  );
   ipcMain.handle("iso:catalog", () => getIsoCatalog());
   ipcMain.handle("languages:get", () =>
     DISPLAY_LANGUAGES.map((l) => ({ id: l.id, label: l.label, isoId: `win11-latest-${l.id}` })),

@@ -35,6 +35,7 @@ describe("deviceSummary", () => {
     expect(deviceSummary(ally)).toEqual({
       id: "rog-ally",
       name: "ROG Ally / Ally X",
+      os: "windows",
       system: "Windows 11",
       provisioning: "on-device",
       emulationCount: 3,
@@ -45,6 +46,7 @@ describe("deviceSummary", () => {
     expect(deviceSummary(deck)).toEqual({
       id: "steamdeck",
       name: "Steam Deck",
+      os: "linux",
       system: "Linux",
       provisioning: "on-device",
       emulationCount: 0,

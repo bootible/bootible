@@ -112,7 +112,7 @@ export { PLATFORMS, platformById, platformForOs, ROADMAP_DEVICES } from "./platf
 export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
 export type { DeviceProfile } from "./profiles";
-export { deviceProfile } from "./profiles";
+export { deviceProfile, usesDeckCarrier } from "./profiles";
 export type { ProvisioningMethod, ProvisioningMethodId } from "./provisioning";
 export { provisioningMethods } from "./provisioning";
 export type { Capabilities, DeviceEntry, ProvisioningModel } from "./registry";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { allyBundles, allyCatalog } from "./ally-modules";
 import { bundleModules } from "./bundles";
-import { deviceProfile } from "./profiles";
+import { deviceProfile, usesDeckCarrier } from "./profiles";
 
 describe("deviceProfile", () => {
   it("resolves the Ally profile with catalog, bundles and executor", () => {
@@ -14,6 +14,17 @@ describe("deviceProfile", () => {
 
   it("returns null for an unknown device", () => {
     expect(deviceProfile("nintendo-switch")).toBeNull();
+  });
+});
+
+describe("usesDeckCarrier", () => {
+  it("is true for SteamOS (the host-carrier flow)", () => {
+    expect(usesDeckCarrier("steamos")).toBe(true);
+  });
+
+  it("is false for Windows and other OSes", () => {
+    expect(usesDeckCarrier("windows")).toBe(false);
+    expect(usesDeckCarrier("linux")).toBe(false);
   });
 });
 

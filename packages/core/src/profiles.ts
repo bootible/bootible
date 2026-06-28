@@ -25,3 +25,17 @@ const PROFILES: Record<string, DeviceProfile> = {
 export function deviceProfile(id: string): DeviceProfile | null {
   return PROFILES[id] ?? null;
 }
+
+/**
+ * OSes provisioned via the SteamOS/Linux host-carrier flow — the desktop builds
+ * a USB carrying a generated `provision.sh` (see deck-provision.ts), rather than
+ * the Windows-style {@link DeviceProfile} catalog/executor machinery. SteamOS
+ * today; add Bazzite here when its payload mapping lands. A device whose OS is a
+ * carrier OS is "ready" to build even though it has no `DeviceProfile`.
+ */
+const CARRIER_OSES = new Set(["steamos"]);
+
+/** True when a device's OS builds via the Deck/Linux host-carrier flow. */
+export function usesDeckCarrier(os: string): boolean {
+  return CARRIER_OSES.has(os);
+}
