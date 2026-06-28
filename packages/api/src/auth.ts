@@ -1,6 +1,6 @@
 import type { IncomingRequestCfProperties } from "@cloudflare/workers-types";
 import { betterAuth } from "better-auth";
-import { bearer } from "better-auth/plugins";
+import { bearer, twoFactor } from "better-auth/plugins";
 import { withCloudflare } from "better-auth-cloudflare";
 import type { Bindings } from "./env";
 
@@ -46,7 +46,8 @@ export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, bas
         // Bearer plugin: the desktop app stores the session token (from the
         // set-auth-token response header) in safeStorage and sends it as
         // Authorization: Bearer — cleaner than cookies for a native client.
-        plugins: [bearer()],
+        // twoFactor: optional TOTP (authenticator app) second factor.
+        plugins: [bearer(), twoFactor()],
         // The desktop social-sign-in redirect target (custom protocol) must be trusted.
         trustedOrigins: ["bootible://"],
       },
