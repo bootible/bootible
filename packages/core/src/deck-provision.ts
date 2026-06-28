@@ -160,7 +160,9 @@ function protonBlock(cfg: DeckConfig): string {
     lines.push(
       `say "Installing latest Proton-GE"`,
       `install -d "$HOME/.steam/root/compatibilitytools.d"`,
-      `GE_URL="$(curl -fsSL https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if a['name'].endswith('.tar.gz')),''))" 2>/dev/null)"`,
+      // The Deck/Ally are x86_64; GE-Proton now also ships an aarch64 tarball, so
+      // exclude ARM builds or we grab the wrong arch (caught on hardware, 29 Jun).
+      `GE_URL="$(curl -fsSL https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if a['name'].endswith('.tar.gz') and 'aarch64' not in a['name'] and 'arm64' not in a['name']),''))" 2>/dev/null)"`,
       `if [ -n "$GE_URL" ]; then`,
       `  curl -fsSL "$GE_URL" -o /tmp/proton-ge.tar.gz && \\`,
       `    tar -xzf /tmp/proton-ge.tar.gz -C "$HOME/.steam/root/compatibilitytools.d/" && ok "Proton-GE installed" || warn "Proton-GE extract failed"`,

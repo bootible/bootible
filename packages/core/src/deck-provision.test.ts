@@ -87,6 +87,8 @@ describe("generateDeckProvision", () => {
     expect(s).toContain("com.github.Matoking.protontricks");
     expect(s).toContain("proton-ge-custom/releases/latest");
     expect(s).toContain("compatibilitytools.d");
+    // Must skip the ARM tarball — x86_64 device (caught on hardware, 29 Jun).
+    expect(s).toContain("'aarch64' not in a['name']");
   });
 
   it("stages EmuDeck folders + launcher", () => {
