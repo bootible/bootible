@@ -7,6 +7,7 @@ import type {
   FlatpakApp,
   GroupSummary,
   ModuleStateReport,
+  PasswordManager,
   ProvisioningMethod,
   RemovalEntry,
   StepEvent,
@@ -209,6 +210,8 @@ const api = {
     ipcRenderer.invoke("usb:build", req),
   getUsbDisks: (): Promise<UsbDisk[]> => ipcRenderer.invoke("usb:disks"),
   getDeckApps: (): Promise<FlatpakApp[]> => ipcRenderer.invoke("deck:apps"),
+  getDeckPasswordManagers: (): Promise<PasswordManager[]> =>
+    ipcRenderer.invoke("deck:passwordManagers"),
   getDeckyPlugins: (): Promise<DeckyStorePlugin[]> => ipcRenderer.invoke("deck:plugins"),
   writeDeckProvisionUsb: (req: DeckProvisionUsbRequest): Promise<{ started: boolean }> =>
     ipcRenderer.invoke("deck:writeProvisionUsb", req),

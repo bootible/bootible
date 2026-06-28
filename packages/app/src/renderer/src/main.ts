@@ -274,6 +274,11 @@ interface FlatpakApp {
   category: string;
 }
 
+interface PasswordManager {
+  id: string;
+  name: string;
+}
+
 interface DeckyStorePlugin {
   name: string;
   author: string;
@@ -299,6 +304,7 @@ interface DeckConfig {
   tailscale: boolean;
   waydroid: boolean;
   stickdeck: boolean;
+  passwordManagers: { managers: string[]; method: "flatpak" | "distrobox" };
 }
 
 interface DeckProvisionUsbReq {
@@ -377,6 +383,7 @@ interface BootibleApi {
   applyDevice(req: UsbBuildRequest): Promise<{ status: "blocked" | "cancelled" | "launched" }>;
   getUsbDisks(): Promise<UsbDisk[]>;
   getDeckApps(): Promise<FlatpakApp[]>;
+  getDeckPasswordManagers(): Promise<PasswordManager[]>;
   getDeckyPlugins(): Promise<DeckyStorePlugin[]>;
   writeDeckProvisionUsb(req: DeckProvisionUsbReq): Promise<{ started: boolean }>;
   getIsoCatalog(): Promise<IsoOption[]>;
@@ -2385,6 +2392,7 @@ const deckState: DeckConfig = {
   tailscale: false,
   waydroid: false,
   stickdeck: false,
+  passwordManagers: { managers: [], method: "flatpak" },
 };
 let deckDisk = ""; // selected USB drive letter, e.g. "E"
 
@@ -2531,6 +2539,30 @@ async function hydrateDeck(): Promise<void> {
   );
   body.append(extras);
 
+  const pmSec = deckSection("Password managers");
+  const pmBox = el("div", "deck-apps");
+  pmBox.id = "deck-pms";
+  pmBox.append(el("p", "muted", "Loading…"));
+  pmSec.append(pmBox);
+  const pmMethod = document.createElement("select");
+  pmMethod.className = "uw-select";
+  pmMethod.value = deckState.passwordManagers.method;
+  for (const [value, label] of [
+    ["flatpak", "Install method: Flatpak (simpler)"],
+    ["distrobox", "Install method: Distrobox (system auth + SSH agent)"],
+  ] as const) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    pmMethod.append(opt);
+  }
+  pmMethod.value = deckState.passwordManagers.method;
+  pmMethod.addEventListener("change", () => {
+    deckState.passwordManagers.method = pmMethod.value === "distrobox" ? "distrobox" : "flatpak";
+  });
+  pmSec.append(pmMethod);
+  body.append(pmSec);
+
   const appsSec = deckSection("Apps (Flatpak)");
   const appsBox = el("div", "deck-apps");
   appsBox.id = "deck-apps";
@@ -2547,6 +2579,13 @@ async function hydrateDeck(): Promise<void> {
       appsBox.replaceChildren(el("p", "muted", "Couldn't load the app list."));
     }
   }
+  if (api?.getDeckPasswordManagers) {
+    try {
+      renderDeckPasswordManagers(pmBox, await api.getDeckPasswordManagers());
+    } catch {
+      pmBox.replaceChildren(el("p", "muted", "Couldn't load password managers."));
+    }
+  }
   if (api?.getDeckyPlugins) {
     try {
       renderDeckPlugins(plugins, await api.getDeckyPlugins());
@@ -2558,22 +2597,46 @@ async function hydrateDeck(): Promise<void> {
   }
 }
 
-function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
+function renderDeckPasswordManagers(box: HTMLElement, list: PasswordManager[]): void {
+  if (list.length === 0) {
+    box.replaceChildren(el("p", "muted", "None available."));
+    return;
+  }
   box.replaceChildren(
-    ...apps.map((app) =>
-      deckCheck(
-        app.name,
-        deckState.flatpakApps.includes(app.id),
-        (v) => {
+    ...list.map((pm) =>
+      deckCheck(pm.name, deckState.passwordManagers.managers.includes(pm.id), (v) => {
+        const set = new Set(deckState.passwordManagers.managers);
+        if (v) set.add(pm.id);
+        else set.delete(pm.id);
+        deckState.passwordManagers.managers = [...set];
+      }),
+    ),
+  );
+}
+
+function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
+  // Group under category headings so a long catalog stays scannable.
+  const byCat = new Map<string, FlatpakApp[]>();
+  for (const app of apps) {
+    const list = byCat.get(app.category) ?? [];
+    list.push(app);
+    byCat.set(app.category, list);
+  }
+  const nodes: HTMLElement[] = [];
+  for (const [cat, list] of byCat) {
+    nodes.push(el("p", "deck-cat", cat));
+    for (const app of list) {
+      nodes.push(
+        deckCheck(app.name, deckState.flatpakApps.includes(app.id), (v) => {
           const set = new Set(deckState.flatpakApps);
           if (v) set.add(app.id);
           else set.delete(app.id);
           deckState.flatpakApps = [...set];
-        },
-        app.category,
-      ),
-    ),
-  );
+        }),
+      );
+    }
+  }
+  box.replaceChildren(...nodes);
 }
 
 function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {

@@ -49,6 +49,7 @@ import {
   keyboardRegionById,
   loadRegistry,
   type ModuleStateReport,
+  PASSWORD_MANAGERS,
   PLATFORMS,
   type ProvisioningMethod,
   platformForOs,
@@ -1416,6 +1417,7 @@ app.whenReady().then(() => {
   ipcMain.handle("usb:format", (_event, drive: string) => formatUsbDrive(drive));
   ipcMain.handle("usb:disks", () => listUsbDisks());
   ipcMain.handle("deck:apps", () => FLATPAK_APPS);
+  ipcMain.handle("deck:passwordManagers", () => PASSWORD_MANAGERS);
   ipcMain.handle("deck:plugins", () => fetchDeckyPlugins());
   ipcMain.handle("deck:writeProvisionUsb", (event, req: DeckProvisionUsbRequest) =>
     writeDeckProvisionUsb(event.sender, req),
