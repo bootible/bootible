@@ -105,6 +105,7 @@ body[data-view="welcome"] .view[data-view="welcome"] {
 }
 
 body[data-view="synckey"] .view[data-view="synckey"],
+body[data-view="verifymail"] .view[data-view="verifymail"],
 body[data-view="twofa"] .view[data-view="twofa"],
 body[data-view="twofasetup"] .view[data-view="twofasetup"] {
   display: grid;
@@ -2613,12 +2614,18 @@ body[data-view="connect"] .summary::before {
 
 /* ── Sync key (passphrase setup / unlock / recovery) ───────────────────────── */
 .view[data-view="synckey"],
+.view[data-view="verifymail"],
 .view[data-view="twofa"],
 .view[data-view="twofasetup"] {
   place-content: safe center;
   grid-template-columns: min(420px, 100%);
   min-height: 100%;
   padding: 48px 40px;
+}
+
+.verify-addr {
+  color: #eceae3;
+  font-weight: 600;
 }
 
 .twofa-qr {

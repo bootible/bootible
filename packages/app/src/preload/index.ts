@@ -240,11 +240,19 @@ const api = {
       email: string;
       password: string;
       name?: string;
-    }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke("cloud:signUpEmail", b),
+    }): Promise<{ ok: boolean; error?: string; needsVerification?: boolean }> =>
+      ipcRenderer.invoke("cloud:signUpEmail", b),
     signInEmail: (b: {
       email: string;
       password: string;
-    }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke("cloud:signInEmail", b),
+    }): Promise<{
+      ok: boolean;
+      error?: string;
+      twoFactor?: boolean;
+      needsVerification?: boolean;
+    }> => ipcRenderer.invoke("cloud:signInEmail", b),
+    resendVerification: (email: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke("cloud:resendVerification", email),
     signInSocial: (provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }> =>
       ipcRenderer.invoke("cloud:signInSocial", provider),
     signOut: (): Promise<{ ok: boolean }> => ipcRenderer.invoke("cloud:signOut"),

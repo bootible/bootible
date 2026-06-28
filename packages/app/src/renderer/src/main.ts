@@ -359,12 +359,13 @@ interface BootibleApi {
       email: string;
       password: string;
       name?: string;
-    }): Promise<{ ok: boolean; error?: string }>;
+    }): Promise<{ ok: boolean; error?: string; needsVerification?: boolean }>;
     signInEmail(b: {
       email: string;
       password: string;
-    }): Promise<{ ok: boolean; error?: string; twoFactor?: boolean }>;
+    }): Promise<{ ok: boolean; error?: string; twoFactor?: boolean; needsVerification?: boolean }>;
     signInSocial(provider: string): Promise<{ ok: boolean; error?: string; opened?: boolean }>;
+    resendVerification(email: string): Promise<{ ok: boolean; error?: string }>;
     signOut(): Promise<{ ok: boolean }>;
     keyStatus(): Promise<{ signedIn: boolean; hasServerKey: boolean; unlocked: boolean }>;
     setupKey(passphrase: string): Promise<{ ok: boolean; error?: string; recoveryCode?: string }>;
@@ -395,6 +396,7 @@ declare global {
 const VIEWS = [
   "welcome",
   "synckey",
+  "verifymail",
   "twofa",
   "twofasetup",
   "platform",
@@ -2694,13 +2696,25 @@ async function doEmailAuth(mode: "signin" | "signup"): Promise<void> {
       ? cloud.signUpEmail({ email, password })
       : cloud.signInEmail({ email, password }),
   );
+  if (r.needsVerification) return showVerifyMail(email); // sign-in blocked until verified
   if (!r.ok) {
     welcomeError(r.error ?? "Sign-in failed.");
     return;
   }
+  if (mode === "signup") return showVerifyMail(email); // new account must verify first
   if ((r as { twoFactor?: boolean }).twoFactor)
     location.hash = "twofa"; // second factor required
   else void afterSignIn();
+}
+
+let pendingVerifyEmail = "";
+function showVerifyMail(email: string): void {
+  pendingVerifyEmail = email;
+  const addr = document.querySelector<HTMLElement>("#verify-email-addr");
+  if (addr) addr.textContent = email;
+  const msg = document.querySelector<HTMLElement>("#verify-msg");
+  if (msg) msg.textContent = "";
+  location.hash = "verifymail";
 }
 
 // ── Sync-key step (passphrase setup / unlock / recovery) ─────────────────────
@@ -3021,6 +3035,21 @@ document.querySelector<HTMLFormElement>("#welcome-email-form")?.addEventListener
 document
   .querySelector<HTMLButtonElement>("[data-auth='signup']")
   ?.addEventListener("click", () => void doEmailAuth("signup"));
+
+// Check-your-email view: resend the verification link / go back to sign in.
+document.querySelector<HTMLButtonElement>("#verify-resend")?.addEventListener("click", (e) => {
+  void (async () => {
+    if (!cloud || !pendingVerifyEmail) return;
+    const msg = document.querySelector<HTMLElement>("#verify-msg");
+    const r = await withBusy(e.currentTarget as HTMLButtonElement, () =>
+      cloud.resendVerification(pendingVerifyEmail),
+    );
+    if (msg) msg.textContent = r.ok ? "Sent — check your inbox." : (r.error ?? "Couldn't resend.");
+  })();
+});
+document.querySelector<HTMLButtonElement>("#verify-back")?.addEventListener("click", () => {
+  location.hash = "welcome";
+});
 
 // Social provider icons + interim handler. Real brand SVGs live in assets/logos/auth/
 // (discord present; google/github/twitch fall back to a monogram until dropped in).

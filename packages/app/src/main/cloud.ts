@@ -145,7 +145,7 @@ interface AuthResult {
 async function emailAuth(
   path: string,
   body: unknown,
-): Promise<AuthResult & { twoFactor?: boolean }> {
+): Promise<AuthResult & { twoFactor?: boolean; needsVerification?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/api/auth/${path}`, {
       method: "POST",
@@ -156,7 +156,11 @@ async function emailAuth(
       message?: string;
       twoFactorRedirect?: boolean;
     };
-    if (!res.ok) return { ok: false, error: data.message ?? `Failed (HTTP ${res.status})` };
+    if (!res.ok) {
+      // 403 on sign-in = email not verified (better-auth resends a link).
+      if (res.status === 403) return { ok: false, needsVerification: true, error: data.message };
+      return { ok: false, error: data.message ?? `Failed (HTTP ${res.status})` };
+    }
     if (data.twoFactorRedirect) {
       // 2FA required — stash the pending cookie for the verify-totp call.
       const sc =
@@ -500,4 +504,22 @@ export function registerCloudIpc(): void {
 
   // Social: run the provider OAuth in an in-app window, capture the session.
   ipcMain.handle("cloud:signInSocial", (_e, provider: string) => runSocialSignIn(provider));
+
+  // Resend the email-verification link.
+  ipcMain.handle("cloud:resendVerification", async (_e, email: string): Promise<AuthResult> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/send-verification-email`, {
+        method: "POST",
+        headers: { "content-type": "application/json", Origin: ORIGIN },
+        body: JSON.stringify({ email, callbackURL: "/verified" }),
+      });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { message?: string };
+        return { ok: false, error: d.message ?? "Couldn't resend the email." };
+      }
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  });
 }

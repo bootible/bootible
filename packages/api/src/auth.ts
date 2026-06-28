@@ -45,6 +45,8 @@ export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, bas
       {
         emailAndPassword: {
           enabled: true,
+          // Block sign-in until the email is verified (403 EMAIL_NOT_VERIFIED).
+          requireEmailVerification: true,
           // Password reset email (Resend). Only wired at runtime (env present).
           ...(env
             ? {
@@ -67,6 +69,8 @@ export function createAuth(env?: Bindings, cf?: IncomingRequestCfProperties, bas
           ? {
               emailVerification: {
                 sendOnSignUp: true,
+                // Re-send a fresh link whenever an unverified user tries to sign in.
+                sendOnSignIn: true,
                 sendVerificationEmail: async ({
                   user,
                   url,

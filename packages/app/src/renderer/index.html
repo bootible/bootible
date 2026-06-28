@@ -108,6 +108,19 @@
           </div>
         </main>
 
+        <!-- ───────────────────── CHECK YOUR EMAIL (verify) ───────────────────── -->
+        <main class="view synckey" data-view="verifymail">
+          <div class="synckey-card">
+            <h1 class="setup-title">Check your email</h1>
+            <p class="setup-sub">We sent a verification link to <span id="verify-email-addr" class="verify-addr"></span>. Click it to confirm your account, then sign in.</p>
+            <div class="synckey-form">
+              <button class="btn-primary" id="verify-resend" type="button">Resend email</button>
+              <button class="welcome-skip" id="verify-back" type="button">Back to sign in</button>
+              <p class="welcome-error" id="verify-msg" role="alert"></p>
+            </div>
+          </div>
+        </main>
+
         <!-- ───────────────────── TWO-FACTOR (sign-in challenge) ───────────────────── -->
         <main class="view synckey" data-view="twofa">
           <div class="synckey-card">
