@@ -50,6 +50,16 @@ export interface DeckConfig {
   tailscale: boolean;
   /** Stage the Waydroid installer (Android; the installer itself is interactive). */
   waydroid: boolean;
+  /** Install StickDeck (use the Deck as a wireless controller for a PC). */
+  stickdeck: boolean;
+  passwordManagers: DeckPasswordManagerConfig;
+}
+
+export interface DeckPasswordManagerConfig {
+  /** Password-manager ids (see PASSWORD_MANAGERS in deck-apps.ts). */
+  managers: string[];
+  /** flatpak = simpler; distrobox = full features (system auth, SSH agent). */
+  method: "flatpak" | "distrobox";
 }
 
 export const DEFAULT_DECK_CONFIG: DeckConfig = {
@@ -64,6 +74,8 @@ export const DEFAULT_DECK_CONFIG: DeckConfig = {
   vnc: false,
   tailscale: false,
   waydroid: false,
+  stickdeck: false,
+  passwordManagers: { managers: [], method: "flatpak" },
 };
 
 /** Fill any missing fields with defaults — tolerant of partial configs from the UI/carrier. */
@@ -96,5 +108,10 @@ export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): D
     vnc: p.vnc ?? d.vnc,
     tailscale: p.tailscale ?? d.tailscale,
     waydroid: p.waydroid ?? d.waydroid,
+    stickdeck: p.stickdeck ?? d.stickdeck,
+    passwordManagers: {
+      managers: [...new Set(p.passwordManagers?.managers ?? [])],
+      method: p.passwordManagers?.method ?? "flatpak",
+    },
   };
 }

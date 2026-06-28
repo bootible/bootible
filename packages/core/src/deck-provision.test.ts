@@ -97,4 +97,32 @@ describe("generateDeckProvision", () => {
     const s = generateDeckProvision({ waydroid: true });
     expect(s).toContain("SteamOS-Waydroid-Installer");
   });
+
+  it("installs StickDeck when enabled", () => {
+    const s = generateDeckProvision({ stickdeck: true });
+    expect(s).toContain("DiscreteTom/stickdeck-rs/releases/latest");
+    expect(s).toContain("StickDeck.desktop");
+  });
+
+  it("installs password managers via Flatpak", () => {
+    const s = generateDeckProvision({
+      passwordManagers: { managers: ["bitwarden", "1password"], method: "flatpak" },
+    });
+    expect(s).toContain("com.bitwarden.desktop");
+    expect(s).toContain("1Password.flatpakref"); // 1Password uses a flatpakref URL
+    expect(s).not.toContain("distrobox create");
+  });
+
+  it("installs password managers via Distrobox (full features)", () => {
+    const s = generateDeckProvision({
+      passwordManagers: { managers: ["1password"], method: "distrobox" },
+    });
+    expect(s).toContain("distrobox create -i archlinux:latest -n arch");
+    expect(s).toContain("yay -S --noconfirm 1password");
+    expect(s).toContain("distrobox-export --app 1password");
+  });
+
+  it("omits password managers when none chosen", () => {
+    expect(generateDeckProvision({})).not.toContain("Password managers");
+  });
 });

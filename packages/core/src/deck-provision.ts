@@ -1,4 +1,4 @@
-import { deckyStoreNames, flatpakRefs } from "./deck-apps";
+import { deckyStoreNames, flatpakRefs, passwordManagers } from "./deck-apps";
 import type { DeckConfig } from "./deck-config";
 import { normalizeDeckConfig } from "./deck-config";
 
@@ -10,10 +10,10 @@ import { normalizeDeckConfig } from "./deck-config";
  * password, takes a btrfs snapshot first, installs only via Flatpak (--user,
  * survives updates), and allowlists any /etc change so a SteamOS update can't wipe it.
  *
- * Covers: base scaffold, Flatpak apps, SSH, Decky + plugins, Proton tools
- * (GE/ProtonUp-Qt/protontricks), EmuDeck staging, Sunshine/VNC, Tailscale, and
- * Waydroid staging. (Still to port: StickDeck, Distrobox password managers.)
- * JSON parsing + unzip use python3, which is always present on SteamOS.
+ * Covers the full v1 payload: base scaffold, Flatpak apps, SSH, Decky + plugins,
+ * Proton tools (GE/ProtonUp-Qt/protontricks), EmuDeck staging, Sunshine/VNC,
+ * Tailscale, Waydroid staging, StickDeck, and password managers (Flatpak or
+ * Distrobox). JSON parsing + unzip use python3, which is always present on SteamOS.
  */
 
 const FLATHUB_REPO = "https://dl.flathub.org/repo/flathub.flatpakrepo";
@@ -221,6 +221,61 @@ fi
 ok "Waydroid installer staged — run it from Desktop"`;
 }
 
+function stickdeckBlock(cfg: DeckConfig): string {
+  if (!cfg.stickdeck) return "";
+  return `say "Installing StickDeck"
+install -d "$HOME/Applications" "$HOME/Desktop"
+SD_URL="$(curl -fsSL https://api.github.com/repos/DiscreteTom/stickdeck-rs/releases/latest | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if 'linux' in a['name'].lower()),''))" 2>/dev/null)"
+if [ -n "$SD_URL" ]; then
+  curl -fsSL "$SD_URL" -o /tmp/stickdeck.tar.gz && tar -xzf /tmp/stickdeck.tar.gz -C "$HOME/Applications/" && ok "StickDeck installed" || warn "StickDeck extract failed"
+  rm -f /tmp/stickdeck.tar.gz
+  cat > "$HOME/Desktop/StickDeck.desktop" <<'BOOTIBLE_SD'
+[Desktop Entry]
+Name=StickDeck
+Exec=$HOME/Applications/stickdeck
+Terminal=true
+Type=Application
+Categories=Game;Utility;
+BOOTIBLE_SD
+  chmod +x "$HOME/Desktop/StickDeck.desktop"
+else warn "StickDeck: release lookup failed"; fi`;
+}
+
+function passwordManagerBlock(cfg: DeckConfig): string {
+  const pms = passwordManagers(cfg.passwordManagers.managers);
+  if (pms.length === 0) return "";
+
+  if (cfg.passwordManagers.method === "flatpak") {
+    const lines = [`say "Password managers (Flatpak)"`];
+    for (const pm of pms) {
+      lines.push(
+        pm.flatpakIsRef
+          ? `flatpak install --user --noninteractive ${pm.flatpak} || warn "failed: ${pm.id}"`
+          : fpInstall(pm.flatpak),
+      );
+    }
+    return lines.join("\n");
+  }
+
+  // Distrobox: full-feature native installs in an Arch container.
+  const lines = [
+    `say "Password managers (Distrobox Arch container)"`,
+    `if command -v distrobox >/dev/null 2>&1; then`,
+    `  distrobox list --no-color 2>/dev/null | grep -q '| arch ' || distrobox create -i archlinux:latest -n arch --yes`,
+    `  distrobox enter arch -- sudo pacman -S --needed --noconfirm base-devel git || warn "base-devel failed"`,
+    `  distrobox enter arch -- bash -c 'command -v yay >/dev/null || (git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm)' || warn "yay failed"`,
+  ];
+  for (const pm of pms) {
+    const inst = pm.aur ? `yay -S --noconfirm ${pm.pkg}` : `sudo pacman -S --noconfirm ${pm.pkg}`;
+    lines.push(
+      `  distrobox enter arch -- ${inst} || warn "pm failed: ${pm.id}"`,
+      `  distrobox enter arch -- distrobox-export --app ${pm.bin} 2>/dev/null || true`,
+    );
+  }
+  lines.push(`else warn "distrobox not found — skipping password managers"; fi`);
+  return lines.join("\n");
+}
+
 export function generateDeckProvision(input: Partial<DeckConfig>): string {
   const cfg = normalizeDeckConfig(input);
   const blocks: string[] = [HEADER];
@@ -240,6 +295,8 @@ sudo hostnamectl set-hostname ${JSON.stringify(cfg.hostname)}`);
     streamingBlock(cfg),
     tailscaleBlock(cfg),
     sshBlock(cfg),
+    passwordManagerBlock(cfg),
+    stickdeckBlock(cfg),
     waydroidBlock(cfg),
   ]) {
     if (block) blocks.push(block);

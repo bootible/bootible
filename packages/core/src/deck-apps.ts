@@ -182,3 +182,63 @@ const PLUGIN_BY_ID = new Map(DECKY_PLUGINS.map((p) => [p.id, p]));
 export function deckyStoreNames(ids: readonly string[]): string[] {
   return ids.map((id) => PLUGIN_BY_ID.get(id)?.storeName).filter((n): n is string => !!n);
 }
+
+/**
+ * Password managers, installable two ways (per the v1 distrobox role): as a
+ * Flatpak (simple, limited) or in a Distrobox Arch container (full features —
+ * system auth, SSH agent). `bin` is the binary used for which/distrobox-export.
+ */
+export interface PasswordManager {
+  id: string;
+  name: string;
+  /** Flathub ref, or a full .flatpakref URL when flatpakIsRef is set (1Password). */
+  flatpak: string;
+  flatpakIsRef?: boolean;
+  /** Distrobox package + whether it comes from the AUR (yay) vs pacman. */
+  pkg: string;
+  aur: boolean;
+  bin: string;
+}
+
+export const PASSWORD_MANAGERS: readonly PasswordManager[] = [
+  {
+    id: "1password",
+    name: "1Password",
+    flatpak: "https://downloads.1password.com/linux/flatpak/1Password.flatpakref",
+    flatpakIsRef: true,
+    pkg: "1password",
+    aur: true,
+    bin: "1password",
+  },
+  {
+    id: "bitwarden",
+    name: "Bitwarden",
+    flatpak: "com.bitwarden.desktop",
+    pkg: "bitwarden-desktop",
+    aur: true,
+    bin: "bitwarden-desktop",
+  },
+  {
+    id: "keepassxc",
+    name: "KeePassXC",
+    flatpak: "org.keepassxc.KeePassXC",
+    pkg: "keepassxc",
+    aur: false,
+    bin: "keepassxc",
+  },
+  {
+    id: "protonpass",
+    name: "Proton Pass",
+    flatpak: "me.proton.Pass",
+    pkg: "proton-pass",
+    aur: true,
+    bin: "proton-pass",
+  },
+] as const;
+
+const PM_BY_ID = new Map(PASSWORD_MANAGERS.map((p) => [p.id, p]));
+
+/** Resolve chosen password-manager ids, skipping unknown ids. */
+export function passwordManagers(ids: readonly string[]): PasswordManager[] {
+  return ids.map((id) => PM_BY_ID.get(id)).filter((p): p is PasswordManager => !!p);
+}

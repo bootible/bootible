@@ -51,11 +51,19 @@ export type {
   TargetsManifest,
 } from "./config";
 export { buildConfig, deepMerge, loadArtifact, serializeConfig } from "./config";
-export type { DeckyPlugin, FlatpakApp } from "./deck-apps";
-export { DECKY_PLUGINS, deckyStoreNames, FLATPAK_APPS, flatpakRefs } from "./deck-apps";
+export type { DeckyPlugin, FlatpakApp, PasswordManager } from "./deck-apps";
+export {
+  DECKY_PLUGINS,
+  deckyStoreNames,
+  FLATPAK_APPS,
+  flatpakRefs,
+  PASSWORD_MANAGERS,
+  passwordManagers,
+} from "./deck-apps";
 export type {
   DeckConfig,
   DeckDeckyConfig,
+  DeckPasswordManagerConfig,
   DeckProtonConfig,
   DeckSshConfig,
 } from "./deck-config";
