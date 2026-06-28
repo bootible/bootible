@@ -77,6 +77,60 @@ fetch("/api/auth/sign-in/social",{method:"POST",headers:{"content-type":"applica
   );
 });
 
+// Throwaway browser test harness for the auth surface (sign-up/in/out, session,
+// social). Same-origin to the API so cookies + CSRF work. Staging/local only.
+app.get("/test", (c) => {
+  const host = c.req.header("host") ?? "";
+  if (!/staging|localhost|127\.0\.0\.1/.test(host)) return c.notFound();
+  return c.html(
+    `<!doctype html><meta charset="utf-8"><title>bootible auth test</title>
+<body style="font-family:system-ui,sans-serif;max-width:600px;margin:40px auto;padding:0 16px;background:#0e0f12;color:#eceae3">
+  <h1 style="font-size:20px">bootible auth test harness <span style="color:#8b919c;font-size:13px">(${host})</span></h1>
+  <input id="email" type="email" placeholder="email" style="width:100%;box-sizing:border-box;padding:8px;margin:4px 0;background:#15171c;color:#eceae3;border:1px solid #2a2d35;border-radius:6px">
+  <input id="pw" type="password" placeholder="password" style="width:100%;box-sizing:border-box;padding:8px;margin:4px 0;background:#15171c;color:#eceae3;border:1px solid #2a2d35;border-radius:6px">
+  <div style="margin:8px 0">
+    <button data-act="signup">Sign up</button>
+    <button data-act="signin">Sign in</button>
+    <button data-act="signout">Sign out</button>
+    <button data-act="session">Get session</button>
+    <button data-act="forgot">Forgot password</button>
+  </div>
+  <div style="margin:8px 0">Social:
+    <button data-social="google">Google</button>
+    <button data-social="github">GitHub</button>
+    <button data-social="discord">Discord</button>
+    <button data-social="twitch">Twitch</button>
+  </div>
+  <pre id="out" style="background:#0a0b0d;color:#7ee787;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-all;min-height:80px"></pre>
+  <script>
+    var out = function (x) { document.getElementById("out").textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2); };
+    var email = function () { return document.getElementById("email").value; };
+    var pw = function () { return document.getElementById("pw").value; };
+    function call(path, body, method) {
+      return fetch("/api/auth/" + path, { method: method || "POST", headers: { "content-type": "application/json" }, credentials: "include", body: method === "GET" ? undefined : JSON.stringify(body) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { out({ status: r.status, body: d }); return { r: r, d: d }; }); });
+    }
+    document.querySelectorAll("[data-act]").forEach(function (b) {
+      b.onclick = function () {
+        var a = b.dataset.act;
+        if (a === "signup") call("sign-up/email", { email: email(), password: pw(), name: email() });
+        else if (a === "signin") call("sign-in/email", { email: email(), password: pw() });
+        else if (a === "signout") call("sign-out", {});
+        else if (a === "forgot") call("request-password-reset", { email: email(), redirectTo: location.origin + "/reset-password" });
+        else if (a === "session") fetch("/api/auth/get-session", { credentials: "include" }).then(function (r) { return r.json().then(function (d) { out({ status: r.status, body: d }); }); });
+      };
+    });
+    document.querySelectorAll("[data-social]").forEach(function (b) {
+      b.onclick = function () {
+        fetch("/api/auth/sign-in/social", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ provider: b.dataset.social, callbackURL: location.href }) })
+          .then(function (r) { return r.json(); }).then(function (d) { if (d.url) location.href = d.url; else out(d); });
+      };
+    });
+  </script>
+</body>`,
+  );
+});
+
 // Password-reset page: better-auth redirects the email link here with ?token=…
 // (or ?error=INVALID_TOKEN). Collects a new password and posts reset-password.
 app.get("/reset-password", (c) =>
