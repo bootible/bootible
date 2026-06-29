@@ -163,6 +163,13 @@ body[data-view="wifi"] .view[data-view="wifi"] {
   display: flex;
 }
 
+body[data-view="deck"] .view[data-view="deck"],
+body[data-view="deckmethod"] .view[data-view="deckmethod"],
+body[data-view="deckwrite"] .view[data-view="deckwrite"],
+body[data-view="deckreimage"] .view[data-view="deckreimage"] {
+  display: flex;
+}
+
 body[data-view="provision"] .view[data-view="provision"] {
   display: grid;
 }
