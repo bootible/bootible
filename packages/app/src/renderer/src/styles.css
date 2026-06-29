@@ -1856,6 +1856,28 @@ body[data-view="account"] .summary::before {
   cursor: pointer;
 }
 
+/* ── Deck profiles bar (save / load the whole config) ── */
+.deck-profiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.deck-profiles select {
+  flex: 1 1 180px;
+}
+.deck-profiles input {
+  flex: 1 1 140px;
+}
+.deck-profiles .btn-ghost,
+.deck-profiles .btn-primary {
+  flex: none;
+  padding: 8px 16px;
+}
+
 /* ── Decky plugin search + expandable detail cards ── */
 .deck-search {
   width: 100%;

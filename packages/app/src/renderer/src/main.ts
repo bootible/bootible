@@ -2481,10 +2481,86 @@ function updateDeckSummary(): void {
   }
 }
 
+/** Snapshot the whole Deck config into a Profile. The Sunshine password rides in
+ *  `secrets` (DPAPI-encrypted by main, E2E in the cloud) — never plaintext in ui.
+ *  Same store + cloud sync as the ROG profiles. */
+function captureDeckProfile(name: string): Profile {
+  const ui = JSON.parse(JSON.stringify(deckState)) as Record<string, unknown>;
+  const sun = ui.sunshine as { pass?: string } | undefined;
+  if (sun) sun.pass = undefined;
+  const pass = deckState.sunshine.pass ?? "";
+  return {
+    name,
+    deviceId: selectedDeviceId || undefined,
+    ui,
+    secrets: pass ? { sunshinePass: pass } : {},
+  };
+}
+
+/** Restore a saved Deck profile into deckState and re-render. */
+function applyDeckProfile(p: Profile): void {
+  const ui = (p.ui ?? {}) as Partial<DeckConfig>;
+  Object.assign(deckState, ui);
+  // Top-level optionals must be reset explicitly — JSON drops undefined keys, so a
+  // profile saved without them wouldn't otherwise clear a currently-set value.
+  deckState.hostname = (ui.hostname as string) || undefined;
+  deckState.staticIp = (ui.staticIp as DeckConfig["staticIp"]) ?? undefined;
+  deckState.sunshine = { ...deckState.sunshine, pass: p.secrets?.sunshinePass || undefined };
+  void hydrateDeck();
+}
+
 async function hydrateDeck(): Promise<void> {
   const body = document.querySelector<HTMLElement>("#deck-body");
   if (!body) return;
   body.replaceChildren();
+
+  // Profiles bar — save/load the whole Deck config (same local store + cloud sync
+  // as ROG). Lists this device's profiles (and untagged ones).
+  const savedProfiles = (await window.bootible?.listProfiles?.()) ?? [];
+  const mine = savedProfiles.filter((p) => !p.deviceId || p.deviceId === selectedDeviceId);
+  const bar = el("div", "deck-profiles");
+  const sel = el("select", "uw-select") as HTMLSelectElement;
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = mine.length ? "Load a saved profile…" : "No saved profiles yet";
+  sel.append(ph);
+  for (const p of mine) {
+    const o = document.createElement("option");
+    o.value = p.name;
+    o.textContent = p.name;
+    sel.append(o);
+  }
+  const loadBtn = el("button", "btn-ghost") as HTMLButtonElement;
+  loadBtn.type = "button";
+  loadBtn.textContent = "Load";
+  loadBtn.addEventListener("click", async () => {
+    if (!sel.value) return;
+    const p = await window.bootible?.loadProfile?.(sel.value);
+    if (p) applyDeckProfile(p);
+  });
+  const delBtn = el("button", "btn-ghost") as HTMLButtonElement;
+  delBtn.type = "button";
+  delBtn.textContent = "Delete";
+  delBtn.addEventListener("click", async () => {
+    if (!sel.value) return;
+    await window.bootible?.deleteProfile?.(sel.value);
+    void hydrateDeck();
+  });
+  const nameIn = el("input", "uw-select") as HTMLInputElement;
+  nameIn.type = "text";
+  nameIn.placeholder = "Save current as…";
+  const saveBtn = el("button", "btn-primary") as HTMLButtonElement;
+  saveBtn.type = "button";
+  saveBtn.textContent = "Save";
+  saveBtn.addEventListener("click", async () => {
+    const name = nameIn.value.trim() || sel.value;
+    if (!name) return;
+    await window.bootible?.saveProfile?.(captureDeckProfile(name));
+    nameIn.value = "";
+    void hydrateDeck();
+  });
+  bar.append(sel, loadBtn, delBtn, nameIn, saveBtn);
+  body.append(bar);
 
   // Catalog (loaded once) drives which flatpak ids belong to the Emulators picker
   // and the Game-streaming section, so the Apps picker count excludes them — no
