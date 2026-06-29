@@ -74,6 +74,10 @@ describe("generateDeckProvision", () => {
     // plugins extract as root — the loader service owns ~/homebrew/plugins, so a
     // non-sudo extract hits Permission denied (caught on real hardware, 29 Jun).
     expect(s).toContain("sudo python3 -m zipfile -e");
+    // loader stopped before extract so a re-run can't hit ETXTBSY on a live plugin
+    // backend, then restarted after (caught re-running on hardware, 29 Jun).
+    expect(s).toContain("systemctl stop plugin_loader");
+    expect(s).toContain("systemctl restart plugin_loader");
   });
 
   it("skips Decky when disabled", () => {

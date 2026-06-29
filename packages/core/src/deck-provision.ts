@@ -133,6 +133,9 @@ function deckyBlock(cfg: DeckConfig): string {
     const arr = names.map((n) => `"${n.replace(/"/g, '\\"')}"`).join(" ");
     lines.push(
       `say "Installing ${names.length} Decky plugin(s)"`,
+      // Stop the loader first so no plugin's backend binary is running — otherwise
+      // re-extracting over a live plugin hits ETXTBSY (caught re-running on hw).
+      `sudo systemctl stop plugin_loader 2>/dev/null || true`,
       `STORE="$(curl -fsSL https://plugins.deckbrew.xyz/plugins || echo '[]')"`,
       `for NAME in ${arr}; do`,
       `  HASH="$(printf '%s' "$STORE" | N="$NAME" python3 -c "import sys,json,os; d=json.load(sys.stdin); p=next((x for x in d if x.get('name')==os.environ['N']),None); print(p['versions'][0]['hash'] if p and p.get('versions') else '')" 2>/dev/null || echo "")"`,
