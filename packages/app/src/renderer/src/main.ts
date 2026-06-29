@@ -40,6 +40,7 @@ import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
 import { ProfileBar } from "./components/ProfileBar";
+import { SshAccessEditor } from "./components/SshAccessEditor";
 import { countSelectedInView } from "./lib/app-selection";
 import wordlistRaw from "./wordlist.txt?raw";
 
@@ -2552,28 +2553,7 @@ async function hydrateDeckSetup(): Promise<void> {
     ),
   );
 
-  // Remote access — VNC / Tailscale / SSH (+ keys / GitHub).
-  const keys = el("textarea", "uw-select cz-span") as HTMLTextAreaElement;
-  keys.id = "deck-ssh-keys";
-  keys.placeholder = "Authorized SSH public keys, one per line";
-  keys.rows = 3;
-  keys.value = deckState.ssh.authorizedKeys.join("\n");
-  if (!deckState.ssh.enabled) keys.hidden = true;
-  keys.addEventListener("input", () => {
-    deckState.ssh.authorizedKeys = keys.value
-      .split("\n")
-      .map((k) => k.trim())
-      .filter(Boolean);
-  });
-  const ghKeys = el("input", "uw-select cz-span") as HTMLInputElement;
-  ghKeys.id = "deck-ssh-github";
-  ghKeys.type = "text";
-  ghKeys.placeholder = "GitHub username — adds github.com/<user>.keys";
-  ghKeys.value = deckState.ssh.githubUser ?? "";
-  if (!deckState.ssh.enabled) ghKeys.hidden = true;
-  ghKeys.addEventListener("input", () => {
-    deckState.ssh.githubUser = ghKeys.value.trim().replace(/[^A-Za-z0-9-]/g, "") || undefined;
-  });
+  // Remote access — VNC + Tailscale.
   body.append(
     deckSection(
       "Remote access",
@@ -2596,23 +2576,31 @@ async function hydrateDeckSetup(): Promise<void> {
           "Zero-config mesh VPN — reach the Deck securely from anywhere.",
           "installs tailscaled (run 'tailscale up' to log in)",
         ),
-        deckCheck(
-          "SSH server",
-          deckState.ssh.enabled,
-          (v) => {
-            deckState.ssh.enabled = v;
-            document.querySelector("#deck-ssh-keys")?.toggleAttribute("hidden", !v);
-            document.querySelector("#deck-ssh-github")?.toggleAttribute("hidden", !v);
-          },
-          "Remote shell + file access. Paste keys or pull them from GitHub for key-only login.",
-          "enables sshd",
-        ),
-        keys,
-        ghKeys,
       ],
-      countOn(deckState.vnc, deckState.tailscale, deckState.ssh.enabled),
+      countOn(deckState.vnc, deckState.tailscale),
     ),
   );
+
+  // SSH access — shared SshAccessEditor (keys enable SSH; the Deck shows GitHub +
+  // paste + port). GitHub keys are fetched on-device by the provision script.
+  const sshEditor = SshAccessEditor({
+    hostKeys: [],
+    showPort: true,
+    value: {
+      hostKeyIds: [],
+      pastedKeys: deckState.ssh.authorizedKeys,
+      githubUser: deckState.ssh.githubUser,
+      port: deckState.ssh.port,
+    },
+    onChange: (next) => {
+      deckState.ssh.authorizedKeys = next.pastedKeys;
+      deckState.ssh.githubUser = next.githubUser;
+      deckState.ssh.port = next.port ?? 22;
+      deckState.ssh.enabled = next.pastedKeys.length > 0 || Boolean(next.githubUser);
+    },
+  });
+  sshEditor.classList.add("cz-span");
+  body.append(deckSection("SSH access", [sshEditor]));
 }
 
 /** A picker row (ROG style): name + description + a "Choose … (N) →" button that

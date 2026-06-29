@@ -1901,6 +1901,28 @@ body[data-view="account"] .summary::before {
   display: none;
 }
 
+/* ── SshAccessEditor (shared SSH editor: ROG + Deck) ── */
+.ssh-access {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ssh-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ssh-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+.ssh-ghcount {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--signal);
+}
+
 /* ── NetworkSettings (shared static-IP editor: ROG + Deck) ── */
 .network-settings {
   display: flex;
