@@ -70,6 +70,8 @@ export type {
   DeckSshConfig,
 } from "./deck-config";
 export { DEFAULT_DECK_CONFIG, normalizeDeckConfig } from "./deck-config";
+export type { DeckImage } from "./deck-image";
+export { DECK_IMAGE_INDEX, resolveDeckImage } from "./deck-image";
 export { generateDeckProvision } from "./deck-provision";
 export { getDisplayTweakCommands } from "./display";
 export type { DisplayLanguage, KeyboardRegion } from "./languages";
