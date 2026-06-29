@@ -478,6 +478,9 @@ const VIEWS = [
   "review",
   "usbwrite",
   "deck",
+  "deckapps",
+  "deckplugins",
+  "deckpm",
   "deckmethod",
   "deckwrite",
   "deckreimage",
@@ -551,6 +554,9 @@ function syncFromHash(): void {
   }
   if (view === "usbwrite") void hydrateUsbWrite();
   if (view === "deck") void hydrateDeck();
+  if (view === "deckapps") void hydrateDeckApps();
+  if (view === "deckplugins") void hydrateDeckPlugins();
+  if (view === "deckpm") void hydrateDeckPm();
   if (view === "deckwrite") void hydrateDeckWrite();
   if (view === "deckreimage") void hydrateDeckReimage();
   if (view === "watch") {
@@ -2456,7 +2462,6 @@ function updateDeckSummary(): void {
 async function hydrateDeck(): Promise<void> {
   const body = document.querySelector<HTMLElement>("#deck-body");
   if (!body) return;
-  const api = window.bootible;
   body.replaceChildren();
 
   const sys = deckSection("System");
@@ -2496,17 +2501,22 @@ async function hydrateDeck(): Promise<void> {
       deckState.decky.enabled,
       (v) => {
         deckState.decky.enabled = v;
-        document.querySelector("#deck-plugins")?.toggleAttribute("hidden", !v);
+        void hydrateDeck();
       },
-      "The plugin framework for Gaming Mode — adds a plugin menu to the Quick Access panel. PowerTools (below) is the main performance tool.",
-      "installs decky-loader + the plugins you tick below",
+      "The plugin framework for Gaming Mode — adds a plugin menu to the Quick Access panel. PowerTools is the main performance tool.",
+      "installs decky-loader + the plugins you pick",
     ),
   );
-  const plugins = el("div", "deck-plugins");
-  plugins.id = "deck-plugins";
-  if (!deckState.decky.enabled) plugins.hidden = true;
-  plugins.append(el("p", "muted", "Loading the plugin store…"));
-  decky.append(plugins);
+  if (deckState.decky.enabled) {
+    decky.append(
+      deckPickerRow(
+        "Decky plugins",
+        "PowerTools, SteamGridDB, ProtonDB Badges and 100+ more — most-installed first.",
+        deckState.decky.plugins.length,
+        "deckplugins",
+      ),
+    );
+  }
   body.append(decky);
 
   const proton = deckSection("Proton & compatibility");
@@ -2636,104 +2646,53 @@ async function hydrateDeck(): Promise<void> {
   );
   body.append(extras);
 
-  const pmSec = deckSection("Password managers");
-  const pmBox = el("div", "deck-apps");
-  pmBox.id = "deck-pms";
-  pmBox.append(el("p", "muted", "Loading…"));
-  pmSec.append(pmBox);
-  const pmMethod = document.createElement("select");
-  pmMethod.className = "uw-select";
-  pmMethod.value = deckState.passwordManagers.method;
-  for (const [value, label] of [
-    ["flatpak", "Install method: Flatpak (simpler)"],
-    ["distrobox", "Install method: Distrobox (system auth + SSH agent)"],
-  ] as const) {
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = label;
-    pmMethod.append(opt);
-  }
-  pmMethod.value = deckState.passwordManagers.method;
-  pmMethod.addEventListener("change", () => {
-    deckState.passwordManagers.method = pmMethod.value === "distrobox" ? "distrobox" : "flatpak";
-  });
-  pmSec.append(pmMethod);
-  body.append(pmSec);
-
-  const appsSec = deckSection("Apps (Flatpak)");
-  const appsBox = el("div", "deck-apps");
-  appsBox.id = "deck-apps";
-  appsBox.append(el("p", "muted", "Loading apps…"));
-  appsSec.append(appsBox);
-  body.append(appsSec);
-
-  updateDeckSummary();
-
-  if (api?.getDeckApps) {
-    try {
-      renderDeckApps(appsBox, await api.getDeckApps());
-    } catch {
-      appsBox.replaceChildren(el("p", "muted", "Couldn't load the app list."));
-    }
-  }
-  if (api?.getDeckPasswordManagers) {
-    try {
-      renderDeckPasswordManagers(pmBox, await api.getDeckPasswordManagers());
-    } catch {
-      pmBox.replaceChildren(el("p", "muted", "Couldn't load password managers."));
-    }
-  }
-  if (api?.getDeckyPlugins) {
-    try {
-      renderDeckPlugins(plugins, await api.getDeckyPlugins());
-    } catch {
-      plugins.replaceChildren(
-        el("p", "muted", "Couldn't reach the Decky store — the defaults will be used."),
-      );
-    }
-  }
-}
-
-function renderDeckPasswordManagers(box: HTMLElement, list: PasswordManager[]): void {
-  if (list.length === 0) {
-    box.replaceChildren(el("p", "muted", "None available."));
-    return;
-  }
-  box.replaceChildren(
-    ...list.map((pm) =>
-      deckCheck(pm.name, deckState.passwordManagers.managers.includes(pm.id), (v) => {
-        const set = new Set(deckState.passwordManagers.managers);
-        if (v) set.add(pm.id);
-        else set.delete(pm.id);
-        deckState.passwordManagers.managers = [...set];
-      }),
+  const appsSec = deckSection("Apps & launchers");
+  appsSec.append(
+    deckPickerRow(
+      "Apps",
+      "Browsers, comms, media, launchers (Heroic/Lutris/Bottles), streaming & more — grouped by category.",
+      deckState.flatpakApps.length,
+      "deckapps",
     ),
   );
+  body.append(appsSec);
+
+  const pmSec = deckSection("Password managers");
+  pmSec.append(
+    deckPickerRow(
+      "Password managers",
+      "1Password, Bitwarden, KeePassXC, Proton Pass — pick any; choose Flatpak or Distrobox.",
+      deckState.passwordManagers.managers.length,
+      "deckpm",
+    ),
+  );
+  body.append(pmSec);
+
+  updateDeckSummary();
 }
 
-function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
-  // Group under category headings so a long catalog stays scannable.
-  const byCat = new Map<string, FlatpakApp[]>();
-  for (const app of apps) {
-    const list = byCat.get(app.category) ?? [];
-    list.push(app);
-    byCat.set(app.category, list);
-  }
-  const nodes: HTMLElement[] = [];
-  for (const [cat, list] of byCat) {
-    nodes.push(el("p", "deck-cat", cat));
-    for (const app of list) {
-      nodes.push(
-        deckCheck(app.name, deckState.flatpakApps.includes(app.id), (v) => {
-          const set = new Set(deckState.flatpakApps);
-          if (v) set.add(app.id);
-          else set.delete(app.id);
-          deckState.flatpakApps = [...set];
-        }),
-      );
-    }
-  }
-  box.replaceChildren(...nodes);
+/** A picker row (ROG style): name + description + a "Choose … (N) →" button that
+ *  navigates to a dedicated picker screen. */
+function deckPickerRow(label: string, desc: string, count: number, target: string): HTMLElement {
+  const row = el("div", "cz-row cz-picker");
+  const text = el("div", "cz-text");
+  text.append(el("div", "cz-name", label), el("div", "cz-desc", desc));
+  const pick = el(
+    "button",
+    "cz-applink",
+    `Choose ${label.toLowerCase()} (${count}) →`,
+  ) as HTMLButtonElement;
+  pick.type = "button";
+  pick.dataset.go = target;
+  text.append(pick);
+  row.append(text);
+  return row;
+}
+
+/** Update a picker screen's "N selected" eyebrow. */
+function setDeckPickCount(view: string, n: number, word: string): void {
+  const tag = document.querySelector(`#${view}-count`);
+  if (tag) tag.textContent = `${n} ${word}${n === 1 ? "" : "s"} selected`;
 }
 
 /** 1234567 → "1.2M", 34000 → "34K", 999 → "999". */
@@ -2743,6 +2702,111 @@ function formatDownloads(n: number): string {
   return String(n);
 }
 
+/** A simple app-row (checkbox + name + meta), the ROG picker-item style. */
+function deckItemRow(
+  name: string,
+  meta: string,
+  checked: boolean,
+  onChange: (v: boolean) => void,
+): HTMLElement {
+  const row = el("label", "app-row");
+  const cb = el("input", "app-check") as HTMLInputElement;
+  cb.type = "checkbox";
+  cb.checked = checked;
+  cb.addEventListener("change", () => onChange(cb.checked));
+  const m = el("span", "app-meta");
+  m.append(el("span", "app-name", name));
+  if (meta) m.append(el("span", "app-id", meta));
+  row.append(cb, m);
+  return row;
+}
+
+// ── Apps picker screen (collapsible category groups, like ROG) ──
+async function hydrateDeckApps(): Promise<void> {
+  const box = document.querySelector<HTMLElement>("#deckapps-body");
+  if (!box) return;
+  box.replaceChildren(el("p", "muted", "Loading apps…"));
+  let apps: FlatpakApp[] = [];
+  try {
+    apps = (await window.bootible?.getDeckApps?.()) ?? [];
+  } catch {
+    box.replaceChildren(el("p", "muted", "Couldn't load the app list."));
+    return;
+  }
+  renderDeckApps(box, apps);
+  setDeckPickCount("deckapps", deckState.flatpakApps.length, "app");
+}
+
+function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
+  const byCat = new Map<string, FlatpakApp[]>();
+  for (const app of apps) {
+    const l = byCat.get(app.category);
+    if (l) l.push(app);
+    else byCat.set(app.category, [app]);
+  }
+  const groups = [...byCat].map(([cat, list]) => {
+    const details = el("details", "app-group") as HTMLDetailsElement;
+    const countEl = el("span", "app-group-count", "");
+    const gcb = el("input", "app-group-check") as HTMLInputElement;
+    gcb.type = "checkbox";
+    const items = el("div", "app-items");
+    const refreshHead = (): void => {
+      const n = list.filter((a) => deckState.flatpakApps.includes(a.id)).length;
+      gcb.checked = n === list.length;
+      gcb.indeterminate = n > 0 && n < list.length;
+      countEl.textContent = `${n} / ${list.length}`;
+      countEl.classList.toggle("on", n > 0);
+      setDeckPickCount("deckapps", deckState.flatpakApps.length, "app");
+    };
+    for (const a of list) {
+      items.append(
+        deckItemRow(a.name, "", deckState.flatpakApps.includes(a.id), (v) => {
+          const set = new Set(deckState.flatpakApps);
+          if (v) set.add(a.id);
+          else set.delete(a.id);
+          deckState.flatpakApps = [...set];
+          refreshHead();
+        }),
+      );
+    }
+    gcb.addEventListener("change", () => {
+      const set = new Set(deckState.flatpakApps);
+      for (const a of list) {
+        if (gcb.checked) set.add(a.id);
+        else set.delete(a.id);
+      }
+      deckState.flatpakApps = [...set];
+      for (const r of items.querySelectorAll<HTMLInputElement>(".app-check"))
+        r.checked = gcb.checked;
+      refreshHead();
+    });
+    const summary = el("summary", "app-group-sum");
+    summary.append(gcb, el("span", "app-group-name", cat), countEl);
+    details.append(summary, items);
+    refreshHead();
+    return details;
+  });
+  box.replaceChildren(...groups);
+}
+
+// ── Decky plugins picker screen (flat list, most-installed first) ──
+async function hydrateDeckPlugins(): Promise<void> {
+  const box = document.querySelector<HTMLElement>("#deckplugins-body");
+  if (!box) return;
+  box.replaceChildren(el("p", "muted", "Loading the plugin store…"));
+  let list: DeckyStorePlugin[] = [];
+  try {
+    list = (await window.bootible?.getDeckyPlugins?.()) ?? [];
+  } catch {
+    box.replaceChildren(
+      el("p", "muted", "Couldn't reach the Decky store — defaults will be used."),
+    );
+    return;
+  }
+  renderDeckPlugins(box, list);
+  setDeckPickCount("deckplugins", deckState.decky.plugins.length, "plugin");
+}
+
 function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
   if (list.length === 0) {
     box.replaceChildren(el("p", "muted", "No plugins returned — the defaults will be used."));
@@ -2750,22 +2814,64 @@ function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
   }
   // fetchDeckyPlugins returns them sorted by downloads (most-installed first).
   box.replaceChildren(
-    el("p", "deck-cat", `Most installed first · ${list.length} plugins`),
-    ...list.map((p) =>
-      deckCheck(
-        p.name,
-        deckState.decky.plugins.includes(p.name),
-        (v) => {
-          const set = new Set(deckState.decky.plugins);
-          if (v) set.add(p.name);
-          else set.delete(p.name);
-          deckState.decky.plugins = [...set];
-        },
-        (p.description ?? "").slice(0, 70),
-        `${formatDownloads(p.downloads)} installs`,
-      ),
-    ),
+    ...list.map((p) => {
+      const desc = (p.description ?? "").slice(0, 60);
+      const meta = `${formatDownloads(p.downloads)} installs${desc ? ` · ${desc}` : ""}`;
+      return deckItemRow(p.name, meta, deckState.decky.plugins.includes(p.name), (v) => {
+        const set = new Set(deckState.decky.plugins);
+        if (v) set.add(p.name);
+        else set.delete(p.name);
+        deckState.decky.plugins = [...set];
+        setDeckPickCount("deckplugins", deckState.decky.plugins.length, "plugin");
+      });
+    }),
   );
+}
+
+// ── Password managers picker screen ──
+async function hydrateDeckPm(): Promise<void> {
+  const box = document.querySelector<HTMLElement>("#deckpm-body");
+  if (!box) return;
+  box.replaceChildren(el("p", "muted", "Loading…"));
+  let list: PasswordManager[] = [];
+  try {
+    list = (await window.bootible?.getDeckPasswordManagers?.()) ?? [];
+  } catch {
+    box.replaceChildren(el("p", "muted", "Couldn't load password managers."));
+    return;
+  }
+  renderDeckPasswordManagers(box, list);
+  setDeckPickCount("deckpm", deckState.passwordManagers.managers.length, "manager");
+}
+
+function renderDeckPasswordManagers(box: HTMLElement, list: PasswordManager[]): void {
+  const rows = list.map((pm) =>
+    deckItemRow(pm.name, "", deckState.passwordManagers.managers.includes(pm.id), (v) => {
+      const set = new Set(deckState.passwordManagers.managers);
+      if (v) set.add(pm.id);
+      else set.delete(pm.id);
+      deckState.passwordManagers.managers = [...set];
+      setDeckPickCount("deckpm", deckState.passwordManagers.managers.length, "manager");
+    }),
+  );
+  const methodWrap = el("div", "cz-sec");
+  methodWrap.append(el("div", "cz-sec-h", "Install method"));
+  const method = el("select", "uw-select") as HTMLSelectElement;
+  for (const [value, label] of [
+    ["flatpak", "Flatpak (simpler)"],
+    ["distrobox", "Distrobox (system auth + SSH agent)"],
+  ] as const) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    method.append(opt);
+  }
+  method.value = deckState.passwordManagers.method;
+  method.addEventListener("change", () => {
+    deckState.passwordManagers.method = method.value === "distrobox" ? "distrobox" : "flatpak";
+  });
+  methodWrap.append(method);
+  box.replaceChildren(...rows, methodWrap);
 }
 
 async function hydrateDeckWrite(): Promise<void> {

@@ -164,6 +164,9 @@ body[data-view="wifi"] .view[data-view="wifi"] {
 }
 
 body[data-view="deck"] .view[data-view="deck"],
+body[data-view="deckapps"] .view[data-view="deckapps"],
+body[data-view="deckplugins"] .view[data-view="deckplugins"],
+body[data-view="deckpm"] .view[data-view="deckpm"],
 body[data-view="deckmethod"] .view[data-view="deckmethod"],
 body[data-view="deckwrite"] .view[data-view="deckwrite"],
 body[data-view="deckreimage"] .view[data-view="deckreimage"] {
@@ -2785,31 +2788,4 @@ body.booting .views {
 /* let the hidden attribute win over the section's grid layout */
 .customise-body [hidden] {
   display: none;
-}
-
-.deck-plugins,
-.deck-apps {
-  display: grid;
-  gap: 2px;
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 10px 12px;
-  margin-top: 4px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-
-.deck-cat {
-  font-family: "JetBrains Mono", monospace;
-  font-feature-settings: "zero" 1;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--dim);
-  margin-top: 10px;
-}
-
-.deck-cat:first-child {
-  margin-top: 0;
 }

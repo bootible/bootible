@@ -895,6 +895,51 @@
           </div>
         </main>
 
+        <!-- ───────────────────── DECK APPS PICKER ───────────────────── -->
+        <main class="view setup" data-view="deckapps">
+          <div class="setup-head">
+            <p class="eyebrow" id="deckapps-count">0 apps selected</p>
+            <h1 class="setup-title">Choose apps</h1>
+            <p class="setup-sub">Tick a category to select all, or expand it and pick individual apps. Each becomes a Flatpak install.</p>
+          </div>
+          <div class="apps-body" id="deckapps-body"></div>
+          <div class="customise-foot">
+            <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="deck">Done <span class="arrow" aria-hidden="true">→</span></button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── DECKY PLUGINS PICKER ───────────────────── -->
+        <main class="view setup" data-view="deckplugins">
+          <div class="setup-head">
+            <p class="eyebrow" id="deckplugins-count">0 plugins selected</p>
+            <h1 class="setup-title">Choose Decky plugins</h1>
+            <p class="setup-sub">Sorted by installs — the most popular are first. Each is installed from the official Decky store.</p>
+          </div>
+          <div class="apps-body" id="deckplugins-body"></div>
+          <div class="customise-foot">
+            <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="deck">Done <span class="arrow" aria-hidden="true">→</span></button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── PASSWORD MANAGERS PICKER ───────────────────── -->
+        <main class="view setup" data-view="deckpm">
+          <div class="setup-head">
+            <p class="eyebrow" id="deckpm-count">0 managers selected</p>
+            <h1 class="setup-title">Choose password managers</h1>
+            <p class="setup-sub">Pick any you use, then choose how they're installed (Flatpak is simpler; Distrobox unlocks system auth + SSH agent).</p>
+          </div>
+          <div class="apps-body" id="deckpm-body"></div>
+          <div class="customise-foot">
+            <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="deck">Done <span class="arrow" aria-hidden="true">→</span></button>
+            </div>
+          </div>
+        </main>
+
         <!-- ───────────────────── DECK METHOD (provision-only vs full reimage) ───────────────────── -->
         <main class="view setup" data-view="deckmethod">
           <div class="setup-head">
