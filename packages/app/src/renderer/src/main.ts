@@ -42,6 +42,7 @@ import { NetworkSettings } from "./components/NetworkSettings";
 import { ProfileBar } from "./components/ProfileBar";
 import { SshAccessEditor } from "./components/SshAccessEditor";
 import { countSelectedInView } from "./lib/app-selection";
+import { needsDevicePick } from "./lib/nav";
 import { profilesForDevice } from "./lib/profiles";
 import wordlistRaw from "./wordlist.txt?raw";
 
@@ -301,6 +302,13 @@ function setApplyLabel(): void {
 /** Drive the active view from the URL hash so screens are deep-linkable. */
 function syncFromHash(): void {
   const view = location.hash.replace(/^#/, "") || "welcome";
+  // Device-dependent screens reached by deep link / reload have lost selectedDeviceId
+  // (and the desktop builder can't auto-detect a handheld) — send the user to pick a
+  // device first so customise is never device-less. See needsDevicePick.
+  if (needsDevicePick(view, selectedDeviceId)) {
+    location.hash = "platform";
+    return;
+  }
   show(view);
   if (view === "platform") void hydratePlatforms();
   if (view === "base") void hydrateBases();
