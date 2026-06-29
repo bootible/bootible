@@ -15,7 +15,7 @@
   <body data-view="home">
     <div class="device">
       <header class="sysbar">
-        <span class="brand"><img class="brand-mark" id="brand-mark" alt="" /><span class="wordmark">bootible<span class="dot"></span></span></span>
+        <button class="brand" type="button" data-go="platform" title="Devices — pick a device" aria-label="Go to device picker"><img class="brand-mark" id="brand-mark" alt="" /><span class="wordmark">bootible<span class="dot"></span></span></button>
         <span class="sysbar-right">
           <span class="account" id="account" hidden>
             <span class="account-email" id="account-email"></span>
@@ -202,7 +202,7 @@
               <button class="btn-primary" type="button" data-go="base">
                 Set up this device <span class="arrow" aria-hidden="true">→</span>
               </button>
-              <button class="btn-ghost" type="button" data-back>Change device</button>
+              <button class="btn-ghost" type="button" data-go="platform">Change device</button>
             </div>
           </div>
 
