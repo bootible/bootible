@@ -1,5 +1,24 @@
 export { allyExecutor } from "./ally-executor";
 export { allyBundles, allyCatalog } from "./ally-modules";
+export type {
+  BaseOption,
+  BasePlan,
+  DeckProvisionUsbRequest,
+  DeckReimageUsbRequest,
+  DeviceOption,
+  DiscoveredDevice,
+  HostSshKey,
+  IsoOption,
+  LanguageOption,
+  PlanModule,
+  PlatformOption,
+  ProvisionResult,
+  RegionOption,
+  UsbBuildRequest,
+  UsbDisk,
+  UsbProgress,
+  UsbWriteRequest,
+} from "./app-ipc";
 export type { DeviceSummary, SystemInfo } from "./app-view";
 export { deviceSummary, prettyOs, selectDevice } from "./app-view";
 export type { AppEntry, AppGroup } from "./apps";

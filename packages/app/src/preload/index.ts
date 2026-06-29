@@ -1,90 +1,35 @@
 import type {
   AppGroup,
+  BaseOption,
+  BasePlan,
   Bundle,
-  DeckConfig,
   DeckImage,
+  DeckProvisionUsbRequest,
+  DeckReimageUsbRequest,
   DeckyStorePlugin,
+  DeviceOption,
   DeviceSummary,
+  DiscoveredDevice,
   FlatpakApp,
   GroupSummary,
+  HostSshKey,
+  IsoOption,
+  LanguageOption,
   ModuleStateReport,
   PasswordManager,
+  PlatformOption,
   ProvisioningMethod,
+  ProvisionResult,
+  RegionOption,
   RemovalEntry,
-  StaticIp,
   StepEvent,
+  UsbBuildRequest,
+  UsbDisk,
+  UsbProgress,
+  UsbWriteRequest,
 } from "@bootible/core";
 
 import { contextBridge, ipcRenderer } from "electron";
-
-export interface PlanModule {
-  id: string;
-  name: string;
-  description: string;
-  changes?: string;
-}
-
-export interface BasePlan {
-  floor: PlanModule[];
-  base: PlanModule[];
-  extras: PlanModule[];
-}
-
-export interface ProvisionResult {
-  applied: number;
-  skipped: number;
-}
-
-export interface UsbBuildRequest {
-  modules: string[];
-  /** Chosen base id (raw / steam-bp / xbox / full-rog). */
-  baseId?: string;
-  /** The user's chosen SSH public keys (enables the ssh-key module). */
-  sshPublicKeys?: string[];
-  /** Device hostname — computer name, .local name, and SSH alias. */
-  hostname?: string;
-  /** Optional fixed IP for the device. */
-  staticIp?: StaticIp;
-  /** Windows edition (Pro unlocks RDP host). */
-  edition?: "home" | "pro";
-  /** Remote-access tools to install/enable on the device. */
-  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
-  /** Streaming apps to also install on this desktop (the host). */
-  remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
-  /** Sunshine web-UI login to pre-set. */
-  sunshineUser?: string;
-  sunshinePass?: string;
-  /** Host image paths for the device wallpaper / lock screen. */
-  wallpaperPath?: string;
-  lockscreenPath?: string;
-  /** Floor/base modules unticked on the review/customise screen. */
-  disabledModules?: string[];
-  /** App slugs picked in the app-picker. */
-  selectedApps?: string[];
-  /** Removal-catalog ids the user opted into stripping (Full ROG). */
-  selectedRemovals?: string[];
-  account: { mode: "local" | "microsoft"; username?: string; password?: string };
-  wifi?: { ssid: string; password: string };
-  /** Catalog id of the ISO/display language (sets download + answer-file UI language). */
-  isoId?: string;
-  /** Region/keyboard id from getRegions(). Omitted → default (New Zealand). */
-  regionId?: string;
-}
-
-export interface BaseOption {
-  id: string;
-  label: string;
-  description: string;
-  tag?: string;
-  recommended?: boolean;
-}
-
-export interface HostSshKey {
-  id: string;
-  label: string;
-  type: string;
-  publicKey: string;
-}
 
 export interface ProfileSummary {
   name: string;
@@ -96,77 +41,6 @@ export interface ProfileSummary {
 export interface Profile extends ProfileSummary {
   ui: Record<string, unknown>;
   secrets?: Record<string, string>;
-}
-
-export interface DiscoveredDevice {
-  buildId: string;
-  mac: string;
-  ip: string;
-  hostname: string;
-  username: string;
-  status: string;
-  mine: boolean;
-}
-
-export interface LanguageOption {
-  id: string;
-  label: string;
-  /** The ISO catalog id to select when this language is chosen. */
-  isoId: string;
-}
-
-export interface RegionOption {
-  id: string;
-  label: string;
-}
-
-export interface PlatformOption {
-  id: string;
-  label: string;
-  blurb: string;
-  status: "ready" | "coming-soon";
-}
-
-export interface DeviceOption {
-  id: string;
-  name: string;
-  status: "ready" | "coming-soon";
-}
-
-export interface UsbDisk {
-  number: number;
-  name: string;
-  sizeGb: number;
-  letters: string;
-  label: string;
-}
-
-export interface IsoOption {
-  id: string;
-  label: string;
-}
-
-export interface UsbWriteRequest extends UsbBuildRequest {
-  diskNumber: number;
-  isoPath?: string;
-}
-
-export interface UsbProgress {
-  pct: number;
-  message: string;
-  status: "running" | "done" | "error";
-}
-
-/** Path A — build a provision-only Deck USB: format + carry the payload. */
-export interface DeckProvisionUsbRequest {
-  driveLetter: string;
-  config: Partial<DeckConfig>;
-}
-
-/** Path B — full reimage: flash SteamOS to a disk + append the payload. */
-export interface DeckReimageUsbRequest {
-  diskNumber: number;
-  config: Partial<DeckConfig>;
 }
 
 // The renderer surface. Each call forwards to a main-process IPC handler that

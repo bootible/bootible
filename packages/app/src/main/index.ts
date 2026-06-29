@@ -30,10 +30,12 @@ import {
   DECK_IMAGE_INDEX,
   type DeckConfig,
   type DeckImage,
+  type DeckProvisionUsbRequest,
   type DeviceEntry,
   type DeviceProfile,
   type DeviceSummary,
   DISPLAY_LANGUAGES,
+  type DiscoveredDevice,
   defaultKeyboardRegion,
   deviceProfile,
   deviceSummary,
@@ -46,6 +48,8 @@ import {
   generateStripReadme,
   generateStripScript,
   groupCatalog,
+  type HostSshKey,
+  type IsoOption,
   imageDevicePath,
   KEYBOARD_REGIONS,
   keyboardRegionById,
@@ -53,6 +57,7 @@ import {
   type ModuleStateReport,
   PASSWORD_MANAGERS,
   PLATFORMS,
+  type PlanModule,
   type ProvisioningMethod,
   platformForOs,
   provisioningMethods,
@@ -65,7 +70,10 @@ import {
   selectDevice,
   serializeConfig,
   UNIVERSAL_FLOOR,
+  type UsbBuildRequest,
   type UsbBuildSpec,
+  type UsbDisk,
+  type UsbWriteRequest,
   usesDeckCarrier,
 } from "@bootible/core";
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from "electron";
@@ -194,13 +202,6 @@ function buildable(device: DeviceEntry): boolean {
   return !!deviceProfile(device.id) || usesDeckCarrier(device.os);
 }
 
-interface PlanModule {
-  id: string;
-  name: string;
-  description: string;
-  changes?: string;
-}
-
 /** Optional plain-toggle extras on the review/customise screen. (Apps and
  *  Emulators are their own picker rows, handled in the renderer; EmuDeck lives
  *  inside the Emulators picker.) */
@@ -250,17 +251,6 @@ function getBundles(): Bundle[] {
 }
 
 // ── host SSH integration (the key-picker replaces paste-a-key) ───────────────
-
-export interface HostSshKey {
-  /** The .pub filename, used as a stable id in the picker. */
-  id: string;
-  /** Human label — the key's comment, or the filename. */
-  label: string;
-  /** Key type (ssh-ed25519, ssh-rsa, …). */
-  type: string;
-  /** The full public-key line — exactly what gets authorised on the device. */
-  publicKey: string;
-}
 
 function sshDir(): string {
   return join(homedir(), ".ssh");
@@ -445,45 +435,6 @@ async function exportConfig(
   return { path: result.filePath };
 }
 
-export interface UsbBuildRequest {
-  /** Modifier module ids the user added on top of the base. */
-  modules: string[];
-  /** Chosen base id (raw / steam-bp / xbox / full-rog). Resolves to the base's
-   *  shell + software floor, unioned with the universal floor and the modifiers. */
-  baseId?: string;
-  /** The user's chosen SSH public keys (plain data); enables the ssh-key module. */
-  sshPublicKeys?: string[];
-  /** Device hostname — sets the computer name, the .local name, and the SSH alias. */
-  hostname?: string;
-  /** Optional fixed IP so the device is always reachable at the same address. */
-  staticIp?: StaticIp;
-  /** Windows edition to install. Pro unlocks RDP host. Default home. */
-  edition?: "home" | "pro";
-  /** Which remote-access tools to install/enable on the device. */
-  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
-  /** Which of the streaming pair to also install on THIS desktop (the host). */
-  remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
-  /** Sunshine web-UI login to pre-set (when Sunshine is installed). */
-  sunshineUser?: string;
-  sunshinePass?: string;
-  /** Host image paths to stage as the device's wallpaper / lock screen. */
-  wallpaperPath?: string;
-  lockscreenPath?: string;
-  /** Floor/base modules unticked on the review/customise screen. */
-  disabledModules?: string[];
-  /** App slugs picked in the app-picker. */
-  selectedApps?: string[];
-  /** Removal-catalog ids the user opted into stripping (Full ROG). */
-  selectedRemovals?: string[];
-  account: { mode: "local" | "microsoft"; username?: string; password?: string };
-  wifi?: { ssid: string; password: string };
-  /** Catalog id of the ISO/display language — sets the download language AND the
-   *  answer file's UI language from one choice so they can't disagree. */
-  isoId?: string;
-  /** Region/keyboard id from KEYBOARD_REGIONS. Omitted → default (New Zealand). */
-  regionId?: string;
-}
-
 /** The build token baked into the most recent USB; matched against beacons so we
  *  know which discovered device is the one we just built. */
 let lastBuildId = "";
@@ -610,18 +561,6 @@ function verifyDevice(
 }
 
 // ── device discovery (the beacon listener) ───────────────────────────────────
-
-export interface DiscoveredDevice {
-  buildId: string;
-  mac: string;
-  ip: string;
-  hostname: string;
-  /** The device's account name, reported by the beacon — used as the SSH user. */
-  username: string;
-  status: string;
-  /** True when this is the device built by the most recent USB. */
-  mine: boolean;
-}
 
 let beaconSocket: Socket | null = null;
 
@@ -959,12 +898,6 @@ function buildUsb(req: UsbBuildRequest): { stagingPath: string; command: string 
   };
 }
 
-export interface UsbWriteRequest extends UsbBuildRequest {
-  diskNumber: number;
-  /** A local ISO path (browse) instead of downloading the catalog isoId via Fido. */
-  isoPath?: string;
-}
-
 /** Tail the writer's NDJSON progress file and stream each line to the renderer. */
 function tailUsbProgress(sender: WebContents, file: string): void {
   let offset = 0;
@@ -1066,13 +999,6 @@ function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean
 }
 
 // ── Steam Deck / SteamOS carrier (Path A: provision-only USB) ────────────────
-
-export interface DeckProvisionUsbRequest {
-  /** Drive letter of the USB to format + carry the payload, e.g. "E" or "E:". */
-  driveLetter: string;
-  /** The user's Deck choices → DeckConfig (buildDeckBundle normalizes it). */
-  config: Partial<DeckConfig>;
-}
 
 /**
  * Path A — provision-only USB. Format the chosen stick to exFAT (label BOOTIBLE)
@@ -1223,19 +1149,6 @@ async function writeDeckReimageUsb(
 }
 
 // ── in-app USB writer: disks + ISO source ───────────────────────────────────
-
-export interface UsbDisk {
-  number: number;
-  name: string;
-  sizeGb: number;
-  letters: string;
-  label: string;
-}
-
-export interface IsoOption {
-  id: string;
-  label: string;
-}
 
 /** Run a PowerShell snippet and return stdout (non-elevated, no window). */
 function runPwsh(script: string): string {
