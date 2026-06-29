@@ -1856,26 +1856,37 @@ body[data-view="account"] .summary::before {
   cursor: pointer;
 }
 
-/* ── Deck profiles bar (save / load the whole config) ── */
-.deck-profiles {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+/* ── ProfileBar (shared save/load header: ROG + Deck) ── */
+.profile-bar {
   margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
-.deck-profiles select {
+.profile-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.profile-bar-row select {
   flex: 1 1 180px;
 }
-.deck-profiles input {
+.profile-bar-row input {
   flex: 1 1 140px;
 }
-.deck-profiles .btn-ghost,
-.deck-profiles .btn-primary {
+.profile-bar-row .btn-ghost,
+.profile-bar-row .btn-primary {
   flex: none;
   padding: 8px 16px;
+}
+.profile-bar-status {
+  margin: 8px 0 0;
+  min-height: 1em;
+  font-size: 12px;
+  color: var(--dim);
+}
+.profile-bar-status:empty {
+  display: none;
 }
 
 /* ── NetworkSettings (shared static-IP editor: ROG + Deck) ── */

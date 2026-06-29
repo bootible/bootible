@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { NetworkSettings } from "./NetworkSettings";
 
 const q = <T extends Element>(root: Element, sel: string) => root.querySelector<T>(sel);
+/** Query that asserts presence (non-null without a `!` assertion). */
+const get = <T extends Element>(root: Element, sel: string): T => {
+  const el = root.querySelector<T>(sel);
+  if (!el) throw new Error(`element not found: ${sel}`);
+  return el;
+};
 function fire(el: Element, type: string): void {
   el.dispatchEvent(new Event(type, { bubbles: true }));
 }
@@ -17,7 +23,7 @@ describe("NetworkSettings", () => {
   it("enabling static emits a config with defaults (first interface, prefix 24)", () => {
     const onChange = vi.fn();
     const root = NetworkSettings({ value: undefined, interfaces: ["wifi", "ethernet"], onChange });
-    const toggle = q<HTMLInputElement>(root, "[data-toggle=static]")!;
+    const toggle = get<HTMLInputElement>(root, "[data-toggle=static]");
     toggle.checked = true;
     fire(toggle, "change");
     expect(onChange).toHaveBeenCalledWith({ iface: "wifi", ip: "", prefix: 24 });
@@ -31,7 +37,7 @@ describe("NetworkSettings", () => {
       infer: { prefix: 23, gateway: "10.0.0.1", dns: "10.0.0.1" },
       onChange,
     });
-    const toggle = q<HTMLInputElement>(root, "[data-toggle=static]")!;
+    const toggle = get<HTMLInputElement>(root, "[data-toggle=static]");
     toggle.checked = true;
     fire(toggle, "change");
     expect(onChange).toHaveBeenCalledWith({
@@ -50,7 +56,7 @@ describe("NetworkSettings", () => {
       interfaces: ["wifi"],
       onChange,
     });
-    const ip = q<HTMLInputElement>(root, "[data-field=ip]")!;
+    const ip = get<HTMLInputElement>(root, "[data-field=ip]");
     ip.value = "192.168.1.50";
     fire(ip, "input");
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ ip: "192.168.1.50" }));
@@ -63,7 +69,7 @@ describe("NetworkSettings", () => {
       interfaces: ["wifi"],
       onChange,
     });
-    const toggle = q<HTMLInputElement>(root, "[data-toggle=static]")!;
+    const toggle = get<HTMLInputElement>(root, "[data-toggle=static]");
     expect(toggle.checked).toBe(true);
     toggle.checked = false;
     fire(toggle, "change");

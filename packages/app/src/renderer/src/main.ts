@@ -39,6 +39,7 @@ import type {
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
+import { ProfileBar } from "./components/ProfileBar";
 import { countSelectedInView } from "./lib/app-selection";
 import wordlistRaw from "./wordlist.txt?raw";
 
@@ -2281,6 +2282,9 @@ function updateDeckSummary(): void {
 /** Snapshot the whole Deck config into a Profile. The Sunshine password rides in
  *  `secrets` (DPAPI-encrypted by main, E2E in the cloud) — never plaintext in ui.
  *  Same store + cloud sync as the ROG profiles. */
+// The Deck's currently-loaded profile name (drives ProfileBar's Update button).
+let deckLoadedProfile: string | null = null;
+
 function captureDeckProfile(name: string): Profile {
   const ui = JSON.parse(JSON.stringify(deckState)) as Record<string, unknown>;
   const sun = ui.sunshine as { pass?: string } | undefined;
@@ -2311,54 +2315,37 @@ async function hydrateDeck(): Promise<void> {
   if (!body) return;
   body.replaceChildren();
 
-  // Profiles bar — save/load the whole Deck config (same local store + cloud sync
-  // as ROG). Lists this device's profiles (and untagged ones).
+  // Profiles header — the shared ProfileBar (same component + behaviour as ROG).
   const savedProfiles = (await window.bootible?.listProfiles?.()) ?? [];
-  const mine = savedProfiles.filter((p) => !p.deviceId || p.deviceId === selectedDeviceId);
-  const bar = el("div", "deck-profiles");
-  const sel = el("select", "uw-select") as HTMLSelectElement;
-  const ph = document.createElement("option");
-  ph.value = "";
-  ph.textContent = mine.length ? "Load a saved profile…" : "No saved profiles yet";
-  sel.append(ph);
-  for (const p of mine) {
-    const o = document.createElement("option");
-    o.value = p.name;
-    o.textContent = p.name;
-    sel.append(o);
-  }
-  const loadBtn = el("button", "btn-ghost") as HTMLButtonElement;
-  loadBtn.type = "button";
-  loadBtn.textContent = "Load";
-  loadBtn.addEventListener("click", async () => {
-    if (!sel.value) return;
-    const p = await window.bootible?.loadProfile?.(sel.value);
-    if (p) applyDeckProfile(p);
-  });
-  const delBtn = el("button", "btn-ghost") as HTMLButtonElement;
-  delBtn.type = "button";
-  delBtn.textContent = "Delete";
-  delBtn.addEventListener("click", async () => {
-    if (!sel.value) return;
-    await window.bootible?.deleteProfile?.(sel.value);
-    void hydrateDeck();
-  });
-  const nameIn = el("input", "uw-select") as HTMLInputElement;
-  nameIn.type = "text";
-  nameIn.placeholder = "Save current as…";
-  const saveBtn = el("button", "btn-primary") as HTMLButtonElement;
-  saveBtn.type = "button";
-  saveBtn.textContent = "Save";
-  saveBtn.addEventListener("click", async () => {
-    const name = nameIn.value.trim() || sel.value;
-    if (!name) return;
+  const saveDeck = async (name: string): Promise<void> => {
     await window.bootible?.saveProfile?.(captureDeckProfile(name));
-    void window.bootible?.cloud?.syncNow(); // push the change if signed in + unlocked (ROG parity)
-    nameIn.value = "";
+    void window.bootible?.cloud?.syncNow(); // push if signed in + unlocked
+    deckLoadedProfile = name;
     void hydrateDeck();
-  });
-  bar.append(sel, loadBtn, delBtn, nameIn, saveBtn);
-  body.append(bar);
+  };
+  body.append(
+    ProfileBar({
+      // Filter to this device's profiles (+ untagged). Family-aware filtering lives
+      // in core (visibleProfiles); the renderer can't value-import core (the barrel
+      // pulls Node-only modules), so it filters inline or via IPC.
+      profiles: savedProfiles.filter((p) => !p.deviceId || p.deviceId === selectedDeviceId),
+      loadedName: deckLoadedProfile,
+      onLoad: async (name) => {
+        const p = await window.bootible?.loadProfile?.(name);
+        if (p) {
+          deckLoadedProfile = name;
+          applyDeckProfile(p); // re-renders
+        }
+      },
+      onSaveNew: saveDeck,
+      onUpdate: saveDeck,
+      onDelete: async (name) => {
+        await window.bootible?.deleteProfile?.(name);
+        if (deckLoadedProfile === name) deckLoadedProfile = null;
+        void hydrateDeck();
+      },
+    }),
+  );
 
   // Catalog (loaded once) drives which flatpak ids belong to the Emulators picker
   // and the Game-streaming section, so the Apps picker count excludes them — no
