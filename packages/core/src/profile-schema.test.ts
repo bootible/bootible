@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { CURRENT_PROFILE_VERSION, deviceFamilyOf, migrateProfile } from "./profile-schema";
+import {
+  CURRENT_PROFILE_VERSION,
+  deviceFamilyOf,
+  migrateProfile,
+  visibleProfiles,
+} from "./profile-schema";
+
+describe("visibleProfiles", () => {
+  const profiles = [
+    { name: "rog", deviceId: "rog-ally" },
+    { name: "deck", deviceId: "steamdeck" },
+    { name: "legacy", deviceId: undefined }, // untagged / unknown family
+  ];
+
+  it("shows a device its own family's profiles plus untagged, hiding other families", () => {
+    expect(visibleProfiles(profiles, "rog-ally").map((p) => p.name)).toEqual(["rog", "legacy"]);
+    expect(visibleProfiles(profiles, "steamdeck").map((p) => p.name)).toEqual(["deck", "legacy"]);
+  });
+
+  it("matches by family, not exact id (a windows profile shows on any windows device)", () => {
+    expect(
+      visibleProfiles([{ name: "a", deviceId: "rog-ally" }], "rog-ally-x").map((p) => p.name),
+    ).toEqual(["a"]);
+  });
+});
 
 const NOW = 1_700_000_000_000;
 

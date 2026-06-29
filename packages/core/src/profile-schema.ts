@@ -28,6 +28,22 @@ export interface PersistedProfile {
   deleted: boolean;
 }
 
+/**
+ * Filter profiles to those a given device should see: its own family, plus
+ * untagged/legacy (unknown family) so existing profiles never silently vanish.
+ * Other families are hidden — a Windows profile doesn't belong on a Deck.
+ */
+export function visibleProfiles<T extends { deviceId?: string }>(
+  profiles: readonly T[],
+  deviceId: string | undefined,
+): T[] {
+  const family = deviceFamilyOf(deviceId);
+  return profiles.filter((p) => {
+    const f = deviceFamilyOf(p.deviceId);
+    return f === "unknown" || f === family;
+  });
+}
+
 /** Map a device id to its family (used to keep a device's profiles to itself). */
 export function deviceFamilyOf(deviceId: string | undefined): DeviceFamily {
   const id = (deviceId ?? "").toLowerCase();

@@ -128,7 +128,12 @@ export { PLATFORMS, platformById, platformForOs, ROADMAP_DEVICES } from "./platf
 export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
 export type { DeviceFamily, PersistedProfile } from "./profile-schema";
-export { CURRENT_PROFILE_VERSION, deviceFamilyOf, migrateProfile } from "./profile-schema";
+export {
+  CURRENT_PROFILE_VERSION,
+  deviceFamilyOf,
+  migrateProfile,
+  visibleProfiles,
+} from "./profile-schema";
 export type { DeviceProfile } from "./profiles";
 export { deviceProfile, usesDeckCarrier } from "./profiles";
 export type { ProvisioningMethod, ProvisioningMethodId } from "./provisioning";
