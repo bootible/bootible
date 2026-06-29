@@ -1856,6 +1856,95 @@ body[data-view="account"] .summary::before {
   cursor: pointer;
 }
 
+/* ── Decky plugin search + expandable detail cards ── */
+.deck-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  margin-bottom: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+}
+.deck-search:focus {
+  outline: none;
+  border-color: var(--signal);
+}
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plugin-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.plugin-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+.plugin-head .app-row {
+  flex: 1;
+  min-width: 0;
+}
+.plugin-info-btn {
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--dim);
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.plugin-info-btn:hover {
+  color: var(--signal);
+  border-color: var(--signal);
+}
+.plugin-detail {
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-2);
+}
+.plugin-img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+.plugin-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+.plugin-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.plugin-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--muted);
+}
+.plugin-ver {
+  margin: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .app-row input {
   accent-color: var(--signal);
 }

@@ -2930,20 +2930,73 @@ function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
     box.replaceChildren(el("p", "muted", "No plugins returned — the defaults will be used."));
     return;
   }
+  // The list is long, so offer a live filter over name / description / tags / author.
+  const search = el("input", "deck-search") as HTMLInputElement;
+  search.type = "search";
+  search.placeholder = `Search ${list.length} plugins…`;
+  const listEl = el("div", "plugin-list");
   // fetchDeckyPlugins returns them sorted by downloads (most-installed first).
-  box.replaceChildren(
-    ...list.map((p) => {
-      const desc = (p.description ?? "").slice(0, 60);
-      const meta = `${formatDownloads(p.downloads)} installs${desc ? ` · ${desc}` : ""}`;
-      return deckItemRow(p.name, meta, deckState.decky.plugins.includes(p.name), (v) => {
-        const set = new Set(deckState.decky.plugins);
-        if (v) set.add(p.name);
-        else set.delete(p.name);
-        deckState.decky.plugins = [...set];
-        setDeckPickCount("deckplugins", deckState.decky.plugins.length, "plugin");
-      });
-    }),
-  );
+  const cards: { el: HTMLElement; hay: string }[] = list.map((p) => {
+    const card = el("div", "plugin-card");
+    const row = el("label", "app-row");
+    const cb = el("input", "app-check") as HTMLInputElement;
+    cb.type = "checkbox";
+    cb.checked = deckState.decky.plugins.includes(p.name);
+    cb.addEventListener("change", () => {
+      const set = new Set(deckState.decky.plugins);
+      if (cb.checked) set.add(p.name);
+      else set.delete(p.name);
+      deckState.decky.plugins = [...set];
+      setDeckPickCount("deckplugins", deckState.decky.plugins.length, "plugin");
+    });
+    const meta = el("span", "app-meta");
+    meta.append(el("span", "app-name", p.name));
+    meta.append(
+      el("span", "app-id", `${formatDownloads(p.downloads)} installs · ${p.author || "unknown"}`),
+    );
+    row.append(cb, meta);
+    // "Details" expands the full store info (no public per-plugin page exists, so
+    // we show what the store API already returns — description, tags, version, icon).
+    const info = el("button", "plugin-info-btn") as HTMLButtonElement;
+    info.type = "button";
+    info.textContent = "Details";
+    info.setAttribute("aria-expanded", "false");
+    const detail = el("div", "plugin-detail");
+    detail.hidden = true;
+    if (p.imageUrl) {
+      const img = el("img", "plugin-img") as HTMLImageElement;
+      img.src = p.imageUrl;
+      img.alt = "";
+      img.loading = "lazy";
+      detail.append(img);
+    }
+    detail.append(el("p", "plugin-desc", p.description || "No description provided."));
+    if (p.tags.length) {
+      const tags = el("div", "plugin-tags");
+      for (const t of p.tags) tags.append(el("span", "plugin-tag", t));
+      detail.append(tags);
+    }
+    if (p.version) detail.append(el("p", "plugin-ver", `v${p.version}`));
+    info.addEventListener("click", () => {
+      const open = detail.hidden;
+      detail.hidden = !open;
+      info.setAttribute("aria-expanded", String(open));
+      info.textContent = open ? "Hide" : "Details";
+    });
+    const head = el("div", "plugin-head");
+    head.append(row, info);
+    card.append(head, detail);
+    listEl.append(card);
+    return {
+      el: card,
+      hay: `${p.name} ${p.description} ${p.tags.join(" ")} ${p.author}`.toLowerCase(),
+    };
+  });
+  search.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    for (const c of cards) c.el.hidden = q !== "" && !c.hay.includes(q);
+  });
+  box.replaceChildren(search, listEl);
 }
 
 // ── Password managers picker screen ──
