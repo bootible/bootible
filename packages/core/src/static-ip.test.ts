@@ -40,4 +40,23 @@ describe("normalizeStaticIp", () => {
   it("drops an invalid gateway", () => {
     expect(normalizeStaticIp({ ip: "10.0.0.5", gateway: "nope" })?.gateway).toBeUndefined();
   });
+
+  it("rejects out-of-range octets in the address", () => {
+    expect(normalizeStaticIp({ ip: "999.999.999.999" })).toBeUndefined();
+    expect(normalizeStaticIp({ ip: "256.1.1.1" })).toBeUndefined();
+    expect(normalizeStaticIp({ ip: "1.2.3.256" })).toBeUndefined();
+    // valid boundaries still pass
+    expect(normalizeStaticIp({ ip: "255.255.255.255" })?.ip).toBe("255.255.255.255");
+    expect(normalizeStaticIp({ ip: "0.0.0.0" })?.ip).toBe("0.0.0.0");
+  });
+
+  it("drops a gateway and filters DNS entries with out-of-range octets", () => {
+    const r = normalizeStaticIp({
+      ip: "10.0.0.5",
+      gateway: "10.0.0.300",
+      dns: "10.0.0.1,8.8.8.999",
+    });
+    expect(r?.gateway).toBeUndefined();
+    expect(r?.dns).toBe("10.0.0.1");
+  });
 });

@@ -17,7 +17,8 @@ export interface StaticIp {
   dns?: string;
 }
 
-export const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+const OCTET = "(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)"; // 0–255, no leading-zero triples
+export const IPV4 = new RegExp(`^${OCTET}(\\.${OCTET}){3}$`);
 
 /**
  * Validate + complete a (possibly partial) static-IP entry. Returns undefined if
