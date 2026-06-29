@@ -9,10 +9,11 @@
 // fact (same approach that nailed Copilot/Recall over SSH).
 
 import { allyCatalog } from "./ally-modules";
-import { getSelectedAppCommands } from "./apps";
+import { getSelectedAppCommands, getSelectedGithubReleases } from "./apps";
 import { UNIVERSAL_FLOOR } from "./bases";
 import { BEACON_PORT } from "./beacon";
 import type { BootibleConfig } from "./config";
+import { generateGithubReleaseInstall } from "./github-install";
 import type { ApplyContext } from "./orchestrator";
 import type { Exec } from "./secrets";
 import { generateAppInstallerUpdate, generateTwoPassInstall } from "./winget";
@@ -285,13 +286,19 @@ export function generateStripScript(config: BootibleConfig): string {
   const bakedSsh =
     ((config.settings?.ssh_public_keys as string[] | undefined)?.length ?? 0) > 0 ||
     !!config.modules?.includes("ssh-key");
-  const appInstalls = config.modules?.includes("apps")
-    ? getSelectedAppCommands((config.settings?.selected_apps as string[] | undefined) ?? [])
+  const selectedAppSlugs = config.modules?.includes("apps")
+    ? ((config.settings?.selected_apps as string[] | undefined) ?? [])
     : [];
+  const appInstalls = getSelectedAppCommands(selectedAppSlugs);
   const needsStoreUpdate = appInstalls.some((c) => c.includes("msstore"));
   const appBlock = [
     needsStoreUpdate ? generateAppInstallerUpdate("Write-Strip") : "",
     generateTwoPassInstall(appInstalls, "$Root", "Write-Strip", "launcher"),
+    generateGithubReleaseInstall(
+      getSelectedGithubReleases(selectedAppSlugs),
+      "$Root",
+      "Write-Strip",
+    ),
   ]
     .filter(Boolean)
     .join("\n\n");

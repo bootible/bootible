@@ -44,6 +44,19 @@ export interface CatalogApp {
   /** A bootible-managed install instead of a single package (e.g. EmuDeck). When
    *  set without winget/flatpak, the app is available on both platforms. */
   module?: string;
+  /** Windows install from a GitHub release (for apps not on winget/Store, e.g.
+   *  Greenlight). Resolves the latest release, downloads the matching asset, and
+   *  installs it silently in the user session. */
+  githubRelease?: GithubReleaseInstall;
+}
+
+export interface GithubReleaseInstall {
+  /** "owner/repo", e.g. "unknownskl/greenlight". */
+  repo: string;
+  /** Regex (string) matched against asset names, e.g. "^Greenlight-Setup-.*\\.exe$". */
+  assetPattern: string;
+  /** Silent-install args for the downloaded installer, e.g. "/S" (NSIS). */
+  silentArgs: string;
 }
 
 export const CATALOG: readonly CatalogApp[] = [
@@ -273,6 +286,12 @@ export const CATALOG: readonly CatalogApp[] = [
     name: "Greenlight (Xbox / xCloud)",
     category: "Streaming",
     flatpak: "io.github.unknownskl.greenlight",
+    // Not on winget/Store — installed from its GitHub release on Windows.
+    githubRelease: {
+      repo: "unknownskl/greenlight",
+      assetPattern: "^Greenlight-Setup-.*\\.exe$",
+      silentArgs: "/S",
+    },
   },
 
   // ── Emulators (EmuDeck default; RetroDeck Deck-only) ─────────────────────────
@@ -500,7 +519,7 @@ export const CATALOG: readonly CatalogApp[] = [
 
 /** True when the app runs on Windows (has a winget install or a module). */
 export function onWindows(app: CatalogApp): boolean {
-  return Boolean(app.winget) || Boolean(app.module);
+  return Boolean(app.winget) || Boolean(app.module) || Boolean(app.githubRelease);
 }
 
 /** True when the app runs on SteamOS (has a flatpak install or a module). */

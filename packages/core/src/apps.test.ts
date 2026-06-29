@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { allyCatalog } from "./ally-modules";
-import { APP_GROUPS, appWingetIds, getSelectedAppCommands } from "./apps";
+import {
+  APP_GROUPS,
+  appWingetIds,
+  getSelectedAppCommands,
+  getSelectedGithubReleases,
+} from "./apps";
 import type { ApplyContext } from "./orchestrator";
 
 const device: ApplyContext["device"] = {
@@ -13,7 +18,20 @@ describe("app catalog", () => {
   it("has unique app slugs and winget ids across all groups", () => {
     const apps = APP_GROUPS.flatMap((g) => g.apps);
     expect(new Set(apps.map((a) => a.id)).size).toBe(apps.length);
-    expect(new Set(apps.map((a) => a.wingetId)).size).toBe(apps.length);
+    // winget ids unique among the apps that have one (module/GitHub-release apps
+    // like EmuDeck and Greenlight legitimately have none).
+    const wingetIds = apps.map((a) => a.wingetId).filter(Boolean);
+    expect(new Set(wingetIds).size).toBe(wingetIds.length);
+  });
+
+  it("offers Greenlight on Windows via its GitHub release (no winget)", () => {
+    const apps = APP_GROUPS.flatMap((g) => g.apps);
+    expect(apps.some((a) => a.id === "greenlight")).toBe(true); // shows in the Windows picker
+    expect(getSelectedAppCommands(["greenlight"])).toEqual([]); // no winget command
+    const gh = getSelectedGithubReleases(["greenlight"]);
+    expect(gh).toHaveLength(1);
+    expect(gh[0]?.repo).toBe("unknownskl/greenlight");
+    expect(gh[0]?.silentArgs).toBe("/S");
   });
 
   it("dropped CCleaner and DriverEasy", () => {

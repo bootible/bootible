@@ -4,6 +4,7 @@
 // a winget install on the device.
 
 import { type CatalogApp, catalogApp, groupByCategory, windowsCatalog } from "./catalog";
+import type { GithubReleaseApp } from "./github-install";
 import { getWingetInstallCommands } from "./winget";
 
 export interface AppEntry {
@@ -78,4 +79,15 @@ export function getSelectedAppCommands(selected: string[]): string[][] {
     }
   }
   return cmds;
+}
+
+/** Selected apps that install from a GitHub release (not winget/Store) — e.g.
+ *  Greenlight. Consumed by generateGithubReleaseInstall in the device script. */
+export function getSelectedGithubReleases(selected: string[]): GithubReleaseApp[] {
+  const out: GithubReleaseApp[] = [];
+  for (const slug of selected) {
+    const gh = catalogApp(slug)?.githubRelease;
+    if (gh) out.push({ id: slug, ...gh });
+  }
+  return out;
 }

@@ -40,7 +40,13 @@ export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
 export { bundleModules } from "./bundles";
-export type { AppCategory, CatalogApp, CategoryGroup, CategoryMeta } from "./catalog";
+export type {
+  AppCategory,
+  CatalogApp,
+  CategoryGroup,
+  CategoryMeta,
+  GithubReleaseInstall,
+} from "./catalog";
 export {
   CATALOG,
   CATEGORY_META,
@@ -107,6 +113,8 @@ export { generateDeckProvision } from "./deck-provision";
 export type { DeviceCapabilities, MediaMode, NetworkCapability } from "./device-capabilities";
 export { capabilitiesFor, devicesWithCapabilities } from "./device-capabilities";
 export { getDisplayTweakCommands } from "./display";
+export type { GithubReleaseApp } from "./github-install";
+export { generateGithubReleaseInstall } from "./github-install";
 export type { DisplayLanguage, KeyboardRegion } from "./languages";
 export {
   DEFAULT_DISPLAY_LANGUAGE_ID,

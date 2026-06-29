@@ -1,5 +1,6 @@
-import { getSelectedAppCommands } from "./apps";
+import { getSelectedAppCommands, getSelectedGithubReleases } from "./apps";
 import type { BootibleConfig } from "./config";
+import { generateGithubReleaseInstall } from "./github-install";
 import { onboard } from "./onboard";
 import type { Executor } from "./orchestrator";
 import type { DeviceEntry } from "./registry";
@@ -66,13 +67,19 @@ export function generateBootstrapScript(opts: BootstrapOptions): string {
     })
     .join("\n");
 
-  const appInstalls = hasApps
-    ? getSelectedAppCommands((opts.config.settings?.selected_apps as string[] | undefined) ?? [])
+  const selectedAppSlugs = hasApps
+    ? ((opts.config.settings?.selected_apps as string[] | undefined) ?? [])
     : [];
+  const appInstalls = getSelectedAppCommands(selectedAppSlugs);
   const needsStoreUpdate = appInstalls.some((c) => c.includes("msstore"));
   const appBlock = [
     needsStoreUpdate ? generateAppInstallerUpdate("Write-Bootible") : "",
     generateTwoPassInstall(appInstalls, "$BootibleRoot", "Write-Bootible", "runonce"),
+    generateGithubReleaseInstall(
+      getSelectedGithubReleases(selectedAppSlugs),
+      "$BootibleRoot",
+      "Write-Bootible",
+    ),
   ]
     .filter(Boolean)
     .join("\n\n");
