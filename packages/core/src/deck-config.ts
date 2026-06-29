@@ -47,7 +47,8 @@ export interface DeckConfig {
   /** Where the Emulation tree lives. */
   emulationStorage: "auto" | "internal" | "sdcard";
   /** Sunshine game-streaming server (Moonlight client is a Flatpak app). */
-  sunshine: boolean;
+  /** Sunshine game-streaming server; web-UI credentials pre-set when provided. */
+  sunshine: { enabled: boolean; user?: string; pass?: string };
   vnc: boolean;
   tailscale: boolean;
   /** Stage the Waydroid installer (Android; the installer itself is interactive). */
@@ -72,7 +73,7 @@ export const DEFAULT_DECK_CONFIG: DeckConfig = {
   proton: { ge: true, protonUpQt: true, protontricks: true },
   emudeck: false,
   emulationStorage: "auto",
-  sunshine: false,
+  sunshine: { enabled: false },
   vnc: false,
   tailscale: false,
   waydroid: false,
@@ -106,7 +107,11 @@ export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): D
     },
     emudeck: p.emudeck ?? d.emudeck,
     emulationStorage: p.emulationStorage ?? d.emulationStorage,
-    sunshine: p.sunshine ?? d.sunshine,
+    sunshine: {
+      enabled: p.sunshine?.enabled ?? false,
+      user: p.sunshine?.user?.trim() || undefined,
+      pass: p.sunshine?.pass || undefined,
+    },
     vnc: p.vnc ?? d.vnc,
     tailscale: p.tailscale ?? d.tailscale,
     waydroid: p.waydroid ?? d.waydroid,

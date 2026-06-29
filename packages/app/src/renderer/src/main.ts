@@ -299,7 +299,7 @@ interface DeckConfig {
   proton: { ge: boolean; protonUpQt: boolean; protontricks: boolean };
   emudeck: boolean;
   emulationStorage: "auto" | "internal" | "sdcard";
-  sunshine: boolean;
+  sunshine: { enabled: boolean; user?: string; pass?: string };
   vnc: boolean;
   tailscale: boolean;
   waydroid: boolean;
@@ -2409,7 +2409,7 @@ const deckState: DeckConfig = {
   proton: { ge: true, protonUpQt: true, protontricks: true },
   emudeck: false,
   emulationStorage: "auto",
-  sunshine: false,
+  sunshine: { enabled: false },
   vnc: false,
   tailscale: false,
   waydroid: false,
@@ -2585,19 +2585,48 @@ async function hydrateDeck(): Promise<void> {
       .map((k) => k.trim())
       .filter(Boolean);
   });
+  // Sunshine web-UI credentials — pre-set on the Deck (parity with the ROG flow),
+  // shown only when Sunshine is enabled.
+  const sunshineCreds = el("div", "cz-span deck-field");
+  sunshineCreds.id = "deck-sunshine-creds";
+  if (!deckState.sunshine.enabled) sunshineCreds.hidden = true;
+  sunshineCreds.append(
+    el(
+      "div",
+      "cz-desc",
+      "Optional Sunshine login — set it here and it's pre-configured (no typing on the Deck).",
+    ),
+  );
+  const suser = el("input", "uw-select") as HTMLInputElement;
+  suser.type = "text";
+  suser.placeholder = "Sunshine username";
+  suser.value = deckState.sunshine.user ?? "";
+  suser.addEventListener("input", () => {
+    deckState.sunshine.user = suser.value.trim() || undefined;
+  });
+  const spass = el("input", "uw-select") as HTMLInputElement;
+  spass.type = "password";
+  spass.placeholder = "Sunshine password";
+  spass.value = deckState.sunshine.pass ?? "";
+  spass.addEventListener("input", () => {
+    deckState.sunshine.pass = spass.value || undefined;
+  });
+  sunshineCreds.append(suser, spass);
   body.append(
     deckSection(
       "Streaming & remote",
       [
         deckCheck(
           "Sunshine",
-          deckState.sunshine,
+          deckState.sunshine.enabled,
           (v) => {
-            deckState.sunshine = v;
+            deckState.sunshine.enabled = v;
+            document.querySelector("#deck-sunshine-creds")?.toggleAttribute("hidden", !v);
           },
           "Host game streaming from this Deck to a Moonlight client on another screen.",
           "installs dev.lizardbyte.app.Sunshine",
         ),
+        sunshineCreds,
         deckCheck(
           "VNC remote desktop",
           deckState.vnc,
@@ -2628,7 +2657,12 @@ async function hydrateDeck(): Promise<void> {
         ),
         keys,
       ],
-      countOn(deckState.sunshine, deckState.vnc, deckState.tailscale, deckState.ssh.enabled),
+      countOn(
+        deckState.sunshine.enabled,
+        deckState.vnc,
+        deckState.tailscale,
+        deckState.ssh.enabled,
+      ),
     ),
   );
 

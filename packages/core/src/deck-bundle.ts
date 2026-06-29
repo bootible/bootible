@@ -18,7 +18,8 @@ function finishSteps(cfg: DeckConfig): string[] {
   const steps = ["Run `passwd` first if you haven't set a Deck password (needed for the script)."];
   if (cfg.decky.enabled) steps.push("Restart to Gaming Mode to see Decky (… menu → plug icon).");
   if (cfg.emudeck) steps.push("Run the EmuDeck wizard from the Desktop, then Steam ROM Manager.");
-  if (cfg.sunshine) steps.push("Open Sunshine and set credentials at https://localhost:47990.");
+  if (cfg.sunshine.enabled && !(cfg.sunshine.user && cfg.sunshine.pass))
+    steps.push("Open Sunshine and set credentials at https://localhost:47990.");
   if (cfg.waydroid) steps.push('Run "Waydroid Installer" from the Desktop to install Android.');
   if (cfg.stickdeck) steps.push("Run StickDeck from the Desktop to use the Deck as a controller.");
   if (cfg.tailscale) steps.push("Run `tailscale up` to sign in to your VPN.");

@@ -102,10 +102,15 @@ describe("generateDeckProvision", () => {
   });
 
   it("installs Sunshine and Tailscale when enabled", () => {
-    const s = generateDeckProvision({ sunshine: true, tailscale: true });
+    const s = generateDeckProvision({ sunshine: { enabled: true }, tailscale: true });
     expect(s).toContain("dev.lizardbyte.app.Sunshine");
     expect(s).toContain("tailscale.com/install.sh");
     expect(s).toContain("systemctl enable --now tailscaled");
+  });
+
+  it("pre-sets Sunshine credentials with --creds when provided", () => {
+    const s = generateDeckProvision({ sunshine: { enabled: true, user: "deck", pass: "pw" } });
+    expect(s).toContain("--creds 'deck' 'pw'");
   });
 
   it("stages the Waydroid installer when enabled", () => {

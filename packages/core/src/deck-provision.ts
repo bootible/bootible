@@ -190,10 +190,24 @@ curl -fsSL https://www.emudeck.com/EmuDeck.desktop -o "$HOME/Desktop/EmuDeck.des
 ok "EmuDeck staged at $EMU — run the wizard from Desktop"`;
 }
 
+/** Single-quote a value for safe embedding in the generated bash. */
+function shq(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
 function streamingBlock(cfg: DeckConfig): string {
   const lines: string[] = [];
-  if (cfg.sunshine || cfg.vnc) lines.push(`say "Streaming / remote"`);
-  if (cfg.sunshine) lines.push(fpInstall("dev.lizardbyte.app.Sunshine"));
+  if (cfg.sunshine.enabled || cfg.vnc) lines.push(`say "Streaming / remote"`);
+  if (cfg.sunshine.enabled) {
+    lines.push(fpInstall("dev.lizardbyte.app.Sunshine"));
+    // Pre-set the web-UI credentials (same mechanism as the Windows side:
+    // `sunshine --creds <user> <pass>`), so there's nothing to type on-device.
+    if (cfg.sunshine.user && cfg.sunshine.pass) {
+      lines.push(
+        `flatpak run dev.lizardbyte.app.Sunshine --creds ${shq(cfg.sunshine.user)} ${shq(cfg.sunshine.pass)} 2>/dev/null && ok "Sunshine credentials set" || warn "set Sunshine creds at https://localhost:47990"`,
+      );
+    }
+  }
   if (cfg.vnc) lines.push(fpInstall("org.tigervnc.vncviewer"));
   return lines.join("\n");
 }
