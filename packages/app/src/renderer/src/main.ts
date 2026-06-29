@@ -629,8 +629,9 @@ function renderCustomise(): void {
     ),
   );
   secs.push(section("Add extras", basePlan.extras.length + 2, extraRows));
-  // Full ROG: opt-in "Remove apps" checklist (drives the strip list).
-  if (selectedBaseId === "full-rog" && removalsCatalog.length) {
+  // Opt-in "Remove apps" checklist (generic Windows bloat/trialware) — offered on
+  // every Windows base, not just Full ROG.
+  if (removalsCatalog.length) {
     secs.push(removalsSection());
   }
   host.replaceChildren(...secs);
