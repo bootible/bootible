@@ -88,10 +88,13 @@ export function SshAccessEditor(o: SshAccessOptions): HTMLElement {
   ghInput.dataset.field = "github";
   ghInput.placeholder = "GitHub username — adds github.com/<user>.keys";
   ghInput.value = v.githubUser ?? "";
+  // Live username into the value on every keystroke…
   ghInput.addEventListener("input", () => {
-    const user = ghInput.value.trim().replace(/[^A-Za-z0-9-]/g, "") || undefined;
-    emit({ githubUser: user });
-    o.onGithubUser?.(user ?? "");
+    emit({ githubUser: ghInput.value.trim().replace(/[^A-Za-z0-9-]/g, "") || undefined });
+  });
+  // …but only request a key-count fetch on blur/Enter (no per-keystroke API spam).
+  ghInput.addEventListener("change", () => {
+    o.onGithubUser?.(ghInput.value.trim().replace(/[^A-Za-z0-9-]/g, ""));
   });
   gh.append(ghInput);
   if (o.githubKeyCount != null && v.githubUser) {

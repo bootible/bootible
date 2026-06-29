@@ -1042,81 +1042,48 @@ document.addEventListener("change", (event) => {
 
 // ── SSH source: BYO key / GitHub / Both ─────────────────────────────────────
 let sshHydrated = false;
-let sshMode: "byo" | "github" | "both" = "byo";
-let githubKeys: string[] = [];
+let githubKeys: string[] = []; // keys fetched from the chosen GitHub user (baked at build)
+let rogPastedKeys: string[] = [];
+let rogGithubUser = "";
 
-/** Switch the SSH source tab — slide the indicator and show the right pane(s). */
-function setSshMode(mode: "byo" | "github" | "both"): void {
-  sshMode = mode;
-  const order = ["byo", "github", "both"];
-  for (const tab of document.querySelectorAll<HTMLElement>(".ssh-tab")) {
-    tab.classList.toggle("is-active", tab.dataset.sshmode === mode);
-  }
-  const glide = document.querySelector<HTMLElement>(".ssh-tab-glide");
-  if (glide) glide.style.transform = `translateX(${order.indexOf(mode) * 100}%)`;
-  const showByo = mode === "byo" || mode === "both";
-  const showGithub = mode === "github" || mode === "both";
-  document.querySelector('.ssh-pane[data-pane="byo"]')?.toggleAttribute("hidden", !showByo);
-  document.querySelector('.ssh-pane[data-pane="github"]')?.toggleAttribute("hidden", !showGithub);
-}
-
-/** Fetch + show the GitHub user's public keys (debounced via blur/Enter). */
-async function refreshGithubKeys(): Promise<void> {
-  const user = (document.querySelector<HTMLInputElement>("#github-user")?.value ?? "").trim();
-  const status = document.querySelector<HTMLElement>("#github-status");
-  if (!user) {
-    githubKeys = [];
-    if (status) status.textContent = "Pulls your public keys from github.com/<user>.keys";
-    return;
-  }
-  if (status) status.textContent = "Looking up keys…";
-  githubKeys = (await window.bootible?.githubKeys?.(user)) ?? [];
-  if (status) {
-    status.textContent = githubKeys.length
-      ? `✓ ${githubKeys.length} key${githubKeys.length === 1 ? "" : "s"} from github.com/${user}.keys`
-      : `No public keys at github.com/${user}.keys`;
-    status.classList.toggle("ok", githubKeys.length > 0);
-  }
-}
-
-// SSH source tab switch.
-document.addEventListener("click", (event) => {
-  const tab = (event.target as HTMLElement).closest<HTMLElement>(".ssh-tab");
-  const mode = tab?.dataset.sshmode;
-  if (mode === "byo" || mode === "github" || mode === "both") setSshMode(mode);
-});
-
-// GitHub username -> fetch its public keys (on blur / Enter).
-document.addEventListener("change", (event) => {
-  if ((event.target as HTMLElement).id === "github-user") void refreshGithubKeys();
-});
-
-/** Render the host's SSH keys as a multi-select, or an empty/generate state. */
-function renderSshKeys(): void {
-  const list = document.querySelector<HTMLElement>("#ssh-key-list");
-  if (!list) return;
+/** (Re)mount the shared SshAccessEditor on the ROG account screen (host-key
+ *  discovery + GitHub + paste; keys enable SSH). */
+function mountRogSsh(): void {
+  const mount = document.querySelector<HTMLElement>("#ssh-mount");
+  if (!mount) return;
+  const editor = SshAccessEditor({
+    hostKeys: hostSshKeys,
+    value: {
+      hostKeyIds: [...selectedKeyIds],
+      pastedKeys: rogPastedKeys,
+      githubUser: rogGithubUser || undefined,
+    },
+    githubKeyCount: rogGithubUser ? githubKeys.length : null,
+    onChange: (next) => {
+      selectedKeyIds.clear();
+      for (const id of next.hostKeyIds) selectedKeyIds.add(id);
+      rogPastedKeys = next.pastedKeys;
+      rogGithubUser = next.githubUser ?? "";
+    },
+    onGithubUser: (user) => {
+      void fetchRogGithub(user);
+    },
+  });
+  mount.replaceChildren(editor);
+  // No SSH key on this PC yet? Offer to generate one (handler at #ssh-generate).
   if (hostSshKeys.length === 0) {
-    const empty = el("p", "muted ssh-empty", "No SSH keys found on this PC. ");
-    const gen = el("button", "linkbtn", "Generate one") as HTMLButtonElement;
+    const gen = el("button", "linkbtn", "Generate a key on this PC") as HTMLButtonElement;
     gen.type = "button";
     gen.id = "ssh-generate";
-    empty.append(gen);
-    list.replaceChildren(empty);
-    return;
+    editor.prepend(gen);
   }
-  list.replaceChildren(
-    ...hostSshKeys.map((k) => {
-      const row = el("label", "ssh-key-row") as HTMLLabelElement;
-      const cb = el("input", "ssh-key-check") as HTMLInputElement;
-      cb.type = "checkbox";
-      cb.dataset.keyId = k.id;
-      cb.checked = selectedKeyIds.has(k.id);
-      const meta = el("span", "ssh-key-meta");
-      meta.append(el("span", "ssh-key-label", k.label), el("span", "ssh-key-type", k.type));
-      row.append(cb, meta);
-      return row;
-    }),
-  );
+}
+
+/** Fetch the GitHub user's public keys (baked into the build) + re-mount to show
+ *  the live count. Runs on blur, so the re-mount doesn't steal focus mid-type. */
+async function fetchRogGithub(user: string): Promise<void> {
+  githubKeys = user ? ((await window.bootible?.githubKeys?.(user)) ?? []) : [];
+  mountRogSsh();
 }
 
 /** The Windows RDP checkbox is only usable on Pro (Home can't host RDP), so grey
@@ -1144,8 +1111,7 @@ async function hydrateSshKeys(): Promise<void> {
     for (const k of hostSshKeys) selectedKeyIds.add(k.id);
     sshHydrated = true;
   }
-  renderSshKeys();
-  setSshMode(sshMode);
+  mountRogSsh();
   updateEditionState();
   // Learn this PC's subnet so the network editor can infer prefix/gateway/dns
   // (the user types only the host), then mount the shared NetworkSettings editor.
@@ -1778,16 +1744,10 @@ function gatherUsbRequest(): UsbBuildRequest {
       : { mode };
   const ssid = val("#wifi-ssid");
   const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
-  // SSH keys come from BYO (host picker + paste), GitHub (fetched), or both,
-  // per the active tab.
+  // SSH keys = every source the SshAccessEditor collected (keys enable SSH): the
+  // selected host keys, pasted keys, and the fetched GitHub keys.
   const picked = hostSshKeys.filter((k) => selectedKeyIds.has(k.id)).map((k) => k.publicKey);
-  const pasted = val("#ssh-paste");
-  const byoKeys = [...picked, ...(pasted ? [pasted] : [])];
-  const wantByo = sshMode === "byo" || sshMode === "both";
-  const wantGithub = sshMode === "github" || sshMode === "both";
-  const sshPublicKeys = [
-    ...new Set([...(wantByo ? byoKeys : []), ...(wantGithub ? githubKeys : [])]),
-  ];
+  const sshPublicKeys = [...new Set([...picked, ...rogPastedKeys, ...githubKeys])];
   const hostname = val("#device-hostname") || undefined;
   // Static IP comes from the shared NetworkSettings component (held in rogStaticIp),
   // which already folded in the inferred prefix/gateway/dns. Drop it if no address.
@@ -1855,9 +1815,8 @@ function captureProfile(name: string): Profile {
       enabledExtras: [...enabledExtras],
       disabledModules: [...disabledModules],
       selectedKeyIds: [...selectedKeyIds],
-      sshMode,
-      githubUser: fv("#github-user"),
-      sshPaste: fv("#ssh-paste"),
+      githubUser: rogGithubUser,
+      sshPaste: rogPastedKeys.join("\n"),
       hostname: fv("#device-hostname"),
       staticIp: rogStaticIp, // the whole {iface,ip,prefix,gateway,dns}, not just the address
       edition: fck("#edition-pro") ? "pro" : "home",
@@ -1893,9 +1852,14 @@ function applyProfile(p: Profile): void {
   restore(enabledExtras, "enabledExtras");
   restore(disabledModules, "disabledModules");
   restore(selectedKeyIds, "selectedKeyIds");
-  sshMode = (ui.sshMode as typeof sshMode) ?? "byo";
-  setV("#github-user", ui.githubUser);
-  setV("#ssh-paste", ui.sshPaste);
+  rogGithubUser = typeof ui.githubUser === "string" ? ui.githubUser : "";
+  rogPastedKeys =
+    typeof ui.sshPaste === "string"
+      ? ui.sshPaste
+          .split("\n")
+          .map((k) => k.trim())
+          .filter(Boolean)
+      : [];
   setV("#device-hostname", ui.hostname);
   // Restore static IP into the held config + re-mount the editor. Handles legacy
   // profiles where staticIp was just the address string + a separate staticIpIface.
@@ -1940,12 +1904,10 @@ function applyProfile(p: Profile): void {
   const ln = document.querySelector("#lockscreen-name");
   if (ln) ln.textContent = imgName(lockscreenPath);
   document.body.classList.toggle("is-strip", selectedBaseId === "full-rog");
-  setSshMode(sshMode); // sync the SSH tab UI
-  // Re-fetch GitHub keys so a github/both profile actually has keys baked and
-  // shows the matched status (loading the name alone doesn't fetch).
-  if ((sshMode === "github" || sshMode === "both") && fv("#github-user")) {
-    void refreshGithubKeys();
-  }
+  // Re-fetch the restored GitHub user's keys so they're baked + counted, then
+  // (re)mount the SSH editor with the restored selection.
+  if (rogGithubUser) void fetchRogGithub(rogGithubUser);
+  else mountRogSsh();
   customiseHydrated = false; // re-resolve the plan for the restored base
   keepRestoredCustomise = true; // ...but keep the restored extras/disabled modules
 }
@@ -3365,7 +3327,7 @@ document.addEventListener("click", (event) => {
       if (!created) return;
       if (!hostSshKeys.some((k) => k.id === created.id)) hostSshKeys.push(created);
       selectedKeyIds.add(created.id);
-      renderSshKeys();
+      mountRogSsh();
     })();
     return;
   }

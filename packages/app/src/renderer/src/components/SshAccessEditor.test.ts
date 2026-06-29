@@ -9,7 +9,12 @@ const get = <T extends Element>(r: Element, s: string): T => {
 };
 const fire = (el: Element, t: string) => el.dispatchEvent(new Event(t, { bubbles: true }));
 const hostKeys = [
-  { id: "id_ed25519.pub", label: "gavin@desk", type: "ssh-ed25519", publicKey: "ssh-ed25519 AAA gavin@desk" },
+  {
+    id: "id_ed25519.pub",
+    label: "gavin@desk",
+    type: "ssh-ed25519",
+    publicKey: "ssh-ed25519 AAA gavin@desk",
+  },
 ];
 const empty = { hostKeyIds: [], pastedKeys: [] };
 
@@ -35,7 +40,7 @@ describe("SshAccessEditor", () => {
     );
   });
 
-  it("typing a GitHub username emits it and requests a key-count fetch", () => {
+  it("emits the GitHub username live (input) but only fetches on blur (change)", () => {
     const onChange = vi.fn();
     const onGithubUser = vi.fn();
     const root = SshAccessEditor({ hostKeys: [], value: empty, onChange, onGithubUser });
@@ -43,7 +48,9 @@ describe("SshAccessEditor", () => {
     input.value = "octocat";
     fire(input, "input");
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ githubUser: "octocat" }));
-    expect(onGithubUser).toHaveBeenCalledWith("octocat");
+    expect(onGithubUser).not.toHaveBeenCalled(); // not on keystroke
+    fire(input, "change");
+    expect(onGithubUser).toHaveBeenCalledWith("octocat"); // on blur/Enter
   });
 
   it("splits pasted keys into lines", () => {
@@ -64,9 +71,12 @@ describe("SshAccessEditor", () => {
       ),
     ).toBeNull();
     expect(
-      SshAccessEditor({ hostKeys: [], value: { ...empty, port: 22 }, showPort: true, onChange: vi.fn() }).querySelector(
-        "[data-field=port]",
-      ),
+      SshAccessEditor({
+        hostKeys: [],
+        value: { ...empty, port: 22 },
+        showPort: true,
+        onChange: vi.fn(),
+      }).querySelector("[data-field=port]"),
     ).not.toBeNull();
   });
 });
