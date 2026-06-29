@@ -1,5 +1,41 @@
 import "./styles.css";
-import type { Profile, ProfileSummary } from "@bootible/core";
+import type {
+  AppEntry,
+  AppGroup,
+  BaseOption,
+  BasePlan,
+  Bundle,
+  DeckConfig,
+  DeckImage,
+  DeckProvisionUsbRequest as DeckProvisionUsbReq,
+  DeckReimageUsbRequest as DeckReimageUsbReq,
+  DeckyStorePlugin,
+  DeviceOption,
+  DeviceSummary,
+  DiscoveredDevice,
+  FlatpakApp,
+  GroupSummary,
+  HostSshKey,
+  IsoOption,
+  LanguageOption,
+  ModuleStateReport,
+  ModuleSummary,
+  PasswordManager,
+  PlanModule,
+  PlatformOption,
+  Profile,
+  ProfileSummary,
+  ProvisioningMethod,
+  ProvisionResult,
+  RegionOption,
+  RemovalEntry,
+  StaticIp,
+  StepEvent,
+  UsbBuildRequest,
+  UsbDisk,
+  UsbProgress,
+  UsbWriteRequest as UsbWriteReq,
+} from "@bootible/core";
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
@@ -82,268 +118,6 @@ function logoEl(url: string | undefined, cls: string): HTMLElement {
   img.loading = "lazy";
   img.decoding = "async";
   return img;
-}
-
-interface DeviceSummary {
-  id: string;
-  name: string;
-  /** Raw OS id ("steamos", "windows") — routes the Deck carrier vs Windows flow. */
-  os: string;
-  system: string;
-  provisioning: string;
-  emulationCount: number;
-}
-
-interface ModuleSummary {
-  id: string;
-  name: string;
-  description: string;
-  changes?: string;
-  planned: boolean;
-}
-
-interface GroupSummary {
-  group: string;
-  label: string;
-  description: string;
-  moduleCount: number;
-  modules: ModuleSummary[];
-}
-
-interface Bundle {
-  id: string;
-  name: string;
-  description: string;
-  tag: string;
-  recommended?: boolean;
-  moduleIds: string[];
-}
-
-interface StepEvent {
-  moduleId: string;
-  name: string;
-  group: string;
-  status: "running" | "applied" | "skipped" | "failed";
-  detail?: string;
-}
-
-interface ProvisionResult {
-  applied: number;
-  skipped: number;
-}
-
-// Mirrors @bootible/core's StaticIp (the renderer keeps its types local). Shared
-// by the Windows build choice and the Deck config.
-interface StaticIp {
-  iface: "wifi" | "ethernet";
-  ip: string;
-  prefix: number;
-  gateway?: string;
-  dns?: string;
-}
-
-interface UsbBuildRequest {
-  modules: string[];
-  baseId?: string;
-  sshPublicKeys?: string[];
-  hostname?: string;
-  staticIp?: StaticIp;
-  edition?: "home" | "pro";
-  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
-  remoteAccessHost?: { sunshine?: boolean; moonlight?: boolean };
-  sunshineUser?: string;
-  sunshinePass?: string;
-  wallpaperPath?: string;
-  lockscreenPath?: string;
-  disabledModules?: string[];
-  selectedApps?: string[];
-  selectedRemovals?: string[];
-  account: { mode: "local" | "microsoft"; username?: string; password?: string };
-  wifi?: { ssid: string; password: string };
-  isoId?: string;
-  regionId?: string;
-}
-
-interface BaseOption {
-  id: string;
-  label: string;
-  description: string;
-  tag?: string;
-  recommended?: boolean;
-}
-
-interface PlanModule {
-  id: string;
-  name: string;
-  description: string;
-  changes?: string;
-}
-
-interface BasePlan {
-  floor: PlanModule[];
-  base: PlanModule[];
-  extras: PlanModule[];
-}
-
-interface AppEntry {
-  id: string;
-  name: string;
-  wingetId?: string;
-  module?: string;
-  source?: "msstore";
-  desc?: string;
-  recommended?: boolean;
-}
-
-interface AppGroup {
-  id: string;
-  label: string;
-  apps: AppEntry[];
-  note?: string;
-}
-
-interface RemovalEntry {
-  id: string;
-  name: string;
-  appx?: string[];
-  win32?: string[];
-  recommended?: boolean;
-  note?: string;
-}
-
-interface HostSshKey {
-  id: string;
-  label: string;
-  type: string;
-  publicKey: string;
-}
-
-interface DiscoveredDevice {
-  buildId: string;
-  mac: string;
-  ip: string;
-  hostname: string;
-  username: string;
-  status: string;
-  mine: boolean;
-}
-
-interface ModuleStateReport {
-  id: string;
-  name: string;
-  group: string;
-  state: "applied" | "pending" | "unknown";
-}
-
-interface ProvisioningMethod {
-  id: string;
-  label: string;
-  description: string;
-  tag: string;
-}
-
-interface UsbDisk {
-  number: number;
-  name: string;
-  sizeGb: number;
-  letters: string;
-  label: string;
-}
-
-interface IsoOption {
-  id: string;
-  label: string;
-}
-
-interface UsbProgress {
-  pct: number;
-  message: string;
-  status: "running" | "done" | "error";
-}
-
-// ── Steam Deck / SteamOS carrier types (Path A: provision-only USB) ──
-interface FlatpakApp {
-  id: string;
-  name: string;
-  category: string;
-  ref: string;
-  note?: string;
-}
-
-interface PasswordManager {
-  id: string;
-  name: string;
-}
-
-interface DeckyStorePlugin {
-  name: string;
-  author: string;
-  description: string;
-  tags: string[];
-  downloads: number;
-  version: string;
-  imageUrl: string;
-}
-
-/** The renderer's view of DeckConfig (Partial — buildDeckBundle normalizes). */
-interface DeckConfig {
-  hostname?: string;
-  createSnapshot: boolean;
-  flatpakApps: string[];
-  ssh: { enabled: boolean; port: number; authorizedKeys: string[]; githubUser?: string };
-  decky: { enabled: boolean; plugins: string[] };
-  proton: { ge: boolean; protonUpQt: boolean; protontricks: boolean };
-  emudeck: boolean;
-  emulationStorage: "auto" | "internal" | "sdcard";
-  sunshine: { enabled: boolean; user?: string; pass?: string };
-  vnc: boolean;
-  tailscale: boolean;
-  waydroid: boolean;
-  stickdeck: boolean;
-  passwordManagers: { managers: string[]; method: "flatpak" | "distrobox" };
-  staticIp?: StaticIp;
-}
-
-interface DeckProvisionUsbReq {
-  driveLetter: string;
-  config: Partial<DeckConfig>;
-}
-
-interface DeckImage {
-  name: string;
-  url: string;
-}
-
-interface DeckReimageUsbReq {
-  diskNumber: number;
-  config: Partial<DeckConfig>;
-}
-
-interface UsbWriteReq extends UsbBuildRequest {
-  diskNumber: number;
-  isoPath?: string;
-  isoId?: string;
-}
-
-interface PlatformOption {
-  id: string;
-  label: string;
-  blurb: string;
-  status: "ready" | "coming-soon";
-}
-interface DeviceOption {
-  id: string;
-  name: string;
-  status: "ready" | "coming-soon";
-}
-interface LanguageOption {
-  id: string;
-  label: string;
-  isoId: string;
-}
-interface RegionOption {
-  id: string;
-  label: string;
 }
 
 interface BootibleApi {
