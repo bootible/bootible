@@ -657,7 +657,8 @@ function renderCustomise(): void {
  *  shortcut. Drives config.settings.strip_removals. */
 function removalsSection(): HTMLElement {
   const details = el("details", "app-group cz-removals") as HTMLDetailsElement;
-  if (selectedRemovals.size > 0) details.open = true;
+  // Collapsed by default even when pre-ticked — the "22 / 23" count shows the
+  // recommended set is selected; expand to review/untick individual apps.
   const summary = el("summary", "app-group-sum");
   summary.append(
     el("span", "app-group-name", "Remove apps (optional)"),
