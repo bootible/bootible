@@ -494,7 +494,6 @@ async function selectDeviceAndGo(id: string): Promise<void> {
   if (!device) return;
   selectedDeviceId = id;
   deviceName = device.name;
-  void refreshProfileList();
   fill("name", device.name);
   fill("system", device.system);
   fill("device-sub", `${device.system} handheld — selected.`);
@@ -728,6 +727,7 @@ async function hydrateCustomise(): Promise<void> {
     keepRestoredCustomise = false;
     customiseHydrated = true;
   }
+  void mountRogProfileBar(); // shared ProfileBar header on the configure screen
   // The Apps/Emulators counts need the catalog loaded.
   if (!appGroups.length && api.getAppGroups) {
     try {
@@ -899,7 +899,6 @@ async function hydrateStripkit(): Promise<void> {
   const api = window.bootible;
   setSkMode(skMode);
   setSkStatus("");
-  refreshProfileSaveUI();
   if (api?.getUsbDisks) {
     try {
       skDisks = await api.getUsbDisks();
@@ -1875,18 +1874,9 @@ function captureProfile(name: string): Profile {
   };
 }
 
-/** Show/hide the Update button for the loaded profile. */
-function refreshProfileSaveUI(): void {
-  const upd = document.querySelector<HTMLElement>("#sk-update-profile");
-  if (!upd) return;
-  upd.hidden = !loadedProfileName;
-  upd.textContent = loadedProfileName ? `Update "${loadedProfileName}"` : "Update";
-}
-
 /** Restore a loaded Profile into the UI (Sets, inputs, checkboxes, derived UI). */
 function applyProfile(p: Profile): void {
   loadedProfileName = p.name ?? "";
-  setV("#sk-profile-name", loadedProfileName);
   const ui = (p.ui ?? {}) as Record<string, unknown>;
   const list = (k: string) => (Array.isArray(ui[k]) ? (ui[k] as string[]) : []);
   selectedBaseId = p.baseId ?? "";
@@ -1956,65 +1946,50 @@ function applyProfile(p: Profile): void {
   keepRestoredCustomise = true; // ...but keep the restored extras/disabled modules
 }
 
-/** Render saved profiles on the base screen (only this device's, or untagged). */
-async function refreshProfileList(): Promise<void> {
-  const api = window.bootible;
-  const host = document.querySelector<HTMLElement>("#profile-list");
-  if (!host || !api?.listProfiles) return;
-  let profiles: ProfileSummary[] = [];
-  try {
-    profiles = await api.listProfiles();
-  } catch {}
-  const mine = profiles.filter((p) => !p.deviceId || p.deviceId === selectedDeviceId);
-  if (mine.length === 0) {
-    host.replaceChildren();
-    return;
-  }
-  host.replaceChildren(
-    el("p", "profile-head", "…or load a saved profile"),
-    ...mine.map((p) => {
-      const row = el("div", "profile-row");
-      const load = el(
-        "button",
-        "profile-load",
-        `${p.name}${p.baseId ? ` · ${p.baseId}` : ""}`,
-      ) as HTMLButtonElement;
-      load.type = "button";
-      load.dataset.loadProfile = p.name;
-      const del = el("button", "profile-del", "✕") as HTMLButtonElement;
-      del.type = "button";
-      del.dataset.delProfile = p.name;
-      del.title = "Delete this profile";
-      row.append(load, del);
-      return row;
+// The currently-loaded ROG profile + a status line, shown in the shared ProfileBar.
+let rogProfileStatus = "";
+
+/** Render the shared ProfileBar on the ROG configure (customise) screen — same
+ *  component + behaviour as the Deck. */
+async function mountRogProfileBar(): Promise<void> {
+  const mount = document.querySelector<HTMLElement>("#rog-profile-mount");
+  if (!mount) return;
+  const profiles = (await window.bootible?.listProfiles?.()) ?? [];
+  const save = async (name: string): Promise<void> => {
+    const r = await window.bootible?.saveProfile?.(captureProfile(name));
+    if (r?.ok) {
+      loadedProfileName = r.name;
+      rogProfileStatus = `✓ Saved "${r.name}" to this PC`;
+      void window.bootible?.cloud?.syncNow(); // push if signed in + unlocked
+    } else {
+      rogProfileStatus = "Save failed.";
+    }
+    void mountRogProfileBar();
+  };
+  mount.replaceChildren(
+    ProfileBar({
+      profiles: profiles.filter((p) => !p.deviceId || p.deviceId === selectedDeviceId),
+      loadedName: loadedProfileName || null,
+      status: rogProfileStatus,
+      onLoad: async (name) => {
+        const p = await window.bootible?.loadProfile?.(name);
+        if (p) {
+          applyProfile(p);
+          rogProfileStatus = `Loaded "${name}"`;
+          void hydrateCustomise(); // re-render with the restored base + toggles
+        }
+      },
+      onSaveNew: save,
+      onUpdate: save,
+      onDelete: async (name) => {
+        await window.bootible?.deleteProfile?.(name);
+        if (loadedProfileName === name) loadedProfileName = "";
+        rogProfileStatus = `Deleted "${name}"`;
+        void mountRogProfileBar();
+      },
     }),
   );
 }
-
-// Load / delete a saved profile (base screen).
-document.addEventListener("click", (event) => {
-  const t = event.target as HTMLElement;
-  const load = t.closest<HTMLElement>("[data-load-profile]");
-  if (load?.dataset.loadProfile) {
-    const name = load.dataset.loadProfile;
-    void (async () => {
-      const p = await window.bootible?.loadProfile?.(name);
-      if (p) {
-        applyProfile(p);
-        location.hash = "customise";
-      }
-    })();
-    return;
-  }
-  const del = t.closest<HTMLElement>("[data-del-profile]");
-  if (del?.dataset.delProfile) {
-    const name = del.dataset.delProfile;
-    void (async () => {
-      await window.bootible?.deleteProfile?.(name);
-      await refreshProfileList();
-    })();
-  }
-});
 
 // Password reveal toggles (eye icon).
 document.addEventListener("click", (event) => {
@@ -2022,34 +1997,6 @@ document.addEventListener("click", (event) => {
   if (!btn?.dataset.reveal) return;
   const input = document.getElementById(btn.dataset.reveal) as HTMLInputElement | null;
   if (input) input.type = input.type === "password" ? "text" : "password";
-});
-
-// Save the setup as a profile — Update (the loaded one) or Save as new.
-document.addEventListener("click", (event) => {
-  const t = event.target as HTMLElement;
-  const isUpdate = !!t.closest("#sk-update-profile");
-  const isNew = !!t.closest("#sk-save-profile");
-  if (!isUpdate && !isNew) return;
-  const out = document.querySelector("#sk-profile-status");
-  const typed = document.querySelector<HTMLInputElement>("#sk-profile-name")?.value.trim() ?? "";
-  const name = isUpdate ? loadedProfileName : typed;
-  if (!name) {
-    if (out) out.textContent = "Name the profile first, then Save as new.";
-    return;
-  }
-  void (async () => {
-    const r = await window.bootible?.saveProfile?.(captureProfile(name));
-    if (r?.ok) {
-      loadedProfileName = r.name; // now editing this profile → Update targets it
-      setV("#sk-profile-name", r.name);
-      refreshProfileSaveUI();
-      void window.bootible?.cloud?.syncNow(); // push the change if signed in + unlocked
-      if (out)
-        out.textContent = isUpdate ? `✓ Updated "${r.name}"` : `✓ Saved "${r.name}" to this PC`;
-    } else if (out) {
-      out.textContent = "Save failed.";
-    }
-  })();
 });
 
 // ── in-app USB writer screen ────────────────────────────────────────────────

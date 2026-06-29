@@ -227,7 +227,6 @@
             </p>
           </div>
           <div class="method-list base-list"></div>
-          <div class="profile-list" id="profile-list"></div>
           <div class="bundle-back">
             <button class="btn-ghost" type="button" data-back>Back</button>
           </div>
@@ -240,6 +239,8 @@
             <h1 class="setup-title">Review &amp; customise</h1>
             <p class="setup-sub">Everything bootible will do. Untick anything you don't want; add extras (and pick apps) below.</p>
           </div>
+          <!-- Shared ProfileBar mounted here (see main.ts mountRogProfileBar). -->
+          <div id="rog-profile-mount"></div>
           <div class="customise-body" id="customise-body"></div>
           <div class="customise-foot">
             <p class="customise-summary" id="customise-summary"></p>
@@ -309,16 +310,8 @@
 
             <p class="sk-status" id="sk-status"></p>
 
-            <div class="sk-save">
-              <p class="sk-h">Save this setup <span class="muted">— skip re-entering it next time</span></p>
-              <p class="setup-sub">Saves your apps, removals, SSH, remote access &amp; images to this PC. Passwords are encrypted (Windows DPAPI), never plaintext.</p>
-              <div class="sk-verify-row">
-                <input class="field-input" id="sk-profile-name" type="text" placeholder="profile name (e.g. My ROG)" autocomplete="off" spellcheck="false" />
-                <button class="btn-ghost" type="button" id="sk-update-profile" hidden>Update</button>
-                <button class="btn-ghost" type="button" id="sk-save-profile">Save as new</button>
-              </div>
-              <p class="sk-status" id="sk-profile-status"></p>
-            </div>
+            <!-- Saving a profile now lives in the shared ProfileBar on the
+                 Review & customise screen (mountRogProfileBar). -->
 
             <div class="sk-save">
               <p class="sk-h">3 · Check the device <span class="muted">(after you've run the kit)</span></p>

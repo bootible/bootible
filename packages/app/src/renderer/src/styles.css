@@ -2187,51 +2187,6 @@ body.is-strip [data-clean] {
   opacity: 1;
 }
 
-/* Saved config profiles (base screen) */
-.profile-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 18px 0 4px;
-}
-.profile-head {
-  font-size: 12px;
-  color: var(--dim, #aab);
-  margin: 0 0 2px;
-}
-.profile-row {
-  display: flex;
-  gap: 6px;
-}
-.profile-load {
-  flex: 1;
-  text-align: left;
-  border: 1px solid var(--line, #2a2f3a);
-  background: var(--panel, #161a22);
-  color: var(--ink, #e8edf5);
-  border-radius: 8px;
-  padding: 10px 13px;
-  cursor: pointer;
-  font-family: "JetBrains Mono", monospace;
-  font-feature-settings: "zero" 1;
-  font-size: 13px;
-}
-.profile-load:hover {
-  border-color: var(--accent, #4ea1ff);
-}
-.profile-del {
-  border: 1px solid var(--line, #2a2f3a);
-  background: transparent;
-  color: var(--dim, #aab);
-  border-radius: 8px;
-  padding: 0 12px;
-  cursor: pointer;
-}
-.profile-del:hover {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
-}
-
 /* SSH source: sliding 3-way tabs (BYO / GitHub / Both) */
 .ssh-tabs {
   position: relative;
