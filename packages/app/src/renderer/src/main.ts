@@ -2556,6 +2556,7 @@ async function hydrateDeck(): Promise<void> {
     const name = nameIn.value.trim() || sel.value;
     if (!name) return;
     await window.bootible?.saveProfile?.(captureDeckProfile(name));
+    void window.bootible?.cloud?.syncNow(); // push the change if signed in + unlocked (ROG parity)
     nameIn.value = "";
     void hydrateDeck();
   });
