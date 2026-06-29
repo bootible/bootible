@@ -85,6 +85,8 @@ export { DEFAULT_DECK_CONFIG, normalizeDeckConfig } from "./deck-config";
 export type { DeckImage } from "./deck-image";
 export { DECK_IMAGE_INDEX, resolveDeckImage } from "./deck-image";
 export { generateDeckProvision } from "./deck-provision";
+export type { DeviceCapabilities, MediaMode, NetworkCapability } from "./device-capabilities";
+export { capabilitiesFor, devicesWithCapabilities } from "./device-capabilities";
 export { getDisplayTweakCommands } from "./display";
 export type { DisplayLanguage, KeyboardRegion } from "./languages";
 export {
