@@ -97,17 +97,30 @@ function sshBlock(cfg: DeckConfig): string {
     );
   }
 
-  if (cfg.ssh.authorizedKeys.length > 0) {
-    const keys = cfg.ssh.authorizedKeys.join("\n");
-    lines.push(
-      `say "Authorising ${cfg.ssh.authorizedKeys.length} SSH key(s)"`,
-      `install -d -m 700 "$HOME/.ssh"`,
-      `cat > "$HOME/.ssh/authorized_keys" <<'BOOTIBLE_KEYS'
+  const ghUser = cfg.ssh.githubUser;
+  if (cfg.ssh.authorizedKeys.length > 0 || ghUser) {
+    lines.push(`install -d -m 700 "$HOME/.ssh"`);
+    if (cfg.ssh.authorizedKeys.length > 0) {
+      const keys = cfg.ssh.authorizedKeys.join("\n");
+      lines.push(
+        `say "Authorising ${cfg.ssh.authorizedKeys.length} SSH key(s)"`,
+        `cat > "$HOME/.ssh/authorized_keys" <<'BOOTIBLE_KEYS'
 # Managed by bootible
 ${keys}
 BOOTIBLE_KEYS`,
-      `chmod 600 "$HOME/.ssh/authorized_keys"`,
-    );
+      );
+    } else {
+      // Start the file fresh so a re-run stays idempotent before appending below.
+      lines.push(`printf '# Managed by bootible\\n' > "$HOME/.ssh/authorized_keys"`);
+    }
+    if (ghUser) {
+      // Fetch the user's public keys on-device (same mechanism as the ROG flow).
+      lines.push(
+        `say "Fetching SSH keys from github.com/${ghUser}"`,
+        `curl -fsSL "https://github.com/${ghUser}.keys" >> "$HOME/.ssh/authorized_keys" 2>/dev/null && ok "added github.com/${ghUser} keys" || warn "couldn't fetch github.com/${ghUser}.keys"`,
+      );
+    }
+    lines.push(`chmod 600 "$HOME/.ssh/authorized_keys"`);
   }
   lines.push(`ok "ssh ready"`);
   return lines.join("\n");

@@ -15,6 +15,9 @@ export interface DeckSshConfig {
   port: number;
   /** Public keys to authorise (carried on the USB, written to authorized_keys). */
   authorizedKeys: string[];
+  /** Optional GitHub username — its public keys (github.com/<user>.keys) are
+   *  fetched on-device and added to authorized_keys (parity with the ROG flow). */
+  githubUser?: string;
 }
 
 import { RECOMMENDED_DECKY_PLUGINS } from "./deck-apps";
@@ -93,6 +96,9 @@ export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): D
       enabled: p.ssh?.enabled ?? false,
       port: p.ssh?.port ?? 22,
       authorizedKeys: (p.ssh?.authorizedKeys ?? []).map((k) => k.trim()).filter(Boolean),
+      // GitHub usernames are [A-Za-z0-9-] only — strip anything else so the value
+      // is safe to embed in the on-device curl URL.
+      githubUser: p.ssh?.githubUser?.trim().replace(/[^A-Za-z0-9-]/g, "") || undefined,
     },
     decky: {
       enabled: p.decky?.enabled ?? d.decky.enabled,

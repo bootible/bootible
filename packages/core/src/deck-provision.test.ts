@@ -55,6 +55,14 @@ describe("generateDeckProvision", () => {
     expect(s).toContain(key);
   });
 
+  it("fetches GitHub public keys on-device when a username is given", () => {
+    const s = generateDeckProvision({
+      ssh: { enabled: true, port: 22, authorizedKeys: [], githubUser: "octocat" },
+    });
+    expect(s).toContain('curl -fsSL "https://github.com/octocat.keys"');
+    expect(s).toContain('>> "$HOME/.ssh/authorized_keys"');
+  });
+
   it("sets the hostname only when given", () => {
     expect(generateDeckProvision({ hostname: "vengeance" })).toContain("hostnamectl set-hostname");
     expect(generateDeckProvision({})).not.toContain("hostnamectl");

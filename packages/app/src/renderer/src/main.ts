@@ -296,7 +296,7 @@ interface DeckConfig {
   hostname?: string;
   createSnapshot: boolean;
   flatpakApps: string[];
-  ssh: { enabled: boolean; port: number; authorizedKeys: string[] };
+  ssh: { enabled: boolean; port: number; authorizedKeys: string[]; githubUser?: string };
   decky: { enabled: boolean; plugins: string[] };
   proton: { ge: boolean; protonUpQt: boolean; protontricks: boolean };
   emudeck: boolean;
@@ -2594,6 +2594,16 @@ async function hydrateDeck(): Promise<void> {
       .map((k) => k.trim())
       .filter(Boolean);
   });
+  // Pull a GitHub user's public keys on-device (parity with the ROG flow).
+  const ghKeys = el("input", "uw-select cz-span") as HTMLInputElement;
+  ghKeys.id = "deck-ssh-github";
+  ghKeys.type = "text";
+  ghKeys.placeholder = "GitHub username — adds github.com/<user>.keys";
+  ghKeys.value = deckState.ssh.githubUser ?? "";
+  if (!deckState.ssh.enabled) ghKeys.hidden = true;
+  ghKeys.addEventListener("input", () => {
+    deckState.ssh.githubUser = ghKeys.value.trim().replace(/[^A-Za-z0-9-]/g, "") || undefined;
+  });
   // Sunshine web-UI credentials — pre-set on the Deck (parity with the ROG flow),
   // shown only when Sunshine is enabled.
   const sunshineCreds = el("div", "cz-span deck-field");
@@ -2687,11 +2697,13 @@ async function hydrateDeck(): Promise<void> {
           (v) => {
             deckState.ssh.enabled = v;
             document.querySelector("#deck-ssh-keys")?.toggleAttribute("hidden", !v);
+            document.querySelector("#deck-ssh-github")?.toggleAttribute("hidden", !v);
           },
-          "Remote shell + file access. Add public keys below for key-only login.",
+          "Remote shell + file access. Paste keys or pull them from GitHub for key-only login.",
           "enables sshd",
         ),
         keys,
+        ghKeys,
       ],
       countOn(deckState.vnc, deckState.tailscale, deckState.ssh.enabled),
     ),
