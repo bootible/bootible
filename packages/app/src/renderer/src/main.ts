@@ -2444,10 +2444,21 @@ function deckCheck(
   return row;
 }
 
-function deckSection(title: string): HTMLElement {
+/** A full-width config section: a header (with an optional "· N" count) over a
+ *  2-column grid of rows. Picker rows and `.cz-span` fields span both columns. */
+function deckSection(title: string, rows: HTMLElement[], count?: number): HTMLElement {
   const sec = el("div", "cz-sec");
-  sec.append(el("div", "cz-sec-h", title));
+  const head = el("div", "cz-sec-h", title);
+  if (count !== undefined) head.append(el("span", "cz-sec-count", ` · ${count}`));
+  const grid = el("div", "cz-sec-rows");
+  grid.append(...rows);
+  sec.append(head, grid);
   return sec;
+}
+
+/** Count the truthy flags — for a section's "· N" header. */
+function countOn(...flags: boolean[]): number {
+  return flags.filter(Boolean).length;
 }
 
 function updateDeckSummary(): void {
@@ -2464,20 +2475,195 @@ async function hydrateDeck(): Promise<void> {
   if (!body) return;
   body.replaceChildren();
 
-  const sys = deckSection("System");
-  sys.append(
-    deckCheck(
-      "Btrfs snapshot before changes",
-      deckState.createSnapshot,
-      (v) => {
-        deckState.createSnapshot = v;
-      },
-      "A safe rollback point — undo everything if a tweak misbehaves.",
-      "btrfs snapshot of / before any change",
+  // ── 1. Apps, plugins & managers — the "what gets installed" hub (lead with it).
+  // All rows span full width here so the hub reads as one clean vertical stack.
+  const deckyToggle = deckCheck(
+    "Decky Loader",
+    deckState.decky.enabled,
+    (v) => {
+      deckState.decky.enabled = v;
+      void hydrateDeck();
+    },
+    "The plugin framework for Gaming Mode — adds a plugin menu to the Quick Access panel. PowerTools is the main performance tool.",
+    "installs decky-loader",
+  );
+  deckyToggle.classList.add("cz-span");
+  const installRows: HTMLElement[] = [
+    deckPickerRow(
+      "Apps",
+      "Browsers, comms, media, launchers (Heroic / Lutris / Bottles), streaming & more — grouped by category.",
+      deckState.flatpakApps.length,
+      "deckapps",
+    ),
+    deckyToggle,
+  ];
+  if (deckState.decky.enabled) {
+    installRows.push(
+      deckPickerRow(
+        "Decky plugins",
+        "PowerTools, SteamGridDB, ProtonDB Badges and 100+ more — most-installed first.",
+        deckState.decky.plugins.length,
+        "deckplugins",
+      ),
+    );
+  }
+  installRows.push(
+    deckPickerRow(
+      "Password managers",
+      "1Password, Bitwarden, KeePassXC, Proton Pass — pick any; choose Flatpak or Distrobox.",
+      deckState.passwordManagers.managers.length,
+      "deckpm",
     ),
   );
-  sys.append(el("div", "cz-name", "Hostname (optional)"));
-  sys.append(
+  const installCount =
+    deckState.flatpakApps.length +
+    (deckState.decky.enabled ? deckState.decky.plugins.length : 0) +
+    deckState.passwordManagers.managers.length;
+  body.append(deckSection("Apps & plugins", installRows, installCount));
+
+  // ── 2. Compatibility (gaming).
+  body.append(
+    deckSection(
+      "Compatibility",
+      [
+        deckCheck(
+          "Proton-GE (latest)",
+          deckState.proton.ge,
+          (v) => {
+            deckState.proton.ge = v;
+          },
+          "GloriousEggroll's Proton build — better compatibility for many non-Steam and anti-cheat games.",
+          "downloads the latest GE into compatibilitytools.d",
+        ),
+        deckCheck(
+          "ProtonUp-Qt",
+          deckState.proton.protonUpQt,
+          (v) => {
+            deckState.proton.protonUpQt = v;
+          },
+          "A GUI to install + update Proton-GE and other compatibility tools later.",
+          "flatpak net.davidotek.pupgui2",
+        ),
+        deckCheck(
+          "protontricks",
+          deckState.proton.protontricks,
+          (v) => {
+            deckState.proton.protontricks = v;
+          },
+          "Per-game Winetricks for fixing specific titles.",
+          "flatpak com.github.Matoking.protontricks",
+        ),
+        deckCheck(
+          "EmuDeck",
+          deckState.emudeck,
+          (v) => {
+            deckState.emudeck = v;
+          },
+          "Sets up emulators + the Emulation folder tree. The EmuDeck wizard finishes on-device.",
+          "stages EmuDeck; you run its wizard once",
+        ),
+      ],
+      countOn(
+        deckState.proton.ge,
+        deckState.proton.protonUpQt,
+        deckState.proton.protontricks,
+        deckState.emudeck,
+      ),
+    ),
+  );
+
+  // ── 3. Streaming & remote (SSH keys span full width when shown).
+  const keys = el("textarea", "uw-select cz-span") as HTMLTextAreaElement;
+  keys.id = "deck-ssh-keys";
+  keys.placeholder = "Authorized SSH public keys, one per line";
+  keys.rows = 3;
+  keys.value = deckState.ssh.authorizedKeys.join("\n");
+  if (!deckState.ssh.enabled) keys.hidden = true;
+  keys.addEventListener("input", () => {
+    deckState.ssh.authorizedKeys = keys.value
+      .split("\n")
+      .map((k) => k.trim())
+      .filter(Boolean);
+  });
+  body.append(
+    deckSection(
+      "Streaming & remote",
+      [
+        deckCheck(
+          "Sunshine",
+          deckState.sunshine,
+          (v) => {
+            deckState.sunshine = v;
+          },
+          "Host game streaming from this Deck to a Moonlight client on another screen.",
+          "installs dev.lizardbyte.app.Sunshine",
+        ),
+        deckCheck(
+          "VNC remote desktop",
+          deckState.vnc,
+          (v) => {
+            deckState.vnc = v;
+          },
+          "Remote access to the Deck's KDE desktop from another machine.",
+          "enables a VNC server",
+        ),
+        deckCheck(
+          "Tailscale",
+          deckState.tailscale,
+          (v) => {
+            deckState.tailscale = v;
+          },
+          "Zero-config mesh VPN — reach the Deck securely from anywhere.",
+          "installs tailscaled (run 'tailscale up' to log in)",
+        ),
+        deckCheck(
+          "SSH server",
+          deckState.ssh.enabled,
+          (v) => {
+            deckState.ssh.enabled = v;
+            document.querySelector("#deck-ssh-keys")?.toggleAttribute("hidden", !v);
+          },
+          "Remote shell + file access. Add public keys below for key-only login.",
+          "enables sshd",
+        ),
+        keys,
+      ],
+      countOn(deckState.sunshine, deckState.vnc, deckState.tailscale, deckState.ssh.enabled),
+    ),
+  );
+
+  // ── 4. Extras.
+  body.append(
+    deckSection(
+      "Extras",
+      [
+        deckCheck(
+          "Waydroid",
+          deckState.waydroid,
+          (v) => {
+            deckState.waydroid = v;
+          },
+          "Run Android apps on the Deck. The installer is interactive — finish it on-device.",
+          "stages the Waydroid installer",
+        ),
+        deckCheck(
+          "StickDeck",
+          deckState.stickdeck,
+          (v) => {
+            deckState.stickdeck = v;
+          },
+          "Use the Deck as a wireless gamepad for your PC.",
+          "installs StickDeck (latest release)",
+        ),
+      ],
+      countOn(deckState.waydroid, deckState.stickdeck),
+    ),
+  );
+
+  // ── 5. System (advanced — snapshot + hostname).
+  const hostField = el("div", "cz-span deck-field");
+  hostField.append(
+    el("div", "cz-name", "Hostname (optional)"),
     el(
       "div",
       "cz-desc",
@@ -2491,182 +2677,25 @@ async function hydrateDeck(): Promise<void> {
   host.addEventListener("input", () => {
     deckState.hostname = host.value.trim() || undefined;
   });
-  sys.append(host);
-  body.append(sys);
-
-  const decky = deckSection("Decky Loader");
-  decky.append(
-    deckCheck(
-      "Install Decky Loader",
-      deckState.decky.enabled,
-      (v) => {
-        deckState.decky.enabled = v;
-        void hydrateDeck();
-      },
-      "The plugin framework for Gaming Mode — adds a plugin menu to the Quick Access panel. PowerTools is the main performance tool.",
-      "installs decky-loader + the plugins you pick",
+  hostField.append(host);
+  body.append(
+    deckSection(
+      "System",
+      [
+        deckCheck(
+          "Btrfs snapshot before changes",
+          deckState.createSnapshot,
+          (v) => {
+            deckState.createSnapshot = v;
+          },
+          "A safe rollback point — undo everything if a tweak misbehaves.",
+          "btrfs snapshot of / before any change",
+        ),
+        hostField,
+      ],
+      countOn(deckState.createSnapshot),
     ),
   );
-  if (deckState.decky.enabled) {
-    decky.append(
-      deckPickerRow(
-        "Decky plugins",
-        "PowerTools, SteamGridDB, ProtonDB Badges and 100+ more — most-installed first.",
-        deckState.decky.plugins.length,
-        "deckplugins",
-      ),
-    );
-  }
-  body.append(decky);
-
-  const proton = deckSection("Proton & compatibility");
-  proton.append(
-    deckCheck(
-      "Proton-GE (latest)",
-      deckState.proton.ge,
-      (v) => {
-        deckState.proton.ge = v;
-      },
-      "GloriousEggroll's Proton build — better compatibility for many non-Steam and anti-cheat games.",
-      "downloads the latest GE into compatibilitytools.d",
-    ),
-    deckCheck(
-      "ProtonUp-Qt",
-      deckState.proton.protonUpQt,
-      (v) => {
-        deckState.proton.protonUpQt = v;
-      },
-      "A GUI to install + update Proton-GE and other compatibility tools later.",
-      "flatpak net.davidotek.pupgui2",
-    ),
-    deckCheck(
-      "protontricks",
-      deckState.proton.protontricks,
-      (v) => {
-        deckState.proton.protontricks = v;
-      },
-      "Per-game Winetricks for fixing specific titles.",
-      "flatpak com.github.Matoking.protontricks",
-    ),
-  );
-  body.append(proton);
-
-  const emu = deckSection("Emulation");
-  emu.append(
-    deckCheck(
-      "EmuDeck",
-      deckState.emudeck,
-      (v) => {
-        deckState.emudeck = v;
-      },
-      "Sets up emulators + the Emulation folder tree. The EmuDeck wizard finishes on-device.",
-      "stages EmuDeck; you run its wizard once",
-    ),
-  );
-  body.append(emu);
-
-  const remote = deckSection("Streaming & remote");
-  remote.append(
-    deckCheck(
-      "Sunshine",
-      deckState.sunshine,
-      (v) => {
-        deckState.sunshine = v;
-      },
-      "Host game streaming from this Deck to a Moonlight client on another screen.",
-      "installs dev.lizardbyte.app.Sunshine",
-    ),
-    deckCheck(
-      "VNC remote desktop",
-      deckState.vnc,
-      (v) => {
-        deckState.vnc = v;
-      },
-      "Remote access to the Deck's KDE desktop from another machine.",
-      "enables a VNC server",
-    ),
-    deckCheck(
-      "Tailscale",
-      deckState.tailscale,
-      (v) => {
-        deckState.tailscale = v;
-      },
-      "Zero-config mesh VPN — reach the Deck securely from anywhere.",
-      "installs tailscaled (run 'tailscale up' to log in)",
-    ),
-  );
-  remote.append(
-    deckCheck(
-      "SSH server",
-      deckState.ssh.enabled,
-      (v) => {
-        deckState.ssh.enabled = v;
-        document.querySelector("#deck-ssh-keys")?.toggleAttribute("hidden", !v);
-      },
-      "Remote shell + file access. Add public keys below for key-only login.",
-      "enables sshd",
-    ),
-  );
-  const keys = document.createElement("textarea");
-  keys.id = "deck-ssh-keys";
-  keys.className = "uw-select";
-  keys.placeholder = "Authorized SSH public keys, one per line";
-  keys.rows = 3;
-  keys.value = deckState.ssh.authorizedKeys.join("\n");
-  if (!deckState.ssh.enabled) keys.hidden = true;
-  keys.addEventListener("input", () => {
-    deckState.ssh.authorizedKeys = keys.value
-      .split("\n")
-      .map((k) => k.trim())
-      .filter(Boolean);
-  });
-  remote.append(keys);
-  body.append(remote);
-
-  const extras = deckSection("Extras");
-  extras.append(
-    deckCheck(
-      "Waydroid",
-      deckState.waydroid,
-      (v) => {
-        deckState.waydroid = v;
-      },
-      "Run Android apps on the Deck. The installer is interactive — finish it on-device.",
-      "stages the Waydroid installer",
-    ),
-    deckCheck(
-      "StickDeck",
-      deckState.stickdeck,
-      (v) => {
-        deckState.stickdeck = v;
-      },
-      "Use the Deck as a wireless gamepad for your PC.",
-      "installs StickDeck (latest release)",
-    ),
-  );
-  body.append(extras);
-
-  const appsSec = deckSection("Apps & launchers");
-  appsSec.append(
-    deckPickerRow(
-      "Apps",
-      "Browsers, comms, media, launchers (Heroic/Lutris/Bottles), streaming & more — grouped by category.",
-      deckState.flatpakApps.length,
-      "deckapps",
-    ),
-  );
-  body.append(appsSec);
-
-  const pmSec = deckSection("Password managers");
-  pmSec.append(
-    deckPickerRow(
-      "Password managers",
-      "1Password, Bitwarden, KeePassXC, Proton Pass — pick any; choose Flatpak or Distrobox.",
-      deckState.passwordManagers.managers.length,
-      "deckpm",
-    ),
-  );
-  body.append(pmSec);
 
   updateDeckSummary();
 }

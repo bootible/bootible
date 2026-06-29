@@ -2784,8 +2784,51 @@ body.booting .views {
   word-break: break-all;
 }
 
-/* ── Steam Deck config screen (toggles reuse the .cz-* row/section styles) ──── */
-/* let the hidden attribute win over the section's grid layout */
-.customise-body [hidden] {
+/* ── Steam Deck config screen ──────────────────────────────────────────────── */
+/* Full-width sections stacked vertically (avoids the ragged masonry the 2-col
+   grid produced with many uneven sections); rows inside each flow in a 2-col grid. */
+.deck-config {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.deck-config .cz-sec {
+  margin-bottom: 0;
+}
+
+.cz-sec-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 28px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+/* picker rows + fields read as distinct, prominent actions → span both columns */
+.cz-sec-rows .cz-picker,
+.cz-sec-rows .cz-span {
+  grid-column: 1 / -1;
+}
+
+.deck-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  .cz-sec-rows {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* let the hidden attribute win over the grid/flex layouts */
+.customise-body [hidden],
+.deck-config [hidden],
+.cz-sec-rows [hidden] {
   display: none;
 }
