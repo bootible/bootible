@@ -62,3 +62,5 @@ docs/ai-context/
 AGENTS.md
 .wrangler/
 docs-site/site/
+.review/
+.scratch-deck/
