@@ -26,6 +26,57 @@ export const IPV4 = new RegExp(`^${OCTET}(\\.${OCTET}){3}$`);
  * rather than producing a broken command. iface defaults to wifi, prefix to 24;
  * gateway/dns are kept only when they're valid IPv4.
  */
+export interface StaticIpErrors {
+  ip?: string;
+  prefix?: string;
+  gateway?: string;
+  dns?: string;
+}
+
+export type StaticIpValidation =
+  | { ok: true; value: StaticIp }
+  | { ok: false; errors: StaticIpErrors };
+
+/**
+ * Validate a static-IP entry and report per-field errors — for UI (e.g. the
+ * NetworkSettings component) where a user mistake must be shown, not silently
+ * dropped. (normalizeStaticIp is the drop-invalid variant for script generators.)
+ */
+export function validateStaticIp(input: Partial<StaticIp> | undefined): StaticIpValidation {
+  const i = input ?? {};
+  const errors: StaticIpErrors = {};
+
+  const ip = (i.ip ?? "").trim();
+  if (!ip) errors.ip = "Enter an IPv4 address.";
+  else if (!IPV4.test(ip)) errors.ip = `"${ip}" isn't a valid IPv4 address.`;
+
+  const prefix = i.prefix ?? 24;
+  if (!Number.isInteger(prefix) || prefix < 1 || prefix > 32)
+    errors.prefix = "Prefix must be between 1 and 32.";
+
+  const gateway = i.gateway?.trim();
+  if (gateway && !IPV4.test(gateway)) errors.gateway = `"${gateway}" isn't a valid IPv4 address.`;
+
+  const dnsParts = (i.dns ?? "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter(Boolean);
+  const badDns = dnsParts.filter((d) => !IPV4.test(d));
+  if (badDns.length) errors.dns = `Not a valid IPv4 address: ${badDns.join(", ")}.`;
+
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    value: {
+      iface: i.iface === "ethernet" ? "ethernet" : "wifi",
+      ip,
+      prefix,
+      gateway: gateway || undefined,
+      dns: dnsParts.length ? dnsParts.join(",") : undefined,
+    },
+  };
+}
+
 export function normalizeStaticIp(s: Partial<StaticIp> | undefined): StaticIp | undefined {
   if (!s || !IPV4.test((s.ip ?? "").trim())) return undefined;
   const prefix = Math.min(32, Math.max(1, Math.round(s.prefix || 24)));

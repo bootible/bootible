@@ -1,5 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { normalizeStaticIp } from "./static-ip";
+import { normalizeStaticIp, validateStaticIp } from "./static-ip";
+
+describe("validateStaticIp", () => {
+  it("accepts a valid entry and returns the normalized value", () => {
+    const r = validateStaticIp({ iface: "ethernet", ip: "192.168.1.50", prefix: 24 });
+    expect(r).toEqual({ ok: true, value: { iface: "ethernet", ip: "192.168.1.50", prefix: 24 } });
+  });
+
+  it("reports a missing or malformed address", () => {
+    expect(validateStaticIp({ ip: "" })).toEqual({ ok: false, errors: { ip: expect.any(String) } });
+    expect(validateStaticIp({ ip: "999.1.1.1" })).toEqual({
+      ok: false,
+      errors: { ip: expect.any(String) },
+    });
+  });
+
+  it("reports an out-of-range prefix", () => {
+    const r = validateStaticIp({ ip: "10.0.0.5", prefix: 33 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.prefix).toEqual(expect.any(String));
+  });
+
+  it("reports a malformed gateway and DNS without dropping them silently", () => {
+    const r = validateStaticIp({ ip: "10.0.0.5", gateway: "10.0.0.300", dns: "1.1.1.1,nope" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.gateway).toEqual(expect.any(String));
+      expect(r.errors.dns).toEqual(expect.any(String));
+    }
+  });
+
+  it("accepts a fully-specified valid entry", () => {
+    const r = validateStaticIp({
+      iface: "wifi",
+      ip: "10.0.0.5",
+      prefix: 24,
+      gateway: "10.0.0.1",
+      dns: "1.1.1.1,8.8.8.8",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.dns).toBe("1.1.1.1,8.8.8.8");
+  });
+});
 
 describe("normalizeStaticIp", () => {
   it("returns undefined for missing or non-IPv4 addresses", () => {
