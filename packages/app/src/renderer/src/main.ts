@@ -1,6 +1,7 @@
 import "./styles.css";
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
+import { countSelectedInView } from "./lib/app-selection";
 import wordlistRaw from "./wordlist.txt?raw";
 
 // EFF diceware wordlist (7776 words) for generating real word-passphrases.
@@ -2996,11 +2997,10 @@ async function hydrateDeckApps(): Promise<void> {
   }
   // Emulators (deckemu picker) and streaming (Game streaming section on the main
   // page) each have their own home — keep them out of the general Apps picker.
-  renderDeckApps(
-    box,
-    apps.filter((a) => a.category !== "Emulator" && a.category !== "Streaming"),
-  );
-  setDeckPickCount("deckapps", deckState.flatpakApps.length, "app");
+  const visible = apps.filter((a) => a.category !== "Emulator" && a.category !== "Streaming");
+  renderDeckApps(box, visible);
+  // Count only apps visible on THIS screen — not emulators/streaming selected elsewhere.
+  setDeckPickCount("deckapps", countSelectedInView(visible, deckState.flatpakApps), "app");
 }
 
 // ── Emulators picker screen (EmuDeck manager + standalone emulators) ──
@@ -3065,7 +3065,7 @@ function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
       gcb.indeterminate = n > 0 && n < list.length;
       countEl.textContent = `${n} / ${list.length}`;
       countEl.classList.toggle("on", n > 0);
-      setDeckPickCount("deckapps", deckState.flatpakApps.length, "app");
+      setDeckPickCount("deckapps", countSelectedInView(apps, deckState.flatpakApps), "app");
     };
     for (const a of list) {
       items.append(
