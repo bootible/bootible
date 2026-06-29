@@ -1,4 +1,5 @@
 import "./styles.css";
+import type { Profile, ProfileSummary } from "@bootible/core";
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
@@ -225,18 +226,6 @@ interface DiscoveredDevice {
   username: string;
   status: string;
   mine: boolean;
-}
-
-interface ProfileSummary {
-  name: string;
-  deviceId?: string;
-  baseId?: string;
-  savedAt?: string;
-}
-
-interface Profile extends ProfileSummary {
-  ui: Record<string, unknown>;
-  secrets?: Record<string, string>;
 }
 
 interface ModuleStateReport {

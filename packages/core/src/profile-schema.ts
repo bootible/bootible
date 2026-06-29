@@ -7,6 +7,21 @@
 
 export type DeviceFamily = "windows" | "steamos" | "unknown";
 
+/** A saved profile as the renderer/IPC sees it (secrets decrypted in memory).
+ *  The on-disk form is PersistedProfile (secretsEnc); the cloud DTO is
+ *  CloudProfileSummary (cloud-api). One source for all three layers. */
+export interface ProfileSummary {
+  name: string;
+  deviceId?: string;
+  baseId?: string;
+  savedAt?: string;
+}
+
+export interface Profile extends ProfileSummary {
+  ui: Record<string, unknown>;
+  secrets?: Record<string, string>;
+}
+
 export const CURRENT_PROFILE_VERSION = 1;
 
 export interface PersistedProfile {

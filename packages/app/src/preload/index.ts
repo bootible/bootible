@@ -18,6 +18,8 @@ import type {
   ModuleStateReport,
   PasswordManager,
   PlatformOption,
+  Profile,
+  ProfileSummary,
   ProvisioningMethod,
   ProvisionResult,
   RegionOption,
@@ -30,18 +32,6 @@ import type {
 } from "@bootible/core";
 
 import { contextBridge, ipcRenderer } from "electron";
-
-export interface ProfileSummary {
-  name: string;
-  deviceId?: string;
-  baseId?: string;
-  savedAt?: string;
-}
-
-export interface Profile extends ProfileSummary {
-  ui: Record<string, unknown>;
-  secrets?: Record<string, string>;
-}
 
 // The renderer surface. Each call forwards to a main-process IPC handler that
 // drives @bootible/core. Provisioning streams step events back over the

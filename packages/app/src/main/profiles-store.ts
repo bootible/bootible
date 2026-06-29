@@ -13,19 +13,14 @@ import {
   type LocalStore,
   migrateProfile,
   type PersistedProfile,
+  type Profile,
+  type ProfileSummary,
 } from "@bootible/core";
 import { app, safeStorage } from "electron";
 
-export interface ProfileSummary {
-  name: string;
-  deviceId?: string;
-  baseId?: string;
-  savedAt?: string;
-}
-export interface Profile extends ProfileSummary {
-  ui: Record<string, unknown>;
-  secrets?: Record<string, string>;
-}
+// Re-export the core profile types so existing consumers (main/index.ts) keep
+// importing them from here.
+export type { Profile, ProfileSummary };
 
 // The persisted shape + its migration live in core (pure, tested); this file adds
 // encryption + file I/O. schemaVersion/deviceFamily are stamped by write().

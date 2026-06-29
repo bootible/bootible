@@ -5,7 +5,7 @@
  * Worker's routes; the row shapes match the D1 columns.
  */
 
-export interface ProfileSummary {
+export interface CloudProfileSummary {
   id: string;
   name: string;
   version: number;
@@ -13,7 +13,7 @@ export interface ProfileSummary {
   deleted: number;
 }
 
-export interface ProfilePayload extends ProfileSummary {
+export interface ProfilePayload extends CloudProfileSummary {
   device_id: string | null;
   base_id: string | null;
   ui_json: string;
@@ -80,10 +80,10 @@ export class CloudApi {
     return s?.user?.id ?? null;
   }
 
-  async listProfiles(): Promise<ProfileSummary[]> {
+  async listProfiles(): Promise<CloudProfileSummary[]> {
     const r = await this.req("GET", "/api/profiles");
     if (!r.ok) throw new CloudError(r.status, "listProfiles");
-    return ((await r.json()) as { profiles: ProfileSummary[] }).profiles;
+    return ((await r.json()) as { profiles: CloudProfileSummary[] }).profiles;
   }
 
   async getProfile(id: string): Promise<ProfilePayload | null> {

@@ -54,10 +54,10 @@ export {
 } from "./catalog";
 export type {
   CloudApiOptions,
+  CloudProfileSummary,
   FetchLike,
   KeyMaterialDTO,
   ProfilePayload,
-  ProfileSummary,
 } from "./cloud-api";
 export { CloudApi, CloudError } from "./cloud-api";
 export type { CryptoFail, KdfParams, KeyMaterial, KeySetup, Result } from "./cloud-crypto";
@@ -146,7 +146,7 @@ export type { DevicePlatform, PlatformId, RoadmapDevice } from "./platforms";
 export { PLATFORMS, platformById, platformForOs, ROADMAP_DEVICES } from "./platforms";
 export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
-export type { DeviceFamily, PersistedProfile } from "./profile-schema";
+export type { DeviceFamily, PersistedProfile, Profile, ProfileSummary } from "./profile-schema";
 export {
   CURRENT_PROFILE_VERSION,
   deviceFamilyOf,
