@@ -239,6 +239,32 @@ sudo systemctl enable --now tailscaled 2>/dev/null || true
 ok "Tailscale installed — run 'tailscale up' to log in"`;
 }
 
+function networkBlock(cfg: DeckConfig): string {
+  const s = cfg.staticIp;
+  if (!s) return "";
+  const nmType = s.iface === "ethernet" ? "802-3-ethernet" : "802-11-wireless";
+  const label = s.iface === "ethernet" ? "Ethernet" : "Wi-Fi";
+  const props = [
+    `ipv4.method manual`,
+    `ipv4.addresses ${shq(`${s.ip}/${s.prefix}`)}`,
+    s.gateway ? `ipv4.gateway ${shq(s.gateway)}` : "",
+    s.dns ? `ipv4.dns ${shq(s.dns)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  // Find the NetworkManager connection of the chosen type and pin it. Skips
+  // cleanly if no such connection exists yet (e.g. undocked, no Ethernet).
+  return `say "Setting a static IP on ${label}"
+CON=$(nmcli -t -f NAME,TYPE connection show | awk -F: '$2=="${nmType}"{print $1; exit}')
+if [ -n "$CON" ]; then
+  sudo nmcli connection modify "$CON" ${props}
+  sudo nmcli connection up "$CON" >/dev/null 2>&1 || warn "couldn't reapply $CON"
+  ok "static IP ${s.ip}/${s.prefix} set on $CON"
+else
+  warn "no ${label} connection found — skipping static IP"
+fi`;
+}
+
 function waydroidBlock(cfg: DeckConfig): string {
   if (!cfg.waydroid) return "";
   return `say "Staging Waydroid installer"
@@ -331,6 +357,7 @@ sudo hostnamectl set-hostname ${JSON.stringify(cfg.hostname)}`);
     emudeckBlock(cfg),
     streamingBlock(cfg),
     tailscaleBlock(cfg),
+    networkBlock(cfg),
     sshBlock(cfg),
     passwordManagerBlock(cfg),
     stickdeckBlock(cfg),

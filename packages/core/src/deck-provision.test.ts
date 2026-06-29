@@ -109,6 +109,28 @@ describe("generateDeckProvision", () => {
     expect(s).toContain("for d in roms bios saves states");
   });
 
+  it("sets a static IP via nmcli on the chosen interface", () => {
+    const s = generateDeckProvision({
+      staticIp: {
+        iface: "ethernet",
+        ip: "192.168.1.50",
+        prefix: 24,
+        gateway: "192.168.1.1",
+        dns: "1.1.1.1",
+      },
+    });
+    expect(s).toContain('$2=="802-3-ethernet"');
+    expect(s).toContain("nmcli connection modify");
+    expect(s).toContain("ipv4.addresses '192.168.1.50/24'");
+    expect(s).toContain("ipv4.gateway '192.168.1.1'");
+    expect(s).toContain("ipv4.dns '1.1.1.1'");
+  });
+
+  it("skips the static IP step when the address is invalid", () => {
+    const s = generateDeckProvision({ staticIp: { iface: "wifi", ip: "not-an-ip", prefix: 24 } });
+    expect(s).not.toContain("nmcli connection modify");
+  });
+
   it("installs Sunshine and Tailscale when enabled", () => {
     const s = generateDeckProvision({ sunshine: { enabled: true }, tailscale: true });
     expect(s).toContain("dev.lizardbyte.app.Sunshine");

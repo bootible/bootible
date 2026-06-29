@@ -59,6 +59,43 @@ export interface DeckConfig {
   /** Install StickDeck (use the Deck as a wireless controller for a PC). */
   stickdeck: boolean;
   passwordManagers: DeckPasswordManagerConfig;
+  /** Optional fixed IP for the Wi-Fi or Ethernet connection (NetworkManager). */
+  staticIp?: DeckStaticIp;
+}
+
+const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+/** Validate a static-IP block; returns undefined if the address is missing/invalid
+ *  so a bad entry simply skips the network step rather than producing a broken
+ *  (or injectable) nmcli command. */
+function normalizeStaticIp(s: DeckStaticIp | undefined): DeckStaticIp | undefined {
+  if (!s || !IPV4.test((s.ip ?? "").trim())) return undefined;
+  const prefix = Math.min(32, Math.max(1, Math.round(s.prefix || 24)));
+  const gateway = s.gateway?.trim();
+  const dns = (s.dns ?? "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => IPV4.test(d))
+    .join(",");
+  return {
+    iface: s.iface === "ethernet" ? "ethernet" : "wifi",
+    ip: s.ip.trim(),
+    prefix,
+    gateway: gateway && IPV4.test(gateway) ? gateway : undefined,
+    dns: dns || undefined,
+  };
+}
+
+export interface DeckStaticIp {
+  /** Which connection to pin — the built-in Wi-Fi or a (docked) Ethernet link. */
+  iface: "wifi" | "ethernet";
+  /** IPv4 address, e.g. 192.168.1.50. */
+  ip: string;
+  /** CIDR prefix length (1–32); 24 for a typical /24 home network. */
+  prefix: number;
+  gateway?: string;
+  /** Comma-separated DNS servers, e.g. "1.1.1.1,8.8.8.8". */
+  dns?: string;
 }
 
 export interface DeckPasswordManagerConfig {
@@ -126,5 +163,6 @@ export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): D
       managers: [...new Set(p.passwordManagers?.managers ?? [])],
       method: p.passwordManagers?.method ?? "flatpak",
     },
+    staticIp: normalizeStaticIp(p.staticIp),
   };
 }

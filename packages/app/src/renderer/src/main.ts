@@ -307,6 +307,13 @@ interface DeckConfig {
   waydroid: boolean;
   stickdeck: boolean;
   passwordManagers: { managers: string[]; method: "flatpak" | "distrobox" };
+  staticIp?: {
+    iface: "wifi" | "ethernet";
+    ip: string;
+    prefix: number;
+    gateway?: string;
+    dns?: string;
+  };
 }
 
 interface DeckProvisionUsbReq {
@@ -2706,6 +2713,77 @@ async function hydrateDeck(): Promise<void> {
         ghKeys,
       ],
       countOn(deckState.vnc, deckState.tailscale, deckState.ssh.enabled),
+    ),
+  );
+
+  // ── 3b. Network (optional fixed IP for Wi-Fi or Ethernet).
+  const mkText = (
+    placeholder: string,
+    value: string,
+    onInput: (v: string) => void,
+    type = "text",
+  ): HTMLInputElement => {
+    const i = el("input", "uw-select") as HTMLInputElement;
+    i.type = type;
+    i.placeholder = placeholder;
+    i.value = value;
+    i.addEventListener("input", () => onInput(i.value));
+    return i;
+  };
+  const netFields = el("div", "cz-span deck-field");
+  netFields.id = "deck-net-fields";
+  if (!deckState.staticIp) netFields.hidden = true;
+  const ifaceSel = el("select", "uw-select") as HTMLSelectElement;
+  for (const [v, l] of [
+    ["wifi", "Wi-Fi"],
+    ["ethernet", "Ethernet"],
+  ] as const) {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = l;
+    if (deckState.staticIp?.iface === v) o.selected = true;
+    ifaceSel.append(o);
+  }
+  ifaceSel.addEventListener("change", () => {
+    if (deckState.staticIp) deckState.staticIp.iface = ifaceSel.value as "wifi" | "ethernet";
+  });
+  netFields.append(
+    ifaceSel,
+    mkText("IP address — e.g. 192.168.1.50", deckState.staticIp?.ip ?? "", (v) => {
+      if (deckState.staticIp) deckState.staticIp.ip = v.trim();
+    }),
+    mkText(
+      "Prefix (1–32) — 24 for a /24 network",
+      deckState.staticIp ? String(deckState.staticIp.prefix) : "24",
+      (v) => {
+        if (deckState.staticIp) deckState.staticIp.prefix = Number(v) || 24;
+      },
+      "number",
+    ),
+    mkText("Gateway (optional) — e.g. 192.168.1.1", deckState.staticIp?.gateway ?? "", (v) => {
+      if (deckState.staticIp) deckState.staticIp.gateway = v.trim() || undefined;
+    }),
+    mkText("DNS (optional) — e.g. 1.1.1.1,8.8.8.8", deckState.staticIp?.dns ?? "", (v) => {
+      if (deckState.staticIp) deckState.staticIp.dns = v.trim() || undefined;
+    }),
+  );
+  body.append(
+    deckSection(
+      "Network",
+      [
+        deckCheck(
+          "Static IP",
+          Boolean(deckState.staticIp),
+          (v) => {
+            deckState.staticIp = v ? { iface: "wifi", ip: "", prefix: 24 } : undefined;
+            void hydrateDeck();
+          },
+          "Pin a fixed address on Wi-Fi or Ethernet so the Deck is always reachable at the same IP.",
+          "sets ipv4 via NetworkManager",
+        ),
+        netFields,
+      ],
+      deckState.staticIp ? 1 : 0,
     ),
   );
 
