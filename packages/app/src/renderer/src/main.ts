@@ -1,6 +1,7 @@
 import "./styles.css";
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
+import { NetworkSettings } from "./components/NetworkSettings";
 import { countSelectedInView } from "./lib/app-selection";
 import wordlistRaw from "./wordlist.txt?raw";
 
@@ -1379,14 +1380,14 @@ async function hydrateSshKeys(): Promise<void> {
   renderSshKeys();
   setSshMode(sshMode);
   updateEditionState();
-  // Pre-fill the static IP hint from this PC's subnet (so the user types one host).
+  // Learn this PC's subnet so the network editor can infer prefix/gateway/dns
+  // (the user types only the host), then mount the shared NetworkSettings editor.
   if (!netSuggestion && api.suggestNetwork) {
     try {
       netSuggestion = await api.suggestNetwork();
     } catch {}
-    const input = document.querySelector<HTMLInputElement>("#static-ip");
-    if (input && netSuggestion) input.placeholder = `${netSuggestion.subnet}50  (optional)`;
   }
+  mountRogNetwork();
 }
 
 // Card clicks on the platform / devices / base pages.
@@ -1440,6 +1441,30 @@ let hostSshKeys: HostSshKey[] = [];
 const selectedKeyIds = new Set<string>();
 let netSuggestion: { prefix: number; gateway: string; subnet: string } | null = null;
 let intendedStaticIp = "";
+// ROG static-IP config, held in JS (the shared NetworkSettings component owns the UI).
+let rogStaticIp: StaticIp | undefined;
+
+/** (Re)mount the shared NetworkSettings editor into the ROG config screen. ROG can
+ *  infer prefix/gateway/dns from this PC's subnet ("minimize typing"), so it passes
+ *  `infer`; the Deck (which can't infer on-device) does not. Same component both. */
+function mountRogNetwork(): void {
+  const mount = document.querySelector<HTMLElement>("#static-ip-mount");
+  if (!mount) return;
+  const infer = netSuggestion
+    ? { prefix: netSuggestion.prefix, gateway: netSuggestion.gateway, dns: netSuggestion.gateway }
+    : undefined;
+  mount.replaceChildren(
+    NetworkSettings({
+      value: rogStaticIp,
+      interfaces: ["wifi", "ethernet"],
+      infer,
+      onChange: (next) => {
+        rogStaticIp = next;
+        intendedStaticIp = next?.ip ?? "";
+      },
+    }),
+  );
+}
 let wallpaperPath = "";
 let lockscreenPath = "";
 // Review/customise + app-picker state.
@@ -1997,16 +2022,9 @@ function gatherUsbRequest(): UsbBuildRequest {
     ...new Set([...(wantByo ? byoKeys : []), ...(wantGithub ? githubKeys : [])]),
   ];
   const hostname = val("#device-hostname") || undefined;
-  const staticIpVal = val("#static-ip");
-  const staticIp: StaticIp | undefined = staticIpVal
-    ? {
-        iface: (val("#static-ip-iface") as "wifi" | "ethernet") || "wifi",
-        ip: staticIpVal,
-        prefix: netSuggestion?.prefix ?? 24,
-        gateway: netSuggestion?.gateway,
-        dns: netSuggestion?.gateway,
-      }
-    : undefined;
+  // Static IP comes from the shared NetworkSettings component (held in rogStaticIp),
+  // which already folded in the inferred prefix/gateway/dns. Drop it if no address.
+  const staticIp: StaticIp | undefined = rogStaticIp?.ip ? rogStaticIp : undefined;
   intendedStaticIp = staticIp?.ip ?? "";
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
@@ -2074,8 +2092,7 @@ function captureProfile(name: string): Profile {
       githubUser: fv("#github-user"),
       sshPaste: fv("#ssh-paste"),
       hostname: fv("#device-hostname"),
-      staticIp: fv("#static-ip"),
-      staticIpIface: fv("#static-ip-iface"),
+      staticIp: rogStaticIp, // the whole {iface,ip,prefix,gateway,dns}, not just the address
       edition: fck("#edition-pro") ? "pro" : "home",
       accountMode: document.body.dataset.account ?? "local",
       acctUser: fv("#acct-user"),
@@ -2122,8 +2139,24 @@ function applyProfile(p: Profile): void {
   setV("#github-user", ui.githubUser);
   setV("#ssh-paste", ui.sshPaste);
   setV("#device-hostname", ui.hostname);
-  setV("#static-ip", ui.staticIp);
-  setV("#static-ip-iface", ui.staticIpIface);
+  // Restore static IP into the held config + re-mount the editor. Handles legacy
+  // profiles where staticIp was just the address string + a separate staticIpIface.
+  const savedIp = ui.staticIp;
+  if (savedIp && typeof savedIp === "object") {
+    rogStaticIp = savedIp as StaticIp;
+  } else if (typeof savedIp === "string" && savedIp.trim()) {
+    rogStaticIp = {
+      iface: (ui.staticIpIface as "wifi" | "ethernet") || "wifi",
+      ip: savedIp.trim(),
+      prefix: netSuggestion?.prefix ?? 24,
+      gateway: netSuggestion?.gateway,
+      dns: netSuggestion?.gateway,
+    };
+  } else {
+    rogStaticIp = undefined;
+  }
+  intendedStaticIp = rogStaticIp?.ip ?? "";
+  mountRogNetwork();
   setCk("#edition-pro", ui.edition === "pro");
   setCk("#edition-home", ui.edition !== "pro");
   setV("#acct-user", ui.acctUser);
@@ -2794,76 +2827,17 @@ async function hydrateDeck(): Promise<void> {
     ),
   );
 
-  // ── 3b. Network (optional fixed IP for Wi-Fi or Ethernet).
-  const mkText = (
-    placeholder: string,
-    value: string,
-    onInput: (v: string) => void,
-    type = "text",
-  ): HTMLInputElement => {
-    const i = el("input", "uw-select") as HTMLInputElement;
-    i.type = type;
-    i.placeholder = placeholder;
-    i.value = value;
-    i.addEventListener("input", () => onInput(i.value));
-    return i;
-  };
-  const netFields = el("div", "cz-span deck-field");
-  netFields.id = "deck-net-fields";
-  if (!deckState.staticIp) netFields.hidden = true;
-  const ifaceSel = el("select", "uw-select") as HTMLSelectElement;
-  for (const [v, l] of [
-    ["wifi", "Wi-Fi"],
-    ["ethernet", "Ethernet"],
-  ] as const) {
-    const o = document.createElement("option");
-    o.value = v;
-    o.textContent = l;
-    if (deckState.staticIp?.iface === v) o.selected = true;
-    ifaceSel.append(o);
-  }
-  ifaceSel.addEventListener("change", () => {
-    if (deckState.staticIp) deckState.staticIp.iface = ifaceSel.value as "wifi" | "ethernet";
+  // ── 3b. Network — the shared NetworkSettings editor. No host inference on-device
+  // (the Deck is provisioned standalone), so no `infer`; same component as ROG.
+  const deckNet = NetworkSettings({
+    value: deckState.staticIp,
+    interfaces: ["wifi", "ethernet"],
+    onChange: (next) => {
+      deckState.staticIp = next;
+    },
   });
-  netFields.append(
-    ifaceSel,
-    mkText("IP address — e.g. 192.168.1.50", deckState.staticIp?.ip ?? "", (v) => {
-      if (deckState.staticIp) deckState.staticIp.ip = v.trim();
-    }),
-    mkText(
-      "Prefix (1–32) — 24 for a /24 network",
-      deckState.staticIp ? String(deckState.staticIp.prefix) : "24",
-      (v) => {
-        if (deckState.staticIp) deckState.staticIp.prefix = Number(v) || 24;
-      },
-      "number",
-    ),
-    mkText("Gateway (optional) — e.g. 192.168.1.1", deckState.staticIp?.gateway ?? "", (v) => {
-      if (deckState.staticIp) deckState.staticIp.gateway = v.trim() || undefined;
-    }),
-    mkText("DNS (optional) — e.g. 1.1.1.1,8.8.8.8", deckState.staticIp?.dns ?? "", (v) => {
-      if (deckState.staticIp) deckState.staticIp.dns = v.trim() || undefined;
-    }),
-  );
-  body.append(
-    deckSection(
-      "Network",
-      [
-        deckCheck(
-          "Static IP",
-          Boolean(deckState.staticIp),
-          (v) => {
-            deckState.staticIp = v ? { iface: "wifi", ip: "", prefix: 24 } : undefined;
-            void hydrateDeck();
-          },
-          "Pin a fixed address on Wi-Fi or Ethernet so the Deck is always reachable at the same IP.",
-          "sets ipv4 via NetworkManager",
-        ),
-        netFields,
-      ],
-      deckState.staticIp ? 1 : 0,
-    ),
-  );
+  deckNet.classList.add("cz-span");
+  body.append(deckSection("Network", [deckNet], deckState.staticIp ? 1 : 0));
 
   // ── 4. Extras.
   body.append(

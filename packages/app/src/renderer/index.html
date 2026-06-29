@@ -670,15 +670,9 @@
                   <input class="field-input" id="device-hostname" type="text" placeholder="my-handheld" autocomplete="off" spellcheck="false" />
                 </div>
                 <div class="field">
-                  <label class="field-label" for="static-ip">Static IP <span class="muted">(optional)</span></label>
-                  <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
-                </div>
-                <div class="field">
-                  <label class="field-label" for="static-ip-iface">Interface</label>
-                  <select class="field-input" id="static-ip-iface">
-                    <option value="wifi">Wi-Fi</option>
-                    <option value="ethernet">Ethernet</option>
-                  </select>
+                  <label class="field-label">Network <span class="muted">(optional static IP)</span></label>
+                  <!-- Shared NetworkSettings component is mounted here (see main.ts mountRogNetwork). -->
+                  <div id="static-ip-mount"></div>
                 </div>
               </div>
               <div class="cfg-row">

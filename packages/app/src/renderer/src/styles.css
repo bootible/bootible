@@ -1878,6 +1878,30 @@ body[data-view="account"] .summary::before {
   padding: 8px 16px;
 }
 
+/* ── NetworkSettings (shared static-IP editor: ROG + Deck) ── */
+.network-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ns-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.ns-toggle input {
+  accent-color: var(--signal);
+}
+.ns-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ns-fields:empty {
+  display: none;
+}
+
 /* ── Decky plugin search + expandable detail cards ── */
 .deck-search {
   width: 100%;
