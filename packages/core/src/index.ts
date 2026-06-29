@@ -21,8 +21,18 @@ export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
 export { bundleModules } from "./bundles";
-export type { AppCategory, CatalogApp } from "./catalog";
-export { CATALOG, catalogApp, deckCatalog, onSteamOS, onWindows, windowsCatalog } from "./catalog";
+export type { AppCategory, CatalogApp, CategoryGroup, CategoryMeta } from "./catalog";
+export {
+  CATALOG,
+  CATEGORY_META,
+  CATEGORY_ORDER,
+  catalogApp,
+  deckCatalog,
+  groupByCategory,
+  onSteamOS,
+  onWindows,
+  windowsCatalog,
+} from "./catalog";
 export type {
   CloudApiOptions,
   FetchLike,

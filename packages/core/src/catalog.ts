@@ -204,13 +204,14 @@ export const CATALOG: readonly CatalogApp[] = [
   },
 
   // ── Game launchers ───────────────────────────────────────────────────────────
+  // Steam is winget-only: on a Steam Deck it IS the OS, so we never offer a Steam
+  // Flatpak there.
   {
     id: "steam",
     name: "Steam",
     category: "Launcher",
     recommended: true,
     winget: { id: "Valve.Steam" },
-    flatpak: "com.valvesoftware.Steam",
   },
   { id: "gog", name: "GOG Galaxy", category: "Launcher", winget: { id: "GOG.Galaxy" } },
   {
@@ -520,4 +521,70 @@ export function deckCatalog(): CatalogApp[] {
 /** Look up a catalog entry by id. */
 export function catalogApp(id: string): CatalogApp | undefined {
   return CATALOG.find((a) => a.id === id);
+}
+
+export interface CategoryMeta {
+  /** Stable group id the renderer keys collapse-state + the Emulators picker off. */
+  id: string;
+  label: string;
+  /** Shared footnote (only used where it's true on every platform the group shows on). */
+  note?: string;
+}
+
+/** Per-category display metadata for the grouped pickers, in display order. */
+export const CATEGORY_META: Record<AppCategory, CategoryMeta> = {
+  Utility: { id: "utilities", label: "Desktop utilities" },
+  Browser: { id: "browsers", label: "Browsers" },
+  Communication: { id: "comms", label: "Communication" },
+  Media: { id: "media", label: "Media" },
+  AI: {
+    id: "ai",
+    label: "AI tools",
+    note: "Gemini is browser-only — Google ships no desktop app.",
+  },
+  Launcher: { id: "launchers", label: "Game launchers" },
+  Streaming: { id: "streaming", label: "Game streaming" },
+  Emulator: {
+    id: "emulators",
+    label: "Emulators",
+    note: "Emulators only — bring your own legally-owned, first-party backups.",
+  },
+  Controller: { id: "controller", label: "Controller & modding" },
+  Dev: { id: "dev", label: "Dev tools" },
+  Productivity: { id: "productivity", label: "Productivity" },
+  Network: { id: "network", label: "Network & VPN" },
+  Remote: { id: "remote", label: "Remote access" },
+  Password: { id: "passwords", label: "Password managers" },
+};
+
+export const CATEGORY_ORDER: AppCategory[] = [
+  "Utility",
+  "Browser",
+  "Communication",
+  "Media",
+  "AI",
+  "Launcher",
+  "Streaming",
+  "Emulator",
+  "Controller",
+  "Dev",
+  "Productivity",
+  "Network",
+  "Remote",
+  "Password",
+];
+
+export interface CategoryGroup {
+  category: AppCategory;
+  meta: CategoryMeta;
+  apps: CatalogApp[];
+}
+
+/** Group catalog apps by category, in CATEGORY_ORDER, dropping empty categories. */
+export function groupByCategory(apps: CatalogApp[]): CategoryGroup[] {
+  return CATEGORY_ORDER.map((category) => ({
+    category,
+    meta: CATEGORY_META[category],
+    apps: apps.filter((a) => a.category === category),
+  })).filter((g) => g.apps.length > 0);
 }
