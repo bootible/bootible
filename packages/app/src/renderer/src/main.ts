@@ -272,6 +272,8 @@ interface FlatpakApp {
   id: string;
   name: string;
   category: string;
+  ref: string;
+  note?: string;
 }
 
 interface PasswordManager {
@@ -2477,6 +2479,14 @@ async function hydrateDeck(): Promise<void> {
   if (!body) return;
   body.replaceChildren();
 
+  // Catalog (loaded once) drives which flatpak ids belong to the Emulators picker
+  // and the Game-streaming section, so the Apps picker count excludes them — no
+  // hardcoded id lists, no drift from the unified catalog.
+  const deckApps = (await window.bootible?.getDeckApps?.()) ?? [];
+  const EMULATOR_IDS = new Set(deckApps.filter((a) => a.category === "Emulator").map((a) => a.id));
+  const streamClients = deckApps.filter((a) => a.category === "Streaming" && a.id !== "sunshine");
+  const STREAM_IDS = new Set(streamClients.map((a) => a.id));
+
   // ── 1. Apps, plugins & managers — the "what gets installed" hub (lead with it).
   // All rows span full width here so the hub reads as one clean vertical stack.
   const deckyToggle = deckCheck(
@@ -2490,18 +2500,9 @@ async function hydrateDeck(): Promise<void> {
     "installs decky-loader",
   );
   deckyToggle.classList.add("cz-span");
-  const EMULATOR_IDS = new Set([
-    "retroarch",
-    "dolphin",
-    "pcsx2",
-    "ppsspp",
-    "duckstation",
-    "cemu",
-    "mgba",
-    "melonds",
-    "retrodeck",
-  ]);
-  const appCount = deckState.flatpakApps.filter((id) => !EMULATOR_IDS.has(id)).length;
+  const appCount = deckState.flatpakApps.filter(
+    (id) => !EMULATOR_IDS.has(id) && !STREAM_IDS.has(id),
+  ).length;
   const emuCount =
     deckState.flatpakApps.filter((id) => EMULATOR_IDS.has(id)).length + (deckState.emudeck ? 1 : 0);
   const installRows: HTMLElement[] = [
@@ -2620,21 +2621,48 @@ async function hydrateDeck(): Promise<void> {
     deckState.sunshine.pass = spass.value || undefined;
   });
   sunshineCreds.append(suser, spass);
+  // Game-streaming clients (catalog Streaming category, minus the Sunshine host
+  // which has its own toggle + creds) live here on the main page rather than being
+  // duplicated in the Apps picker. streamClients was derived up top from deckApps.
+  const clientRows = streamClients.map((c) =>
+    deckCheck(
+      c.name,
+      deckState.flatpakApps.includes(c.id),
+      (v) => {
+        const set = new Set(deckState.flatpakApps);
+        if (v) set.add(c.id);
+        else set.delete(c.id);
+        deckState.flatpakApps = [...set];
+      },
+      c.note ?? "Game-streaming client.",
+      `installs ${c.ref}`,
+    ),
+  );
   body.append(
     deckSection(
-      "Streaming & remote",
+      "Game streaming",
       [
         deckCheck(
-          "Sunshine",
+          "Sunshine (host)",
           deckState.sunshine.enabled,
           (v) => {
             deckState.sunshine.enabled = v;
             document.querySelector("#deck-sunshine-creds")?.toggleAttribute("hidden", !v);
           },
-          "Host game streaming from this Deck to a Moonlight client on another screen.",
+          "Stream games FROM this Deck to a Moonlight client on another screen.",
           "installs dev.lizardbyte.app.Sunshine",
         ),
         sunshineCreds,
+        ...clientRows,
+      ],
+      countOn(deckState.sunshine.enabled) +
+        streamClients.filter((c) => deckState.flatpakApps.includes(c.id)).length,
+    ),
+  );
+  body.append(
+    deckSection(
+      "Remote access",
+      [
         deckCheck(
           "VNC remote desktop",
           deckState.vnc,
@@ -2665,12 +2693,7 @@ async function hydrateDeck(): Promise<void> {
         ),
         keys,
       ],
-      countOn(
-        deckState.sunshine.enabled,
-        deckState.vnc,
-        deckState.tailscale,
-        deckState.ssh.enabled,
-      ),
+      countOn(deckState.vnc, deckState.tailscale, deckState.ssh.enabled),
     ),
   );
 
@@ -2804,10 +2827,11 @@ async function hydrateDeckApps(): Promise<void> {
     box.replaceChildren(el("p", "muted", "Couldn't load the app list."));
     return;
   }
-  // Emulators have their own dedicated picker (deckemu) — keep them out of here.
+  // Emulators (deckemu picker) and streaming (Game streaming section on the main
+  // page) each have their own home — keep them out of the general Apps picker.
   renderDeckApps(
     box,
-    apps.filter((a) => a.category !== "Emulator"),
+    apps.filter((a) => a.category !== "Emulator" && a.category !== "Streaming"),
   );
   setDeckPickCount("deckapps", deckState.flatpakApps.length, "app");
 }
