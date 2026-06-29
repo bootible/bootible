@@ -883,6 +883,22 @@
           <div class="customise-foot">
             <p class="customise-summary" id="deck-summary"></p>
             <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="decksetup">Continue <span class="arrow" aria-hidden="true">→</span></button>
+              <button class="btn-ghost" type="button" data-back>Back</button>
+            </div>
+          </div>
+        </main>
+
+        <!-- ───────────────────── DECK DEVICE SETUP (name / network / streaming / remote) ───────────────────── -->
+        <main class="view setup" data-view="decksetup">
+          <div class="setup-head">
+            <p class="eyebrow" data-field="base-eyebrow">Your Steam Deck</p>
+            <h1 class="setup-title">Device setup</h1>
+            <p class="setup-sub">Name it, choose how you'll reach it, and set up game streaming.</p>
+          </div>
+          <div class="deck-config" id="decksetup-body"><p class="muted">Loading…</p></div>
+          <div class="customise-foot">
+            <div class="summary-actions">
               <button class="btn-primary" type="button" data-go="deckmethod">Build USB <span class="arrow" aria-hidden="true">→</span></button>
               <button class="btn-ghost" type="button" data-back>Back</button>
             </div>

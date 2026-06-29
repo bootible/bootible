@@ -250,6 +250,7 @@ const VIEWS = [
   "review",
   "usbwrite",
   "deck",
+  "decksetup",
   "deckapps",
   "deckemu",
   "deckplugins",
@@ -327,6 +328,7 @@ function syncFromHash(): void {
   }
   if (view === "usbwrite") void hydrateUsbWrite();
   if (view === "deck") void hydrateDeck();
+  if (view === "decksetup") void hydrateDeckSetup();
   if (view === "deckapps") void hydrateDeckApps();
   if (view === "deckemu") void hydrateDeckEmulators();
   if (view === "deckplugins") void hydrateDeckPlugins();
@@ -2300,8 +2302,6 @@ async function hydrateDeck(): Promise<void> {
   // hardcoded id lists, no drift from the unified catalog.
   const deckApps = (await window.bootible?.getDeckApps?.()) ?? [];
   const EMULATOR_IDS = new Set(deckApps.filter((a) => a.category === "Emulator").map((a) => a.id));
-  const streamClients = deckApps.filter((a) => a.category === "Streaming" && a.id !== "sunshine");
-  const STREAM_IDS = new Set(streamClients.map((a) => a.id));
 
   // ── 1. Apps, plugins & managers — the "what gets installed" hub (lead with it).
   // All rows span full width here so the hub reads as one clean vertical stack.
@@ -2316,8 +2316,10 @@ async function hydrateDeck(): Promise<void> {
     "installs decky-loader",
   );
   deckyToggle.classList.add("cz-span");
+  // Moonlight pairs with Sunshine on the Device-setup screen; every other streaming
+  // client lives in the Apps picker, so only Moonlight is excluded from the count.
   const appCount = deckState.flatpakApps.filter(
-    (id) => !EMULATOR_IDS.has(id) && !STREAM_IDS.has(id),
+    (id) => !EMULATOR_IDS.has(id) && id !== "moonlight",
   ).length;
   const emuCount =
     deckState.flatpakApps.filter((id) => EMULATOR_IDS.has(id)).length + (deckState.emudeck ? 1 : 0);
@@ -2397,31 +2399,96 @@ async function hydrateDeck(): Promise<void> {
     ),
   );
 
-  // ── 3. Streaming & remote (SSH keys span full width when shown).
-  const keys = el("textarea", "uw-select cz-span") as HTMLTextAreaElement;
-  keys.id = "deck-ssh-keys";
-  keys.placeholder = "Authorized SSH public keys, one per line";
-  keys.rows = 3;
-  keys.value = deckState.ssh.authorizedKeys.join("\n");
-  if (!deckState.ssh.enabled) keys.hidden = true;
-  keys.addEventListener("input", () => {
-    deckState.ssh.authorizedKeys = keys.value
-      .split("\n")
-      .map((k) => k.trim())
-      .filter(Boolean);
+  // ── 4. Extras.
+  body.append(
+    deckSection(
+      "Extras",
+      [
+        deckCheck(
+          "Waydroid",
+          deckState.waydroid,
+          (v) => {
+            deckState.waydroid = v;
+          },
+          "Run Android apps on the Deck. The installer is interactive — finish it on-device.",
+          "stages the Waydroid installer",
+        ),
+        deckCheck(
+          "StickDeck",
+          deckState.stickdeck,
+          (v) => {
+            deckState.stickdeck = v;
+          },
+          "Use the Deck as a wireless gamepad for your PC.",
+          "installs StickDeck (latest release)",
+        ),
+      ],
+      countOn(deckState.waydroid, deckState.stickdeck),
+    ),
+  );
+
+  // ── 5. System (snapshot — hostname now lives on the Device-setup screen).
+  body.append(
+    deckSection(
+      "System",
+      [
+        deckCheck(
+          "Btrfs snapshot before changes",
+          deckState.createSnapshot,
+          (v) => {
+            deckState.createSnapshot = v;
+          },
+          "A safe rollback point — undo everything if a tweak misbehaves.",
+          "btrfs snapshot of / before any change",
+        ),
+      ],
+      countOn(deckState.createSnapshot),
+    ),
+  );
+
+  updateDeckSummary();
+}
+
+/** The Deck "Device setup" screen — the second stage, mirroring the ROG flow:
+ *  name + network + game streaming + remote access. (Pickers + Proton/Extras/System
+ *  stay on the first config screen.) */
+async function hydrateDeckSetup(): Promise<void> {
+  const body = document.querySelector<HTMLElement>("#decksetup-body");
+  if (!body) return;
+  body.replaceChildren();
+
+  // Hostname.
+  const hostField = el("div", "cz-span deck-field");
+  hostField.append(
+    el("div", "cz-name", "Device name (for SSH)"),
+    el(
+      "div",
+      "cz-desc",
+      "The device's network name + SSH alias. Blank keeps the default (steamdeck); set one to tell devices apart, e.g. deck-living-room.",
+    ),
+  );
+  const host = el("input", "uw-select") as HTMLInputElement;
+  host.type = "text";
+  host.placeholder = "steamdeck";
+  host.value = deckState.hostname ?? "";
+  host.addEventListener("input", () => {
+    deckState.hostname = host.value.trim() || undefined;
   });
-  // Pull a GitHub user's public keys on-device (parity with the ROG flow).
-  const ghKeys = el("input", "uw-select cz-span") as HTMLInputElement;
-  ghKeys.id = "deck-ssh-github";
-  ghKeys.type = "text";
-  ghKeys.placeholder = "GitHub username — adds github.com/<user>.keys";
-  ghKeys.value = deckState.ssh.githubUser ?? "";
-  if (!deckState.ssh.enabled) ghKeys.hidden = true;
-  ghKeys.addEventListener("input", () => {
-    deckState.ssh.githubUser = ghKeys.value.trim().replace(/[^A-Za-z0-9-]/g, "") || undefined;
+  hostField.append(host);
+  body.append(deckSection("Device name", [hostField]));
+
+  // Network — shared NetworkSettings (no host inference on-device).
+  const deckNet = NetworkSettings({
+    value: deckState.staticIp,
+    interfaces: ["wifi", "ethernet"],
+    onChange: (next) => {
+      deckState.staticIp = next;
+    },
   });
-  // Sunshine web-UI credentials — pre-set on the Deck (parity with the ROG flow),
-  // shown only when Sunshine is enabled.
+  deckNet.classList.add("cz-span");
+  body.append(deckSection("Network", [deckNet], deckState.staticIp ? 1 : 0));
+
+  // Game streaming — Sunshine (host, with creds) + Moonlight (client), the pair.
   const sunshineCreds = el("div", "cz-span deck-field");
   sunshineCreds.id = "deck-sunshine-creds";
   if (!deckState.sunshine.enabled) sunshineCreds.hidden = true;
@@ -2447,44 +2514,66 @@ async function hydrateDeck(): Promise<void> {
     deckState.sunshine.pass = spass.value || undefined;
   });
   sunshineCreds.append(suser, spass);
-  // Game-streaming clients (catalog Streaming category, minus the Sunshine host
-  // which has its own toggle + creds) live here on the main page rather than being
-  // duplicated in the Apps picker. streamClients was derived up top from deckApps.
-  const clientRows = streamClients.map((c) =>
+  const moonlight = (await window.bootible?.getDeckApps?.())?.find((a) => a.id === "moonlight");
+  const streamRows: HTMLElement[] = [
     deckCheck(
-      c.name,
-      deckState.flatpakApps.includes(c.id),
+      "Sunshine (host)",
+      deckState.sunshine.enabled,
       (v) => {
-        const set = new Set(deckState.flatpakApps);
-        if (v) set.add(c.id);
-        else set.delete(c.id);
-        deckState.flatpakApps = [...set];
+        deckState.sunshine.enabled = v;
+        document.querySelector("#deck-sunshine-creds")?.toggleAttribute("hidden", !v);
       },
-      c.note ?? "Game-streaming client.",
-      `installs ${c.ref}`,
+      "Stream games FROM this Deck to a Moonlight client on another screen.",
+      "installs dev.lizardbyte.app.Sunshine",
     ),
-  );
+    sunshineCreds,
+  ];
+  if (moonlight) {
+    streamRows.push(
+      deckCheck(
+        "Moonlight (client)",
+        deckState.flatpakApps.includes("moonlight"),
+        (v) => {
+          const set = new Set(deckState.flatpakApps);
+          if (v) set.add("moonlight");
+          else set.delete("moonlight");
+          deckState.flatpakApps = [...set];
+        },
+        "Play games streamed FROM another PC (running Sunshine/GeForce Experience).",
+        `installs ${moonlight.ref}`,
+      ),
+    );
+  }
   body.append(
     deckSection(
       "Game streaming",
-      [
-        deckCheck(
-          "Sunshine (host)",
-          deckState.sunshine.enabled,
-          (v) => {
-            deckState.sunshine.enabled = v;
-            document.querySelector("#deck-sunshine-creds")?.toggleAttribute("hidden", !v);
-          },
-          "Stream games FROM this Deck to a Moonlight client on another screen.",
-          "installs dev.lizardbyte.app.Sunshine",
-        ),
-        sunshineCreds,
-        ...clientRows,
-      ],
-      countOn(deckState.sunshine.enabled) +
-        streamClients.filter((c) => deckState.flatpakApps.includes(c.id)).length,
+      streamRows,
+      countOn(deckState.sunshine.enabled, deckState.flatpakApps.includes("moonlight")),
     ),
   );
+
+  // Remote access — VNC / Tailscale / SSH (+ keys / GitHub).
+  const keys = el("textarea", "uw-select cz-span") as HTMLTextAreaElement;
+  keys.id = "deck-ssh-keys";
+  keys.placeholder = "Authorized SSH public keys, one per line";
+  keys.rows = 3;
+  keys.value = deckState.ssh.authorizedKeys.join("\n");
+  if (!deckState.ssh.enabled) keys.hidden = true;
+  keys.addEventListener("input", () => {
+    deckState.ssh.authorizedKeys = keys.value
+      .split("\n")
+      .map((k) => k.trim())
+      .filter(Boolean);
+  });
+  const ghKeys = el("input", "uw-select cz-span") as HTMLInputElement;
+  ghKeys.id = "deck-ssh-github";
+  ghKeys.type = "text";
+  ghKeys.placeholder = "GitHub username — adds github.com/<user>.keys";
+  ghKeys.value = deckState.ssh.githubUser ?? "";
+  if (!deckState.ssh.enabled) ghKeys.hidden = true;
+  ghKeys.addEventListener("input", () => {
+    deckState.ssh.githubUser = ghKeys.value.trim().replace(/[^A-Za-z0-9-]/g, "") || undefined;
+  });
   body.append(
     deckSection(
       "Remote access",
@@ -2524,85 +2613,6 @@ async function hydrateDeck(): Promise<void> {
       countOn(deckState.vnc, deckState.tailscale, deckState.ssh.enabled),
     ),
   );
-
-  // ── 3b. Network — the shared NetworkSettings editor. No host inference on-device
-  // (the Deck is provisioned standalone), so no `infer`; same component as ROG.
-  const deckNet = NetworkSettings({
-    value: deckState.staticIp,
-    interfaces: ["wifi", "ethernet"],
-    onChange: (next) => {
-      deckState.staticIp = next;
-    },
-  });
-  deckNet.classList.add("cz-span");
-  body.append(deckSection("Network", [deckNet], deckState.staticIp ? 1 : 0));
-
-  // ── 4. Extras.
-  body.append(
-    deckSection(
-      "Extras",
-      [
-        deckCheck(
-          "Waydroid",
-          deckState.waydroid,
-          (v) => {
-            deckState.waydroid = v;
-          },
-          "Run Android apps on the Deck. The installer is interactive — finish it on-device.",
-          "stages the Waydroid installer",
-        ),
-        deckCheck(
-          "StickDeck",
-          deckState.stickdeck,
-          (v) => {
-            deckState.stickdeck = v;
-          },
-          "Use the Deck as a wireless gamepad for your PC.",
-          "installs StickDeck (latest release)",
-        ),
-      ],
-      countOn(deckState.waydroid, deckState.stickdeck),
-    ),
-  );
-
-  // ── 5. System (advanced — snapshot + hostname).
-  const hostField = el("div", "cz-span deck-field");
-  hostField.append(
-    el("div", "cz-name", "Hostname (optional)"),
-    el(
-      "div",
-      "cz-desc",
-      "The device's network name + SSH alias. Leave blank to keep the default (steamdeck); set one to tell devices apart, e.g. deck-living-room.",
-    ),
-  );
-  const host = el("input", "uw-select") as HTMLInputElement;
-  host.type = "text";
-  host.placeholder = "steamdeck";
-  host.value = deckState.hostname ?? "";
-  host.addEventListener("input", () => {
-    deckState.hostname = host.value.trim() || undefined;
-  });
-  hostField.append(host);
-  body.append(
-    deckSection(
-      "System",
-      [
-        deckCheck(
-          "Btrfs snapshot before changes",
-          deckState.createSnapshot,
-          (v) => {
-            deckState.createSnapshot = v;
-          },
-          "A safe rollback point — undo everything if a tweak misbehaves.",
-          "btrfs snapshot of / before any change",
-        ),
-        hostField,
-      ],
-      countOn(deckState.createSnapshot),
-    ),
-  );
-
-  updateDeckSummary();
 }
 
 /** A picker row (ROG style): name + description + a "Choose … (N) →" button that
@@ -2667,9 +2677,10 @@ async function hydrateDeckApps(): Promise<void> {
     box.replaceChildren(el("p", "muted", "Couldn't load the app list."));
     return;
   }
-  // Emulators (deckemu picker) and streaming (Game streaming section on the main
-  // page) each have their own home — keep them out of the general Apps picker.
-  const visible = apps.filter((a) => a.category !== "Emulator" && a.category !== "Streaming");
+  // Emulators have their own picker; Moonlight pairs with Sunshine on the
+  // Device-setup screen. Every other streaming client (Chiaki, Greenlight, …) lives
+  // here in Apps, like ROG.
+  const visible = apps.filter((a) => a.category !== "Emulator" && a.id !== "moonlight");
   renderDeckApps(box, visible);
   // Count only apps visible on THIS screen — not emulators/streaming selected elsewhere.
   setDeckPickCount("deckapps", countSelectedInView(visible, deckState.flatpakApps), "app");
