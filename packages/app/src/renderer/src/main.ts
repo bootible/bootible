@@ -312,6 +312,16 @@ interface DeckProvisionUsbReq {
   config: Partial<DeckConfig>;
 }
 
+interface DeckImage {
+  name: string;
+  url: string;
+}
+
+interface DeckReimageUsbReq {
+  diskNumber: number;
+  config: Partial<DeckConfig>;
+}
+
 interface UsbWriteReq extends UsbBuildRequest {
   diskNumber: number;
   isoPath?: string;
@@ -385,7 +395,9 @@ interface BootibleApi {
   getDeckApps(): Promise<FlatpakApp[]>;
   getDeckPasswordManagers(): Promise<PasswordManager[]>;
   getDeckyPlugins(): Promise<DeckyStorePlugin[]>;
+  resolveDeckImage(): Promise<DeckImage | null>;
   writeDeckProvisionUsb(req: DeckProvisionUsbReq): Promise<{ started: boolean }>;
+  writeDeckReimageUsb(req: DeckReimageUsbReq): Promise<{ started: boolean }>;
   getIsoCatalog(): Promise<IsoOption[]>;
   browseIso(): Promise<string | null>;
   writeUsb(req: UsbWriteReq): Promise<{ started: boolean }>;
@@ -466,7 +478,9 @@ const VIEWS = [
   "review",
   "usbwrite",
   "deck",
+  "deckmethod",
   "deckwrite",
+  "deckreimage",
   "watch",
   "connect",
   "provision",
@@ -538,6 +552,7 @@ function syncFromHash(): void {
   if (view === "usbwrite") void hydrateUsbWrite();
   if (view === "deck") void hydrateDeck();
   if (view === "deckwrite") void hydrateDeckWrite();
+  if (view === "deckreimage") void hydrateDeckReimage();
   if (view === "watch") {
     void window.bootible?.startDiscovery?.();
     renderDiscovered();
@@ -2351,9 +2366,10 @@ async function startUsbWrite(): Promise<void> {
 }
 
 function onUsbProgress(event: UsbProgress): void {
-  // The Deck provision-only write shares the usb:progress channel but has its own
-  // progress UI + finish behaviour (onDeckProgress) — don't double-handle it here.
-  if (document.body.dataset.view === "deckwrite") return;
+  // The Deck writers share the usb:progress channel but have their own progress UI
+  // + finish behaviour (onDeckProgress) — don't double-handle them here.
+  const dv = document.body.dataset.view;
+  if (dv === "deckwrite" || dv === "deckreimage") return;
   const msg = document.querySelector("#uw-msg");
   const fill = document.querySelector<HTMLElement>("#uw-fill");
   const pct = document.querySelector("#uw-pct");
@@ -2726,19 +2742,27 @@ async function startDeckWrite(): Promise<void> {
   }
 }
 
+// Both Deck writers (provision-only + reimage) stream on usb:progress; route to
+// whichever screen is active by its element prefix.
 function onDeckProgress(event: UsbProgress): void {
-  if (document.body.dataset.view !== "deckwrite") return;
-  const msg = document.querySelector("#deck-msg");
-  const fill = document.querySelector<HTMLElement>("#deck-fill");
-  const pct = document.querySelector("#deck-pct");
+  const view = document.body.dataset.view;
+  const pfx = view === "deckreimage" ? "deckre" : view === "deckwrite" ? "deck" : null;
+  if (!pfx) return;
+  const msg = document.querySelector(`#${pfx}-msg`);
+  const fill = document.querySelector<HTMLElement>(`#${pfx}-fill`);
+  const pct = document.querySelector(`#${pfx}-pct`);
   if (msg) msg.textContent = event.message;
   if (fill) fill.style.width = `${event.pct}%`;
   if (pct) {
+    const doneText =
+      pfx === "deckre"
+        ? "Done — boot the Deck from this USB and choose Reimage."
+        : "Done — eject it and run bootible/provision.sh on your Deck.";
     pct.textContent =
       event.status === "error"
         ? "Failed — see the message above."
         : event.status === "done"
-          ? "Done — eject it and run bootible/provision.sh on your Deck."
+          ? doneText
           : `${event.pct}% — keep the app open.`;
   }
 }
@@ -2764,6 +2788,96 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("change", (event) => {
   if ((event.target as HTMLElement).id === "deck-erase-confirm") updateDeckWriteButton();
+});
+
+// ── Deck full reimage (Path B) ───────────────────────────────────────────────
+let deckReDisk = -1; // selected USB disk NUMBER (flash needs the whole disk)
+
+async function hydrateDeckReimage(): Promise<void> {
+  const imgEl = document.querySelector("#deckre-image");
+  if (imgEl) imgEl.textContent = "Finding the latest image…";
+  void window.bootible?.resolveDeckImage?.().then((r) => {
+    if (imgEl) {
+      imgEl.textContent = r ? r.name : "Couldn't reach the image server — check your connection.";
+    }
+  });
+  await refreshDeckReimageDisks();
+  updateDeckReimageButton();
+}
+
+async function refreshDeckReimageDisks(): Promise<void> {
+  const api = window.bootible;
+  const list = document.querySelector<HTMLElement>("#deckre-disk-list");
+  if (!api?.getUsbDisks || !list) return;
+  let disks: UsbDisk[] = [];
+  try {
+    disks = await api.getUsbDisks();
+  } catch {}
+  if (disks.length === 0) {
+    list.replaceChildren(
+      el("p", "muted", "No removable USB drives found. Plug one in, then Refresh."),
+    );
+    return;
+  }
+  list.replaceChildren(
+    ...disks.map((disk) => {
+      const btn = el("button", "uw-disk deckre-disk") as HTMLButtonElement;
+      btn.type = "button";
+      btn.dataset.number = String(disk.number);
+      if (disk.number === deckReDisk) btn.classList.add("is-sel");
+      const title =
+        disk.label && disk.letters ? `${disk.label} (${disk.letters})` : disk.letters || disk.name;
+      const detail = [disk.name, `${disk.sizeGb} GB`, `disk ${disk.number}`]
+        .filter(Boolean)
+        .join(" · ");
+      btn.append(el("span", "uw-disk-name", title), el("span", "uw-disk-size", detail));
+      return btn;
+    }),
+  );
+}
+
+function updateDeckReimageButton(): void {
+  const btn = document.querySelector<HTMLButtonElement>("#deckre-write-btn");
+  const confirmed =
+    document.querySelector<HTMLInputElement>("#deckre-erase-confirm")?.checked ?? false;
+  if (btn) btn.disabled = !(confirmed && deckReDisk >= 0);
+}
+
+async function startDeckReimage(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.writeDeckReimageUsb || deckReDisk < 0) return;
+  document.querySelector('[data-view="deckreimage"] .uw-go')?.setAttribute("hidden", "");
+  document.querySelector("#deckre-progress")?.removeAttribute("hidden");
+  onDeckProgress({
+    pct: 1,
+    message: "Starting — accept the admin (UAC) prompt…",
+    status: "running",
+  });
+  const result = await api.writeDeckReimageUsb({ diskNumber: deckReDisk, config: deckState });
+  if (result && !result.started) {
+    onDeckProgress({ pct: 0, message: "Couldn't start the write.", status: "error" });
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest("#deckre-disk-refresh")) {
+    void refreshDeckReimageDisks();
+    return;
+  }
+  const disk = target.closest<HTMLElement>(".deckre-disk");
+  if (disk) {
+    deckReDisk = Number(disk.dataset.number);
+    for (const d of document.querySelectorAll(".deckre-disk"))
+      d.classList.toggle("is-sel", d === disk);
+    updateDeckReimageButton();
+    return;
+  }
+  if (target.closest("#deckre-write-btn")) void startDeckReimage();
+});
+
+document.addEventListener("change", (event) => {
+  if ((event.target as HTMLElement).id === "deckre-erase-confirm") updateDeckReimageButton();
 });
 
 // ── device discovery (watch screen) ─────────────────────────────────────────
@@ -3026,10 +3140,10 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const disk = target.closest<HTMLElement>(".uw-disk:not(.deck-disk)");
+  const disk = target.closest<HTMLElement>(".uw-disk:not(.deck-disk):not(.deckre-disk)");
   if (disk) {
     usbState.disk = Number(disk.dataset.disk);
-    for (const d of document.querySelectorAll(".uw-disk:not(.deck-disk)"))
+    for (const d of document.querySelectorAll(".uw-disk:not(.deck-disk):not(.deckre-disk)"))
       d.classList.toggle("is-sel", d === disk);
     updateWriteButton();
     return;
