@@ -2736,12 +2736,21 @@ function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
   box.replaceChildren(...nodes);
 }
 
+/** 1234567 → "1.2M", 34000 → "34K", 999 → "999". */
+function formatDownloads(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
+}
+
 function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
   if (list.length === 0) {
     box.replaceChildren(el("p", "muted", "No plugins returned — the defaults will be used."));
     return;
   }
+  // fetchDeckyPlugins returns them sorted by downloads (most-installed first).
   box.replaceChildren(
+    el("p", "deck-cat", `Most installed first · ${list.length} plugins`),
     ...list.map((p) =>
       deckCheck(
         p.name,
@@ -2752,7 +2761,8 @@ function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
           else set.delete(p.name);
           deckState.decky.plugins = [...set];
         },
-        (p.description ?? "").slice(0, 60),
+        (p.description ?? "").slice(0, 70),
+        `${formatDownloads(p.downloads)} installs`,
       ),
     ),
   );
