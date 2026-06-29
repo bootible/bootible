@@ -244,6 +244,43 @@ describe("allyCatalog", () => {
     expect(ps).toContain("New-NetIPAddress");
     expect(ps).toContain("10.90.101.50");
     expect(ps).toContain("10.90.101.1");
+    expect(ps).toContain("Native 802.11"); // defaults to Wi-Fi
+  });
+
+  it("static-ip targets the Ethernet adapter when iface=ethernet", () => {
+    const mod = allyCatalog.find((m) => m.id === "static-ip");
+    const calls: string[][] = [];
+    mod?.apply(
+      {
+        device,
+        config: {
+          schema: 2,
+          device: "rog-ally",
+          settings: {
+            static_ip: { iface: "ethernet", ip: "10.0.0.5", prefix: 24, dns: "1.1.1.1,8.8.8.8" },
+          },
+        },
+      },
+      (cmd) => {
+        calls.push(cmd);
+        return "";
+      },
+    );
+    const ps = calls.find((c) => c[0] === "powershell")?.join(" ") ?? "";
+    expect(ps).toContain("'802.3'"); // Ethernet media type
+    expect(ps).toContain("'1.1.1.1','8.8.8.8'"); // DNS as a PS array
+  });
+
+  it("static-ip skips an invalid address", () => {
+    const mod = allyCatalog.find((m) => m.id === "static-ip");
+    const r = mod?.apply(
+      {
+        device,
+        config: { schema: 2, device: "rog-ally", settings: { static_ip: { ip: "nope" } } },
+      },
+      () => "",
+    );
+    expect(r?.status).toBe("skipped");
   });
 
   it("wallpaper + lockscreen skip without an image, set PersonalizationCSP with one", () => {

@@ -11,6 +11,7 @@ import type {
   PasswordManager,
   ProvisioningMethod,
   RemovalEntry,
+  StaticIp,
   StepEvent,
 } from "@bootible/core";
 
@@ -43,7 +44,7 @@ export interface UsbBuildRequest {
   /** Device hostname — computer name, .local name, and SSH alias. */
   hostname?: string;
   /** Optional fixed IP for the device. */
-  staticIp?: { ip: string; prefix?: number; gateway?: string; dns?: string };
+  staticIp?: StaticIp;
   /** Windows edition (Pro unlocks RDP host). */
   edition?: "home" | "pro";
   /** Remote-access tools to install/enable on the device. */

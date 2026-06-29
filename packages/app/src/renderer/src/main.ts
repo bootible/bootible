@@ -129,9 +129,12 @@ interface ProvisionResult {
   skipped: number;
 }
 
+// Mirrors @bootible/core's StaticIp (the renderer keeps its types local). Shared
+// by the Windows build choice and the Deck config.
 interface StaticIp {
+  iface: "wifi" | "ethernet";
   ip: string;
-  prefix?: number;
+  prefix: number;
   gateway?: string;
   dns?: string;
 }
@@ -307,13 +310,7 @@ interface DeckConfig {
   waydroid: boolean;
   stickdeck: boolean;
   passwordManagers: { managers: string[]; method: "flatpak" | "distrobox" };
-  staticIp?: {
-    iface: "wifi" | "ethernet";
-    ip: string;
-    prefix: number;
-    gateway?: string;
-    dns?: string;
-  };
+  staticIp?: StaticIp;
 }
 
 interface DeckProvisionUsbReq {
@@ -2002,6 +1999,7 @@ function gatherUsbRequest(): UsbBuildRequest {
   const staticIpVal = val("#static-ip");
   const staticIp: StaticIp | undefined = staticIpVal
     ? {
+        iface: (val("#static-ip-iface") as "wifi" | "ethernet") || "wifi",
         ip: staticIpVal,
         prefix: netSuggestion?.prefix ?? 24,
         gateway: netSuggestion?.gateway,
@@ -2076,6 +2074,7 @@ function captureProfile(name: string): Profile {
       sshPaste: fv("#ssh-paste"),
       hostname: fv("#device-hostname"),
       staticIp: fv("#static-ip"),
+      staticIpIface: fv("#static-ip-iface"),
       edition: fck("#edition-pro") ? "pro" : "home",
       accountMode: document.body.dataset.account ?? "local",
       acctUser: fv("#acct-user"),
@@ -2123,6 +2122,7 @@ function applyProfile(p: Profile): void {
   setV("#ssh-paste", ui.sshPaste);
   setV("#device-hostname", ui.hostname);
   setV("#static-ip", ui.staticIp);
+  setV("#static-ip-iface", ui.staticIpIface);
   setCk("#edition-pro", ui.edition === "pro");
   setCk("#edition-home", ui.edition !== "pro");
   setV("#acct-user", ui.acctUser);

@@ -673,6 +673,13 @@
                   <label class="field-label" for="static-ip">Static IP <span class="muted">(optional)</span></label>
                   <input class="field-input" id="static-ip" type="text" placeholder="leave blank for automatic (DHCP)" autocomplete="off" spellcheck="false" />
                 </div>
+                <div class="field">
+                  <label class="field-label" for="static-ip-iface">Interface</label>
+                  <select class="field-input" id="static-ip-iface">
+                    <option value="wifi">Wi-Fi</option>
+                    <option value="ethernet">Ethernet</option>
+                  </select>
+                </div>
               </div>
               <div class="cfg-row">
                 <div class="field" data-clean>

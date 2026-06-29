@@ -5,6 +5,7 @@ import type { BootibleModule, ModuleGroup, ModuleState } from "./modules";
 import { getServiceTrimCommands } from "./optimization";
 import { getPowerConfigCommands } from "./power";
 import type { Exec } from "./secrets";
+import { normalizeStaticIp, type StaticIp } from "./static-ip";
 import { getAiRemovalCommands, getWindowsDefaultsCommands } from "./windows-defaults";
 import { getWingetInstallCommands } from "./winget";
 
@@ -400,43 +401,50 @@ const steamBigPicture: BootibleModule = {
 };
 
 /**
- * Static IP — give the Wi-Fi adapter a fixed address so the device is always
- * reachable at the same place (and the `ssh <name>` alias never goes stale).
- * Runs LAST so the network stays on DHCP while everything else installs; the
- * beacon keeps broadcasting the device's ACTUAL address, so a wrong static IP
- * can't hide the device — the desktop reconciles intended vs actual. Reads
- * settings.static_ip = { ip, prefix?, gateway?, dns? }; skips when absent.
+ * Static IP — give the chosen adapter (Wi-Fi or a docked Ethernet link) a fixed
+ * address so the device is always reachable at the same place (and the
+ * `ssh <name>` alias never goes stale). Runs LAST so the network stays on DHCP
+ * while everything else installs; the beacon keeps broadcasting the device's
+ * ACTUAL address, so a wrong static IP can't hide the device — the desktop
+ * reconciles intended vs actual. Reads + validates settings.static_ip via the
+ * shared normalizeStaticIp; skips when absent or invalid.
  */
 const staticIp: BootibleModule = {
   id: "static-ip",
   name: "Static IP",
   group: "system",
   description: "Give the device a fixed IP so it's always reachable at the same address.",
-  changes: "Set-NetIPAddress on Wi-Fi",
+  changes: "Set a fixed IP on Wi-Fi or Ethernet",
   apply(ctx, exec) {
     const settings = (ctx.config.settings ?? {}) as Record<string, unknown>;
-    const cfg = settings.static_ip as
-      | { ip?: string; prefix?: number; gateway?: string; dns?: string }
-      | undefined;
-    if (!cfg?.ip) {
+    const cfg = normalizeStaticIp(settings.static_ip as Partial<StaticIp> | undefined);
+    if (!cfg) {
       return { status: "skipped", detail: "no static IP configured" };
     }
-    const prefix = cfg.prefix ?? 24;
+    // PhysicalMediaType distinguishes the link types Windows reports.
+    const media = cfg.iface === "ethernet" ? "802.3" : "Native 802.11";
+    const label = cfg.iface === "ethernet" ? "Ethernet" : "Wi-Fi";
     const gw = cfg.gateway ? ` -DefaultGateway '${cfg.gateway}'` : "";
-    const dns = cfg.dns
-      ? `Set-DnsClientServerAddress -InterfaceIndex $i.ifIndex -ServerAddresses '${cfg.dns}' -ErrorAction SilentlyContinue; `
+    const servers = cfg.dns
+      ? cfg.dns
+          .split(",")
+          .map((d) => `'${d}'`)
+          .join(",")
+      : "";
+    const dns = servers
+      ? `Set-DnsClientServerAddress -InterfaceIndex $i.ifIndex -ServerAddresses ${servers} -ErrorAction SilentlyContinue; `
       : "";
     exec([
       "powershell",
       "-Command",
-      "$i = Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1; " +
+      `$i = Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' -and $_.PhysicalMediaType -eq '${media}' } | Select-Object -First 1; ` +
         "if ($i) { " +
         "Remove-NetIPAddress -InterfaceIndex $i.ifIndex -Confirm:$false -ErrorAction SilentlyContinue; " +
-        `New-NetIPAddress -InterfaceIndex $i.ifIndex -IPAddress '${cfg.ip}' -PrefixLength ${prefix}${gw} -ErrorAction SilentlyContinue | Out-Null; ` +
+        `New-NetIPAddress -InterfaceIndex $i.ifIndex -IPAddress '${cfg.ip}' -PrefixLength ${cfg.prefix}${gw} -ErrorAction SilentlyContinue | Out-Null; ` +
         dns +
         "}",
     ]);
-    return { status: "applied", actions: [`static IP ${cfg.ip}/${prefix}`] };
+    return { status: "applied", actions: [`static IP ${cfg.ip}/${cfg.prefix} on ${label}`] };
   },
 };
 

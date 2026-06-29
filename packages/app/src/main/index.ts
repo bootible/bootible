@@ -59,6 +59,7 @@ import {
   REMOVAL_CATALOG,
   ROADMAP_DEVICES,
   resolveDeckImage,
+  type StaticIp,
   type StepEvent,
   type SystemInfo,
   selectDevice,
@@ -669,13 +670,6 @@ function stopDiscovery(): void {
     } catch {}
     beaconSocket = null;
   }
-}
-
-export interface StaticIp {
-  ip: string;
-  prefix?: number;
-  gateway?: string;
-  dns?: string;
 }
 
 /** This desktop's subnet, to pre-fill a sensible static IP for the device:

@@ -141,6 +141,8 @@ export {
   parseSecretRef,
   resolveSecrets,
 } from "./secrets";
+export type { StaticIp } from "./static-ip";
+export { IPV4, normalizeStaticIp } from "./static-ip";
 export type { RemovalEntry } from "./strip";
 export {
   generateStripLauncher,
