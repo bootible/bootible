@@ -83,6 +83,7 @@ The test: *does the same conceptual task feel the same on every device?* Today, 
 ### Low
 
 - **U11 · Design tokens cover colors only.** Spacing, radius, type scale, and states are literal throughout; raw colors recur; there's a fallback to an undefined `--mut`. → Tokenize spacing/radii/typography/control-height/focus/semantic colors; ban new raw values. *(Codex)*
+- **U12 · Orphan / placeholder UI that doesn't apply to the current device.** Elements render with no backing capability or state — e.g. a "device connected" / USB-connection indicator shown for devices that have no USB-connection model (scaffolding for USB-attached devices). → Every element must be backed by a declared capability or a real state; gate the USB indicator behind a `usb-connection` capability. See the "Every element earns its place" standard. *(Gavin, on-device)*
 
 ---
 

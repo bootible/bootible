@@ -22,6 +22,47 @@ Corollary: there is **no such thing** as a device-prefixed view for a shared tas
 
 ---
 
+## Adding a device = composition, not design
+
+The whole point of the shared component set: **a new device should cost ~zero frontend.** You declare what the device *is* (data); the UI assembles itself from components that already exist.
+
+**The model — device is data, the UI is a capability registry:**
+
+1. A device adapter declares a **capability set** (which features it supports + any parameters) — not a layout. e.g. `{ apps, network, ssh, streaming, media: ["provision", "reimage"] }`.
+2. The renderer holds a **registry mapping capability → shared component** (`apps → GroupedPicker`, `network → NetworkSettings`, `ssh → SshAccessEditor`, `streaming → StreamingSetup`, `media → MediaBuilder`, …).
+3. The Configure screen is **generated** by walking the device's capabilities and rendering each one's component, in a fixed order. No device-specific screen; no `if (device === …)` in the renderer.
+
+**What this buys:**
+
+- **A device whose needs are already covered → no new frontend.** Add the adapter (data) and it appears in the same flow, with the same look and behavior, for free.
+- **A device with a genuinely unique need → exactly one new capability component.** Build it, register it, and it is immediately reusable by the next device that needs it. The unique cost is paid **once**, then amortized to zero. (SteamOS *reimage* is today's example; a future Boox ADB-push would be the next — each ships as a registered component, not a bespoke screen.)
+
+**The rule that makes this hold:** a unique requirement becomes a **registered, reusable component** — never a one-off wired into a single device's screen. If you're hand-building UI "just for this device," stop: either it's an existing capability (reuse the component) or it's a new capability (make the component).
+
+**Litmus test — "is the new device actually done?"** Could a *third* device with the same capability reuse everything you just wrote, by only declaring data? If no, you built a one-off, not a component — go back.
+
+### Adding-a-device checklist
+- [ ] The device adapter declares its **capability set** (data only — no layout).
+- [ ] Every capability resolves to an **existing registered component**; the screen assembles itself.
+- [ ] Any genuinely unique capability shipped as a **new registered component** (reusable), not inline in one device's view.
+- [ ] **Zero `if (device === …)`** in the renderer — differences are capability *presence* + parameters.
+- [ ] The device flows through the same wizard; unsupported capabilities are simply absent, or disabled-in-place with a reason.
+
+---
+
+## Every element earns its place
+
+Anything rendered on a page must have a **reason to be there right now** — for *this* device, *this* capability, *this* state. There is no decorative, speculative, "maybe-later," or placeholder UI.
+
+- An element renders only if backed by **(a)** a capability the current device declares, or **(b)** a real runtime state. **Capability-less UI is dead UI** — delete it, or gate it behind the capability.
+- **Placeholders for hypothetical future devices are prohibited in the live UI.** *Example in the app today:* a "device connected" / USB-connection indicator shows for devices that have no USB-connection model — leftover scaffolding for USB-attached devices that just confuses everyone else. It must be gated behind a `usb-connection` capability, not shown by default.
+- "Leave it for now" is not a reason. If something is for a future case, it lives behind a capability flag or in a branch — not on screen.
+- This is the inverse of the capability registry: that decides what to **show**; this deletes everything not on that list.
+
+**Litmus test for any element:** *which capability or state put this here?* If you can't name one, it shouldn't render.
+
+---
+
 ## 1. Navigation & flow
 
 1. **One wizard progression for all devices:** `Platform → Device → Configure → Media (method → write) → Done`. After the device is chosen, everyone lands on the same "Configure" step; the device only changes which capability sections appear.
@@ -30,7 +71,7 @@ Corollary: there is **no such thing** as a device-prefixed view for a shared tas
 
 ## 2. The shared component set (build once, use on every device)
 
-No screen hand-builds these. Each is a real component owning its own behavior, states, and accessibility — not a CSS class.
+These **are** the capability registry from "Adding a device" above — each capability a device declares resolves to one of these. No screen hand-builds them; each is a real component owning its own behavior, states, and accessibility — not a CSS class. The set grows only when a device introduces a genuinely new capability (and then it grows by exactly one reusable entry).
 
 | Component | Replaces today's… | Owns |
 |---|---|---|

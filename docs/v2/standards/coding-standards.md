@@ -16,6 +16,7 @@ These are rules, not suggestions. They exist because the codebase grew two paral
 ## 1. Architecture & layering
 
 1. **One device seam.** Every supported device registers a single provisioning adapter. No `usesDeckCarrier`-style branch, OS-string check, or route name may decide whether a device is "buildable" or which architecture it uses. New `if (os === "…")` in shared paths is prohibited — push the difference into the adapter.
+1b. **Device is data; the UI is a capability registry.** The adapter declares a **capability set** (the features it supports + parameters), not a layout. The renderer maps each capability to a shared component via a registry and assembles the screen by walking the device's capabilities. **Adding a device must require no new renderer code** unless it introduces a genuinely new capability — which ships as a **new registered, reusable component**, never a device-specific branch or inline one-off. Litmus test: a third device with the same capability must reuse it by declaring data alone. (See [ui-ux-standards.md](ui-ux-standards.md) → "Adding a device = composition, not design".)
 2. **Core owns intent; main owns I/O; renderer owns presentation.**
    - **Core** (`packages/core`): normalize, validate, resolve modules/capabilities, produce the plan and the media payload. Pure and testable.
    - **Main** (`src/main`): privileged I/O only (disk, elevation, network, filesystem). No business rules.
