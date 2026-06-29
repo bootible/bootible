@@ -479,6 +479,7 @@ const VIEWS = [
   "usbwrite",
   "deck",
   "deckapps",
+  "deckemu",
   "deckplugins",
   "deckpm",
   "deckmethod",
@@ -555,6 +556,7 @@ function syncFromHash(): void {
   if (view === "usbwrite") void hydrateUsbWrite();
   if (view === "deck") void hydrateDeck();
   if (view === "deckapps") void hydrateDeckApps();
+  if (view === "deckemu") void hydrateDeckEmulators();
   if (view === "deckplugins") void hydrateDeckPlugins();
   if (view === "deckpm") void hydrateDeckPm();
   if (view === "deckwrite") void hydrateDeckWrite();
@@ -2488,12 +2490,32 @@ async function hydrateDeck(): Promise<void> {
     "installs decky-loader",
   );
   deckyToggle.classList.add("cz-span");
+  const EMULATOR_IDS = new Set([
+    "retroarch",
+    "dolphin",
+    "pcsx2",
+    "ppsspp",
+    "duckstation",
+    "cemu",
+    "mgba",
+    "melonds",
+    "retrodeck",
+  ]);
+  const appCount = deckState.flatpakApps.filter((id) => !EMULATOR_IDS.has(id)).length;
+  const emuCount =
+    deckState.flatpakApps.filter((id) => EMULATOR_IDS.has(id)).length + (deckState.emudeck ? 1 : 0);
   const installRows: HTMLElement[] = [
     deckPickerRow(
       "Apps",
       "Browsers, comms, media, launchers (Heroic / Lutris / Bottles), streaming & more — grouped by category.",
-      deckState.flatpakApps.length,
+      appCount,
       "deckapps",
+    ),
+    deckPickerRow(
+      "Emulators",
+      "EmuDeck (sets everything up) or standalone RetroArch / Dolphin / PCSX2 / PPSSPP / DuckStation / RetroDeck.",
+      emuCount,
+      "deckemu",
     ),
     deckyToggle,
   ];
@@ -2553,22 +2575,8 @@ async function hydrateDeck(): Promise<void> {
           "Per-game Winetricks for fixing specific titles.",
           "flatpak com.github.Matoking.protontricks",
         ),
-        deckCheck(
-          "EmuDeck",
-          deckState.emudeck,
-          (v) => {
-            deckState.emudeck = v;
-          },
-          "Sets up emulators + the Emulation folder tree. The EmuDeck wizard finishes on-device.",
-          "stages EmuDeck; you run its wizard once",
-        ),
       ],
-      countOn(
-        deckState.proton.ge,
-        deckState.proton.protonUpQt,
-        deckState.proton.protontricks,
-        deckState.emudeck,
-      ),
+      countOn(deckState.proton.ge, deckState.proton.protonUpQt, deckState.proton.protontricks),
     ),
   );
 
@@ -2796,8 +2804,55 @@ async function hydrateDeckApps(): Promise<void> {
     box.replaceChildren(el("p", "muted", "Couldn't load the app list."));
     return;
   }
-  renderDeckApps(box, apps);
+  // Emulators have their own dedicated picker (deckemu) — keep them out of here.
+  renderDeckApps(
+    box,
+    apps.filter((a) => a.category !== "Emulator"),
+  );
   setDeckPickCount("deckapps", deckState.flatpakApps.length, "app");
+}
+
+// ── Emulators picker screen (EmuDeck manager + standalone emulators) ──
+async function hydrateDeckEmulators(): Promise<void> {
+  const box = document.querySelector<HTMLElement>("#deckemu-body");
+  if (!box) return;
+  box.replaceChildren(el("p", "muted", "Loading emulators…"));
+  let apps: FlatpakApp[] = [];
+  try {
+    apps = (await window.bootible?.getDeckApps?.()) ?? [];
+  } catch {
+    box.replaceChildren(el("p", "muted", "Couldn't load the emulator list."));
+    return;
+  }
+  const emus = apps.filter((a) => a.category === "Emulator");
+  const update = (): void =>
+    setDeckPickCount(
+      "deckemu",
+      emus.filter((a) => deckState.flatpakApps.includes(a.id)).length + (deckState.emudeck ? 1 : 0),
+      "emulator",
+    );
+  const emudeck = deckCheck(
+    "EmuDeck",
+    deckState.emudeck,
+    (v) => {
+      deckState.emudeck = v;
+      update();
+    },
+    "Sets up emulators + the Emulation folder tree for you. The wizard finishes on-device.",
+    "stages EmuDeck; run its wizard once",
+  );
+  emudeck.classList.add("cz-span");
+  const rows = emus.map((a) =>
+    deckItemRow(a.name, "", deckState.flatpakApps.includes(a.id), (v) => {
+      const set = new Set(deckState.flatpakApps);
+      if (v) set.add(a.id);
+      else set.delete(a.id);
+      deckState.flatpakApps = [...set];
+      update();
+    }),
+  );
+  box.replaceChildren(emudeck, ...rows);
+  update();
 }
 
 function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {

@@ -165,6 +165,7 @@ body[data-view="wifi"] .view[data-view="wifi"] {
 
 body[data-view="deck"] .view[data-view="deck"],
 body[data-view="deckapps"] .view[data-view="deckapps"],
+body[data-view="deckemu"] .view[data-view="deckemu"],
 body[data-view="deckplugins"] .view[data-view="deckplugins"],
 body[data-view="deckpm"] .view[data-view="deckpm"],
 body[data-view="deckmethod"] .view[data-view="deckmethod"],
