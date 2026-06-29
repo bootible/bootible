@@ -2412,29 +2412,35 @@ const deckState: DeckConfig = {
 };
 let deckDisk = ""; // selected USB drive letter, e.g. "E"
 
-/** A checkbox row bound to a setter on deckState. */
+/** A rich toggle row in the ROG `.cz-*` style: name + description + an optional
+ *  "what it does" line, bound to a setter on deckState. */
 function deckCheck(
   label: string,
   checked: boolean,
   onChange: (v: boolean) => void,
-  hint?: string,
+  desc?: string,
+  changes?: string,
 ): HTMLElement {
-  const row = el("label", "deck-row");
-  const cb = document.createElement("input");
+  const row = el("label", `cz-row${checked ? "" : " is-off"}`);
+  const cb = el("input", "cz-check") as HTMLInputElement;
   cb.type = "checkbox";
   cb.checked = checked;
   cb.addEventListener("change", () => {
+    row.classList.toggle("is-off", !cb.checked);
     onChange(cb.checked);
     updateDeckSummary();
   });
-  row.append(cb, el("span", "deck-row-label", label));
-  if (hint) row.append(el("span", "deck-row-hint muted", hint));
+  const text = el("div", "cz-text");
+  text.append(el("div", "cz-name", label));
+  if (desc) text.append(el("div", "cz-desc", desc));
+  if (changes) text.append(el("div", "cz-chg", changes));
+  row.append(cb, text);
   return row;
 }
 
 function deckSection(title: string): HTMLElement {
-  const sec = el("section", "uw-section deck-section");
-  sec.append(el("p", "uw-label", title));
+  const sec = el("div", "cz-sec");
+  sec.append(el("div", "cz-sec-h", title));
   return sec;
 }
 
@@ -2455,14 +2461,27 @@ async function hydrateDeck(): Promise<void> {
 
   const sys = deckSection("System");
   sys.append(
-    deckCheck("Btrfs snapshot before changes (safe rollback)", deckState.createSnapshot, (v) => {
-      deckState.createSnapshot = v;
-    }),
+    deckCheck(
+      "Btrfs snapshot before changes",
+      deckState.createSnapshot,
+      (v) => {
+        deckState.createSnapshot = v;
+      },
+      "A safe rollback point — undo everything if a tweak misbehaves.",
+      "btrfs snapshot of / before any change",
+    ),
   );
-  const host = document.createElement("input");
+  sys.append(el("div", "cz-name", "Hostname (optional)"));
+  sys.append(
+    el(
+      "div",
+      "cz-desc",
+      "The device's network name + SSH alias. Leave blank to keep the default (steamdeck); set one to tell devices apart, e.g. deck-living-room.",
+    ),
+  );
+  const host = el("input", "uw-select") as HTMLInputElement;
   host.type = "text";
-  host.className = "uw-select";
-  host.placeholder = "Hostname (optional)";
+  host.placeholder = "steamdeck";
   host.value = deckState.hostname ?? "";
   host.addEventListener("input", () => {
     deckState.hostname = host.value.trim() || undefined;
@@ -2472,10 +2491,16 @@ async function hydrateDeck(): Promise<void> {
 
   const decky = deckSection("Decky Loader");
   decky.append(
-    deckCheck("Install Decky Loader", deckState.decky.enabled, (v) => {
-      deckState.decky.enabled = v;
-      document.querySelector("#deck-plugins")?.toggleAttribute("hidden", !v);
-    }),
+    deckCheck(
+      "Install Decky Loader",
+      deckState.decky.enabled,
+      (v) => {
+        deckState.decky.enabled = v;
+        document.querySelector("#deck-plugins")?.toggleAttribute("hidden", !v);
+      },
+      "The plugin framework for Gaming Mode — adds a plugin menu to the Quick Access panel. PowerTools (below) is the main performance tool.",
+      "installs decky-loader + the plugins you tick below",
+    ),
   );
   const plugins = el("div", "deck-plugins");
   plugins.id = "deck-plugins";
@@ -2486,47 +2511,91 @@ async function hydrateDeck(): Promise<void> {
 
   const proton = deckSection("Proton & compatibility");
   proton.append(
-    deckCheck("Proton-GE (latest)", deckState.proton.ge, (v) => {
-      deckState.proton.ge = v;
-    }),
-    deckCheck("ProtonUp-Qt", deckState.proton.protonUpQt, (v) => {
-      deckState.proton.protonUpQt = v;
-    }),
-    deckCheck("protontricks", deckState.proton.protontricks, (v) => {
-      deckState.proton.protontricks = v;
-    }),
+    deckCheck(
+      "Proton-GE (latest)",
+      deckState.proton.ge,
+      (v) => {
+        deckState.proton.ge = v;
+      },
+      "GloriousEggroll's Proton build — better compatibility for many non-Steam and anti-cheat games.",
+      "downloads the latest GE into compatibilitytools.d",
+    ),
+    deckCheck(
+      "ProtonUp-Qt",
+      deckState.proton.protonUpQt,
+      (v) => {
+        deckState.proton.protonUpQt = v;
+      },
+      "A GUI to install + update Proton-GE and other compatibility tools later.",
+      "flatpak net.davidotek.pupgui2",
+    ),
+    deckCheck(
+      "protontricks",
+      deckState.proton.protontricks,
+      (v) => {
+        deckState.proton.protontricks = v;
+      },
+      "Per-game Winetricks for fixing specific titles.",
+      "flatpak com.github.Matoking.protontricks",
+    ),
   );
   body.append(proton);
 
   const emu = deckSection("Emulation");
   emu.append(
     deckCheck(
-      "EmuDeck (creates the Emulation tree + launcher; wizard is manual)",
+      "EmuDeck",
       deckState.emudeck,
       (v) => {
         deckState.emudeck = v;
       },
+      "Sets up emulators + the Emulation folder tree. The EmuDeck wizard finishes on-device.",
+      "stages EmuDeck; you run its wizard once",
     ),
   );
   body.append(emu);
 
   const remote = deckSection("Streaming & remote");
   remote.append(
-    deckCheck("Sunshine (stream games from the Deck)", deckState.sunshine, (v) => {
-      deckState.sunshine = v;
-    }),
-    deckCheck("VNC remote desktop", deckState.vnc, (v) => {
-      deckState.vnc = v;
-    }),
-    deckCheck("Tailscale (mesh VPN)", deckState.tailscale, (v) => {
-      deckState.tailscale = v;
-    }),
+    deckCheck(
+      "Sunshine",
+      deckState.sunshine,
+      (v) => {
+        deckState.sunshine = v;
+      },
+      "Host game streaming from this Deck to a Moonlight client on another screen.",
+      "installs dev.lizardbyte.app.Sunshine",
+    ),
+    deckCheck(
+      "VNC remote desktop",
+      deckState.vnc,
+      (v) => {
+        deckState.vnc = v;
+      },
+      "Remote access to the Deck's KDE desktop from another machine.",
+      "enables a VNC server",
+    ),
+    deckCheck(
+      "Tailscale",
+      deckState.tailscale,
+      (v) => {
+        deckState.tailscale = v;
+      },
+      "Zero-config mesh VPN — reach the Deck securely from anywhere.",
+      "installs tailscaled (run 'tailscale up' to log in)",
+    ),
   );
   remote.append(
-    deckCheck("SSH server", deckState.ssh.enabled, (v) => {
-      deckState.ssh.enabled = v;
-      document.querySelector("#deck-ssh-keys")?.toggleAttribute("hidden", !v);
-    }),
+    deckCheck(
+      "SSH server",
+      deckState.ssh.enabled,
+      (v) => {
+        deckState.ssh.enabled = v;
+        document.querySelector("#deck-ssh-keys")?.toggleAttribute("hidden", !v);
+      },
+      "Remote shell + file access. Add public keys below for key-only login.",
+      "enables sshd",
+    ),
   );
   const keys = document.createElement("textarea");
   keys.id = "deck-ssh-keys";
@@ -2546,12 +2615,24 @@ async function hydrateDeck(): Promise<void> {
 
   const extras = deckSection("Extras");
   extras.append(
-    deckCheck("Waydroid (Android apps; installer is interactive)", deckState.waydroid, (v) => {
-      deckState.waydroid = v;
-    }),
-    deckCheck("StickDeck (use the Deck as a PC controller)", deckState.stickdeck, (v) => {
-      deckState.stickdeck = v;
-    }),
+    deckCheck(
+      "Waydroid",
+      deckState.waydroid,
+      (v) => {
+        deckState.waydroid = v;
+      },
+      "Run Android apps on the Deck. The installer is interactive — finish it on-device.",
+      "stages the Waydroid installer",
+    ),
+    deckCheck(
+      "StickDeck",
+      deckState.stickdeck,
+      (v) => {
+        deckState.stickdeck = v;
+      },
+      "Use the Deck as a wireless gamepad for your PC.",
+      "installs StickDeck (latest release)",
+    ),
   );
   body.append(extras);
 

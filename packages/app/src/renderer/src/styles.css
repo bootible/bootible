@@ -2781,47 +2781,10 @@ body.booting .views {
   word-break: break-all;
 }
 
-/* ── Steam Deck config screen ──────────────────────────────────────────────── */
-.deck-section {
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
-}
-
-.deck-section:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-
+/* ── Steam Deck config screen (toggles reuse the .cz-* row/section styles) ──── */
 /* let the hidden attribute win over the section's grid layout */
 .customise-body [hidden] {
   display: none;
-}
-
-.deck-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 6px 0;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--ink);
-}
-
-.deck-row input[type="checkbox"] {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--signal);
-  cursor: pointer;
-}
-
-.deck-row-label {
-  font-weight: 500;
-}
-
-.deck-row-hint {
-  font-size: 12px;
-  color: var(--dim);
 }
 
 .deck-plugins,
