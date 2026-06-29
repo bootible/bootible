@@ -6,7 +6,14 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { LocalProfile, LocalStore } from "@bootible/core";
+import {
+  CURRENT_PROFILE_VERSION,
+  deviceFamilyOf,
+  type LocalProfile,
+  type LocalStore,
+  migrateProfile,
+  type PersistedProfile,
+} from "@bootible/core";
 import { app, safeStorage } from "electron";
 
 export interface ProfileSummary {
@@ -20,19 +27,10 @@ export interface Profile extends ProfileSummary {
   secrets?: Record<string, string>;
 }
 
-interface StoredProfile {
-  id: string;
-  name: string;
-  deviceId?: string;
-  baseId?: string;
-  savedAt?: string;
-  ui: Record<string, unknown>;
-  secretsEnc: string;
-  version: number;
-  lastSyncedVersion: number | null;
-  updatedAt: number;
-  deleted: boolean;
-}
+// The persisted shape + its migration live in core (pure, tested); this file adds
+// encryption + file I/O. schemaVersion/deviceFamily are stamped by write().
+type StoredProfile = PersistedProfile;
+type WritableProfile = Omit<PersistedProfile, "schemaVersion" | "deviceFamily">;
 
 function dir(): string {
   return join(app.getPath("userData"), "profiles");
@@ -55,34 +53,14 @@ function decSecrets(secretsEnc: string): Record<string, string> {
   }
 }
 
-/** Back-fill sync metadata + id for profiles saved before sync existed. */
-function normalize(j: Record<string, unknown>): StoredProfile {
-  const name = String(j.name ?? "profile");
-  return {
-    id: typeof j.id === "string" ? j.id : name,
-    name,
-    deviceId: j.deviceId as string | undefined,
-    baseId: j.baseId as string | undefined,
-    savedAt: j.savedAt as string | undefined,
-    ui: (j.ui as Record<string, unknown>) ?? {},
-    secretsEnc: typeof j.secretsEnc === "string" ? j.secretsEnc : "",
-    version: typeof j.version === "number" ? j.version : 1,
-    lastSyncedVersion: typeof j.lastSyncedVersion === "number" ? j.lastSyncedVersion : null,
-    updatedAt:
-      typeof j.updatedAt === "number"
-        ? j.updatedAt
-        : Date.parse(String(j.savedAt ?? "")) || Date.now(),
-    deleted: j.deleted === true,
-  };
-}
-
 function readAll(): StoredProfile[] {
   if (!existsSync(dir())) return [];
   return readdirSync(dir())
     .filter((f) => f.endsWith(".json"))
     .map((f) => {
       try {
-        return normalize(JSON.parse(readFileSync(join(dir(), f), "utf8")));
+        // Migrate/validate via core; unrecoverable entries drop out (null).
+        return migrateProfile(JSON.parse(readFileSync(join(dir(), f), "utf8")), Date.now());
       } catch {
         return null;
       }
@@ -90,9 +68,14 @@ function readAll(): StoredProfile[] {
     .filter((p): p is StoredProfile => p !== null);
 }
 
-function write(s: StoredProfile): void {
+function write(s: WritableProfile): void {
   mkdirSync(dir(), { recursive: true });
-  writeFileSync(fileFor(s.id), JSON.stringify(s, null, 2), "utf8");
+  const full: StoredProfile = {
+    ...s,
+    schemaVersion: CURRENT_PROFILE_VERSION,
+    deviceFamily: deviceFamilyOf(s.deviceId),
+  };
+  writeFileSync(fileFor(full.id), JSON.stringify(full, null, 2), "utf8");
 }
 
 const byName = (name: string) => readAll().find((p) => p.name === name) ?? null;
