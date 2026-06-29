@@ -34,7 +34,10 @@
 #>
 [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
 param(
-    [Parameter(Mandatory = $true)][string]$ImagePath,
+    # Either a local decompressed .img (ImagePath) OR a .img.zip URL (ImageUrl,
+    # downloaded + unzipped here). The app passes -ImageUrl from resolveDeckImage.
+    [string]$ImagePath,
+    [string]$ImageUrl,
     [int]$DiskNumber = -1,
     [string]$BundleDir = $PSScriptRoot,
     [string]$ProgressFile,
@@ -62,6 +65,37 @@ trap {
     break
 }
 
+# --- 0. Acquire the image (download + native unzip) when only a URL is given ----
+if (-not $ImagePath) {
+    if (-not $ImageUrl) { throw "Provide -ImagePath or -ImageUrl." }
+    $zip = Join-Path $env:TEMP "bootible-steamos.img.zip"
+    Send-Progress 2 "Downloading SteamOS recovery image (several GB)..."
+    $job = Start-BitsTransfer -Source $ImageUrl -Destination $zip -Asynchronous -DisplayName "bootible-deck-img"
+    try {
+        while ($job.JobState -eq "Connecting" -or $job.JobState -eq "Transferring") {
+            $total = [double]$job.BytesTotal
+            if ($total -gt 0) {
+                $done = [double]$job.BytesTransferred
+                $pct = [int](2 + ($done / $total) * 36)   # download → 2..38
+                Send-Progress $pct ("Downloading image -- {0} / {1} GB" -f [math]::Round($done / 1GB, 1), [math]::Round($total / 1GB, 1))
+            }
+            Start-Sleep -Seconds 2
+        }
+        if ($job.JobState -ne "Transferred") { throw "Image download did not complete (state: $($job.JobState))." }
+        Complete-BitsTransfer -BitsJob $job
+    }
+    catch { Remove-BitsTransfer -BitsJob $job -ErrorAction SilentlyContinue; throw }
+
+    Send-Progress 39 "Decompressing the image (zip)..."
+    $imgDir = Join-Path $env:TEMP "bootible-steamos-img"
+    Remove-Item $imgDir -Recurse -Force -ErrorAction SilentlyContinue
+    Expand-Archive -Path $zip -DestinationPath $imgDir -Force   # native, no bz2 dep
+    $ImagePath = (Get-ChildItem $imgDir -Filter *.img -Recurse | Select-Object -First 1).FullName
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+    if (-not $ImagePath) { throw "No .img found in the downloaded archive." }
+    Send-Progress 46 ("Image ready: {0}" -f (Split-Path $ImagePath -Leaf))
+}
+
 # --- 1. Resolve target disk ----------------------------------------------------
 if (-not (Test-Path $ImagePath)) { throw "Image not found: $ImagePath" }
 
@@ -82,7 +116,7 @@ if (-not $Force -and -not $PSCmdlet.ShouldProcess("Disk $DiskNumber ($($disk.Fri
 }
 
 # --- 2. Flash the recovery image (raw, block-level) ----------------------------
-Send-Progress 5 "Preparing disk $DiskNumber ($($disk.FriendlyName), $sizeGb GB)"
+Send-Progress 47 "Preparing disk $DiskNumber ($($disk.FriendlyName), $sizeGb GB)"
 # Clear any existing layout, then take the disk offline so no volume locks the
 # raw handle while we write the image's own partition table over it.
 Clear-Disk -Number $DiskNumber -RemoveData -RemoveOEM -Confirm:$false -ErrorAction SilentlyContinue
@@ -90,7 +124,7 @@ Set-Disk -Number $DiskNumber -IsOffline $true
 Set-Disk -Number $DiskNumber -IsReadOnly $false -ErrorAction SilentlyContinue
 
 $imgLen = (Get-Item $ImagePath).Length
-Send-Progress 8 ("Flashing recovery image ({0} GB) -- this takes a while" -f [math]::Round($imgLen / 1GB, 1))
+Send-Progress 48 ("Flashing recovery image ({0} GB) -- this takes a while" -f [math]::Round($imgLen / 1GB, 1))
 
 $src = [System.IO.File]::OpenRead($ImagePath)
 $dev = New-Object System.IO.FileStream("\\.\PhysicalDrive$DiskNumber", [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
@@ -101,8 +135,8 @@ try {
     while (($n = $src.Read($buf, 0, $buf.Length)) -gt 0) {
         $dev.Write($buf, 0, $n)
         $written += $n
-        # map the flash onto the 8..70 band of the overall bar
-        $pct = [int](8 + ($written / $imgLen) * 62)
+        # map the flash onto the 48..80 band of the overall bar
+        $pct = [int](48 + ($written / $imgLen) * 32)
         if ($pct -ne $lastPct) {
             $lastPct = $pct
             Send-Progress $pct ("Flashing recovery image -- {0} / {1} GB" -f [math]::Round($written / 1GB, 1), [math]::Round($imgLen / 1GB, 1))
@@ -115,19 +149,19 @@ finally {
 }
 
 # --- 3. Bring the disk back + append the BOOTIBLE payload partition -------------
-Send-Progress 74 "Re-reading the new partition table"
+Send-Progress 82 "Re-reading the new partition table"
 Set-Disk -Number $DiskNumber -IsOffline $false
 Start-Sleep -Seconds 3   # let Windows mount the flashed partitions
 
 # The recovery image is small; create an exFAT partition in the free space for the
 # payload. exFAT is readable by SteamOS recovery + installed SteamOS (validated).
-Send-Progress 80 "Adding the BOOTIBLE payload partition (exFAT)"
+Send-Progress 86 "Adding the BOOTIBLE payload partition (exFAT)"
 $part = New-Partition -DiskNumber $DiskNumber -UseMaximumSize -AssignDriveLetter
 Format-Volume -Partition $part -FileSystem exFAT -NewFileSystemLabel "BOOTIBLE" -Confirm:$false | Out-Null
 $drive = "$($part.DriveLetter):"
 
 # --- 4. Copy the payload bundle ------------------------------------------------
-Send-Progress 90 "Copying the bootible payload"
+Send-Progress 92 "Copying the bootible payload"
 $payload = if (Test-Path (Join-Path $BundleDir "bootible")) { $BundleDir } else { $BundleDir }
 Copy-Item -Path (Join-Path $payload "*") -Destination "$drive\" -Recurse -Force
 

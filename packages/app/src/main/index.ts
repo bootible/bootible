@@ -27,7 +27,9 @@ import {
   buildDeckBundle,
   buildUsbBundle,
   checkModules,
+  DECK_IMAGE_INDEX,
   type DeckConfig,
+  type DeckImage,
   type DeviceEntry,
   type DeviceProfile,
   type DeviceSummary,
@@ -56,6 +58,7 @@ import {
   provisioningMethods,
   REMOVAL_CATALOG,
   ROADMAP_DEVICES,
+  resolveDeckImage,
   type StepEvent,
   type SystemInfo,
   selectDevice,
@@ -82,6 +85,9 @@ const dataRoot = app.isPackaged ? process.resourcesPath : repoRoot;
 const prepareUsbScript = app.isPackaged
   ? join(process.resourcesPath, "prepare-usb.ps1")
   : join(repoRoot, "packages/app/resources/prepare-usb.ps1");
+const prepareDeckUsbScript = app.isPackaged
+  ? join(process.resourcesPath, "prepare-deck-usb.ps1")
+  : join(repoRoot, "packages/app/resources/prepare-deck-usb.ps1");
 
 /** Read a value from the BIOS hardware key (fast, no WMI), or undefined. */
 function regBios(value: string): string | undefined {
@@ -1134,6 +1140,94 @@ function writeDeckProvisionUsb(
   return { started: true };
 }
 
+/** Stage the Deck payload (buildDeckBundle) into a temp dir for the reimage
+ *  writer to copy from. Plain UTF-8/LF so provision.sh stays bash-safe. */
+function stageDeckBundle(config: Partial<DeckConfig>): string {
+  const staging = join(app.getPath("temp"), "bootible-deck-bundle");
+  rmSync(staging, { recursive: true, force: true });
+  for (const file of buildDeckBundle(config)) {
+    const dest = join(staging, file.path);
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, file.content, "utf8");
+  }
+  return staging;
+}
+
+/** Resolve the newest SteamOS recovery .img.zip from the open CDN index. */
+async function resolveDeckImageUrl(): Promise<DeckImage | null> {
+  try {
+    const res = await fetch(DECK_IMAGE_INDEX);
+    if (!res.ok) return null;
+    return resolveDeckImage(await res.text());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Path B — full reimage. Resolve the newest recovery image, then run
+ * prepare-deck-usb.ps1 elevated (one UAC, hidden): it downloads the .img.zip,
+ * unzips it natively, raw-flashes the disk, appends the exFAT BOOTIBLE payload
+ * partition and copies the staged bundle. Progress streams on usb:progress.
+ */
+async function writeDeckReimageUsb(
+  sender: WebContents,
+  req: { diskNumber: number; config: Partial<DeckConfig> },
+): Promise<{ started: boolean }> {
+  const progressFile = join(app.getPath("temp"), "bootible-deck-progress.ndjson");
+  writeFileSync(progressFile, "");
+  const emit = (pct: number, message: string, status = "running"): void => {
+    if (!sender.isDestroyed()) sender.send("usb:progress", { pct, message, status });
+  };
+
+  emit(0, "Finding the latest SteamOS image…");
+  const img = await resolveDeckImageUrl();
+  if (!img) {
+    emit(0, "Couldn't resolve the SteamOS image from the CDN. Check your connection.", "error");
+    return { started: false };
+  }
+
+  let staging: string;
+  try {
+    staging = stageDeckBundle(req.config);
+  } catch (error) {
+    emit(0, `Couldn't build the payload: ${(error as Error).message}`, "error");
+    return { started: false };
+  }
+
+  // Bake values in (PowerShell-quoted) + run a generated runner elevated, exactly
+  // like the Windows writer — the only arg across the RunAs boundary is a -File
+  // path with no spaces, and a try/catch reports failures to the progress file.
+  const callParts = [
+    psQuote(prepareDeckUsbScript),
+    `-ImageUrl ${psQuote(img.url)}`,
+    `-DiskNumber ${req.diskNumber}`,
+    `-BundleDir ${psQuote(staging)}`,
+    "-Force",
+    "-Confirm:$false",
+    `-ProgressFile ${psQuote(progressFile)}`,
+  ];
+  const runner = [
+    "$ErrorActionPreference = 'Stop'",
+    "try {",
+    `  & ${callParts.join(" ")}`,
+    "} catch {",
+    "  $msg = @{ pct = 0; message = $_.Exception.Message; status = 'error' } | ConvertTo-Json -Compress",
+    `  [System.IO.File]::AppendAllText(${psQuote(progressFile)}, $msg + [Environment]::NewLine)`,
+    "}",
+  ].join("\r\n");
+  const runnerPath = join(app.getPath("temp"), "bootible-deck-run.ps1");
+  writeFileSync(runnerPath, `﻿${runner}`, "utf8");
+
+  emit(1, `Image: ${img.name}`);
+  const launcher = `Start-Process -FilePath 'powershell' -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File "${runnerPath}"'`;
+  spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", launcher], {
+    windowsHide: true,
+  });
+  tailUsbProgress(sender, progressFile);
+  return { started: true };
+}
+
 // ── in-app USB writer: disks + ISO source ───────────────────────────────────
 
 export interface UsbDisk {
@@ -1419,8 +1513,14 @@ app.whenReady().then(() => {
   ipcMain.handle("deck:apps", () => FLATPAK_APPS);
   ipcMain.handle("deck:passwordManagers", () => PASSWORD_MANAGERS);
   ipcMain.handle("deck:plugins", () => fetchDeckyPlugins());
+  ipcMain.handle("deck:resolveImage", () => resolveDeckImageUrl());
   ipcMain.handle("deck:writeProvisionUsb", (event, req: DeckProvisionUsbRequest) =>
     writeDeckProvisionUsb(event.sender, req),
+  );
+  ipcMain.handle(
+    "deck:writeReimageUsb",
+    (event, req: { diskNumber: number; config: Partial<DeckConfig> }) =>
+      writeDeckReimageUsb(event.sender, req),
   );
   ipcMain.handle("iso:catalog", () => getIsoCatalog());
   ipcMain.handle("languages:get", () =>

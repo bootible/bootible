@@ -2,6 +2,7 @@ import type {
   AppGroup,
   Bundle,
   DeckConfig,
+  DeckImage,
   DeckyStorePlugin,
   DeviceSummary,
   FlatpakApp,
@@ -161,6 +162,12 @@ export interface DeckProvisionUsbRequest {
   config: Partial<DeckConfig>;
 }
 
+/** Path B — full reimage: flash SteamOS to a disk + append the payload. */
+export interface DeckReimageUsbRequest {
+  diskNumber: number;
+  config: Partial<DeckConfig>;
+}
+
 // The renderer surface. Each call forwards to a main-process IPC handler that
 // drives @bootible/core. Provisioning streams step events back over the
 // provision:step / provision:done channels.
@@ -213,8 +220,11 @@ const api = {
   getDeckPasswordManagers: (): Promise<PasswordManager[]> =>
     ipcRenderer.invoke("deck:passwordManagers"),
   getDeckyPlugins: (): Promise<DeckyStorePlugin[]> => ipcRenderer.invoke("deck:plugins"),
+  resolveDeckImage: (): Promise<DeckImage | null> => ipcRenderer.invoke("deck:resolveImage"),
   writeDeckProvisionUsb: (req: DeckProvisionUsbRequest): Promise<{ started: boolean }> =>
     ipcRenderer.invoke("deck:writeProvisionUsb", req),
+  writeDeckReimageUsb: (req: DeckReimageUsbRequest): Promise<{ started: boolean }> =>
+    ipcRenderer.invoke("deck:writeReimageUsb", req),
   getIsoCatalog: (): Promise<IsoOption[]> => ipcRenderer.invoke("iso:catalog"),
   getLanguages: (): Promise<LanguageOption[]> => ipcRenderer.invoke("languages:get"),
   getRegions: (): Promise<RegionOption[]> => ipcRenderer.invoke("regions:get"),
