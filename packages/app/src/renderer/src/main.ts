@@ -596,7 +596,11 @@ function section(title: string, count: number, rows: HTMLElement[]): HTMLElement
   const sec = el("div", "cz-sec");
   const head = el("div", "cz-sec-h", title);
   head.append(el("span", "cz-sec-count", ` · ${count}`));
-  sec.append(head, ...rows);
+  // Cards lay out 2-up inside a full-width section (the shared .cz-sec-rows grid,
+  // same as the Deck) so the page shape is identical across bases.
+  const grid = el("div", "cz-sec-rows");
+  grid.append(...rows);
+  sec.append(head, grid);
   return sec;
 }
 
@@ -667,7 +671,7 @@ function removalsSection(): HTMLElement {
   const note = el(
     "p",
     "app-note",
-    "Nothing is removed unless you tick it. Phone Link is kept by default.",
+    "Recommended bloat & trialware is pre-ticked — untick anything you want to keep. Phone Link is kept by default.",
   );
   const rec = el("button", "cz-applink", "Select recommended") as HTMLButtonElement;
   rec.type = "button";
@@ -717,6 +721,8 @@ function pickerRow(
 async function hydrateCustomise(): Promise<void> {
   const api = window.bootible;
   if (!api?.getBasePlan || !selectedBaseId) return;
+  // A fresh base entry (not a just-loaded profile) gets the base's baked defaults.
+  const freshEntry = !customiseHydrated && !keepRestoredCustomise;
   if (!customiseHydrated) {
     try {
       basePlan = await api.getBasePlan(selectedBaseId);
@@ -738,11 +744,18 @@ async function hydrateCustomise(): Promise<void> {
       appGroups = await api.getAppGroups();
     } catch {}
   }
-  // Full ROG: load the opt-in removal catalog for the "Remove apps" checklist.
+  // Load the removal catalog for the "Remove apps" checklist (every Windows base).
   if (!removalsCatalog.length && api.getRemovals) {
     try {
       removalsCatalog = await api.getRemovals();
     } catch {}
+  }
+  // Baked-profile default: a fresh base entry pre-ticks the recommended removals
+  // (the user reviews + unticks anything to keep — not a silent nuke). A restored
+  // profile keeps exactly the removals it saved.
+  if (freshEntry) {
+    selectedRemovals.clear();
+    for (const r of removalsCatalog) if (r.recommended) selectedRemovals.add(r.id);
   }
   renderCustomise();
 }

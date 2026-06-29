@@ -1693,13 +1693,13 @@ body[data-view="account"] .summary::before {
   color: var(--dim);
 }
 
-/* review & customise */
+/* review & customise — sections stack full-width (cards 2-up inside via
+   .cz-sec-rows); the page shape is identical across bases, Remove apps last. */
 .customise-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 22px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
   max-width: 980px;
-  align-items: start;
 }
 
 .cz-sec {
