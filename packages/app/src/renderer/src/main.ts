@@ -1,12 +1,12 @@
 // RECORDED REASON for >400 lines (coding-standard §4): the renderer god-file,
-// well into decomposition — 4022 → ~2450 lines. Already carved out: the Deck flow
-// (features/deck/*), the auth flow (features/auth.ts), the hash router
-// (lib/router.ts), shared device context (lib/session.ts), logoMap (lib/logos.ts),
-// and now the ROG flow's ~35 shared state vars into lib/rog-state.ts (the `rog`
-// object). What remains is the ROG SCREENS themselves — device-pick → customise →
-// apps → ssh → bundles → method → provisioning → profiles → USB-writer → watch +
-// gatherUsbRequest — which now all read/write `rog.*` and can be split into
-// features/rog/* next (no shared-state blocker any more).
+// deep into decomposition — 4022 → ~1245 lines and shrinking. Already carved out:
+// the Deck flow (features/deck/*), the auth flow (features/auth.ts), the hash
+// router (lib/router.ts), shared device context (lib/session.ts), the logo maps
+// (lib/logos.ts), the ROG shared state (lib/rog-state.ts, the `rog` object), and
+// the ROG screens device-pick / account / catalog / apps / customise / profiles
+// (features/rog/*). What remains here is the app shell (boot, route registry,
+// delegated DOM handlers, the BootibleApi typing) plus the still-to-split ROG
+// screens: strip-kit, method/provisioning, USB-writer, watch + gatherUsbRequest.
 // See docs/v2/standards/remediation-plan.md P3.
 import "./styles.css";
 import type {
@@ -29,7 +29,6 @@ import type {
   LanguageOption,
   ModuleStateReport,
   PasswordManager,
-  PlanModule,
   PlatformOption,
   Profile,
   ProfileSummary,
@@ -46,7 +45,6 @@ import type {
 } from "@bootible/core";
 import brandMark from "./assets/bootible-mark.png";
 import { DiskPicker } from "./components/DiskPicker";
-import { ProfileBar } from "./components/ProfileBar";
 import { afterSignIn, cloud, refreshAccount } from "./features/auth";
 import {
   hydrateDeck,
@@ -59,9 +57,7 @@ import {
   hydrateDeckWrite,
 } from "./features/deck";
 import {
-  fetchRogGithub,
   hydrateSshKeys,
-  mountRogNetwork,
   mountRogRemoteAccess,
   mountRogSsh,
   mountRogStreaming,
@@ -70,12 +66,13 @@ import {
 import { hydrateApps } from "./features/rog/apps";
 import {
   hydrateCatalog,
-  pickCounts,
   renderReviewPlan,
   selectedModuleIds,
   updateSetupSummary,
 } from "./features/rog/catalog";
+import { hydrateCustomise, removalsCatalog, renderCustomise } from "./features/rog/customise";
 import { baseCard, hydratePlatforms } from "./features/rog/device";
+import { mountRogProfileBar } from "./features/rog/profiles";
 import { el, fill } from "./lib/dom";
 import { rog } from "./lib/rog-state";
 import { registerRoute, syncFromHash } from "./lib/router";
@@ -296,227 +293,6 @@ async function hydrateBases(): Promise<void> {
     return;
   }
   list.replaceChildren(...rog.baseOptions.map(baseCard));
-}
-
-// ── review & customise screen ───────────────────────────────────────────────
-const FLOOR_WARNING = "Not recommended — every bootible device is meant to be tuned & debloated.";
-
-// The resolved base plan (floor/base/extras) for the chosen base. Set by applyProfile
-// so the next hydrateCustomise keeps the restored extras/disabled modules instead of
-// resetting them for a fresh base.
-let basePlan: BasePlan | null = null;
-// Full ROG opt-in removals (off until ticked) — read by the customise screen and the
-// apply-on-device flow.
-let removalsCatalog: RemovalEntry[] = [];
-
-/** One toggle row on the customise screen. Floor/base are checked by default
- *  (untick → rog.disabledModules); extras are unchecked (tick → rog.enabledExtras). */
-function customiseRow(m: PlanModule, kind: "floor" | "base" | "extra"): HTMLElement {
-  const isApps = m.id === "apps";
-  const checked = kind === "extra" ? rog.enabledExtras.has(m.id) : !rog.disabledModules.has(m.id);
-  const row = el("div", `cz-row${checked ? "" : " is-off"}`);
-  const cb = el("input", "cz-check") as HTMLInputElement;
-  cb.type = "checkbox";
-  cb.checked = checked;
-  cb.dataset.moduleId = m.id;
-  cb.dataset.kind = kind;
-  const text = el("div", "cz-text");
-  text.append(el("div", "cz-name", m.name));
-  if (m.description) text.append(el("div", "cz-desc", m.description));
-  if (m.changes) text.append(el("div", "cz-chg", m.changes));
-  if (kind === "floor" && !checked) text.append(el("div", "cz-warn", `⚠ ${FLOOR_WARNING}`));
-  if (isApps && checked) {
-    const pick = el(
-      "button",
-      "cz-applink",
-      `Choose apps (${rog.selectedApps.size}) →`,
-    ) as HTMLButtonElement;
-    pick.type = "button";
-    pick.dataset.go = "apps";
-    text.append(pick);
-  }
-  row.append(cb, text);
-  return row;
-}
-
-function section(title: string, count: number, rows: HTMLElement[]): HTMLElement {
-  const sec = el("div", "cz-sec");
-  const head = el("div", "cz-sec-h", title);
-  head.append(el("span", "cz-sec-count", ` · ${count}`));
-  // Cards lay out 2-up inside a full-width section (the shared .cz-sec-rows grid,
-  // same as the Deck) so the page shape is identical across bases.
-  const grid = el("div", "cz-sec-rows");
-  grid.append(...rows);
-  sec.append(head, grid);
-  return sec;
-}
-
-function renderCustomise(): void {
-  const host = document.querySelector<HTMLElement>("#customise-body");
-  if (!host || !basePlan) return;
-  // Show which base this is — easy to forget if you step away and come back.
-  const baseLabel =
-    rog.baseOptions.find((b) => b.id === rog.selectedBaseId)?.label ?? rog.selectedBaseId;
-  fill("customise-base", baseLabel ? ` · ${baseLabel}` : "");
-  const secs: HTMLElement[] = [];
-  secs.push(
-    section(
-      "Always — the floor",
-      basePlan.floor.length,
-      basePlan.floor.map((m) => customiseRow(m, "floor")),
-    ),
-  );
-  if (basePlan.base.length) {
-    secs.push(
-      section(
-        "From your base",
-        basePlan.base.length,
-        basePlan.base.map((m) => customiseRow(m, "base")),
-      ),
-    );
-  }
-  const extraRows = basePlan.extras.map((m) => customiseRow(m, "extra"));
-  const counts = pickCounts();
-  extraRows.push(
-    pickerRow("Apps", "Browsers, comms, launchers, dev tools, VPNs & more.", counts.apps, "apps"),
-    pickerRow(
-      "Emulators",
-      "EmuDeck, RetroArch and per-system emulators.",
-      counts.emulators,
-      "emulators",
-    ),
-  );
-  secs.push(section("Add extras", basePlan.extras.length + 2, extraRows));
-  // Opt-in "Remove apps" checklist (generic Windows bloat/trialware) — offered on
-  // every Windows base, not just Full ROG.
-  if (removalsCatalog.length) {
-    secs.push(removalsSection());
-  }
-  host.replaceChildren(...secs);
-  // Running summary.
-  const floorOn = basePlan.floor.filter((m) => !rog.disabledModules.has(m.id)).length;
-  const baseOn = basePlan.base.filter((m) => !rog.disabledModules.has(m.id)).length;
-  const extrasOn = rog.enabledExtras.size + rog.selectedApps.size;
-  const sum = document.querySelector("#customise-summary");
-  if (sum) {
-    sum.textContent = `${floorOn + baseOn + extrasOn} things will run · ${floorOn} core · ${baseOn} base · ${extrasOn} extras`;
-  }
-}
-
-/** The Full ROG opt-in removals checklist — a collapsible block of checkboxes,
- *  off by default (nothing removed unless ticked), with a "Select recommended"
- *  shortcut. Drives config.settings.strip_removals. */
-function removalsSection(): HTMLElement {
-  const details = el("details", "app-group cz-removals") as HTMLDetailsElement;
-  // Collapsed by default even when pre-ticked — the "22 / 23" count shows the
-  // recommended set is selected; expand to review/untick individual apps.
-  const summary = el("summary", "app-group-sum");
-  summary.append(
-    el("span", "app-group-name", "Remove apps (optional)"),
-    el(
-      "span",
-      `app-group-count${rog.selectedRemovals.size > 0 ? " on" : ""}`,
-      `${rog.selectedRemovals.size} / ${removalsCatalog.length}`,
-    ),
-  );
-  const body = el("div", "app-items");
-  const note = el(
-    "p",
-    "app-note",
-    "Recommended bloat & trialware is pre-ticked — untick anything you want to keep. Phone Link is kept by default.",
-  );
-  const rec = el("button", "cz-applink", "Select recommended") as HTMLButtonElement;
-  rec.type = "button";
-  rec.dataset.removalsRec = "1";
-  body.append(note, rec);
-  for (const r of removalsCatalog) {
-    const row = el("label", "app-row");
-    const cb = el("input", "app-check") as HTMLInputElement;
-    cb.type = "checkbox";
-    cb.dataset.removal = r.id;
-    cb.checked = rog.selectedRemovals.has(r.id);
-    const meta = el("span", "app-meta");
-    const name = el("span", "app-name", r.name);
-    if (r.recommended) name.append(el("span", "cz-rec-tag", "Recommended"));
-    meta.append(name);
-    if (r.note) meta.append(el("span", "app-id", r.note));
-    row.append(cb, meta);
-    body.append(row);
-  }
-  details.append(summary, body);
-  return details;
-}
-
-/** A Review row that opens a picker (Apps / Emulators), showing the live count. */
-function pickerRow(
-  label: string,
-  desc: string,
-  count: number,
-  mode: "apps" | "emulators",
-): HTMLElement {
-  const row = el("div", "cz-row cz-picker");
-  const text = el("div", "cz-text");
-  text.append(el("div", "cz-name", label), el("div", "cz-desc", desc));
-  const pick = el(
-    "button",
-    "cz-applink",
-    `Choose ${label.toLowerCase()} (${count}) →`,
-  ) as HTMLButtonElement;
-  pick.type = "button";
-  pick.dataset.picker = mode;
-  text.append(pick);
-  row.append(text);
-  return row;
-}
-
-/** Fetch the base's plan once per base, then render the customise screen. */
-async function hydrateCustomise(): Promise<void> {
-  const api = window.bootible;
-  if (!api?.getBasePlan || !rog.selectedBaseId) return;
-  // A fresh base entry (not a just-loaded profile) gets the base's baked defaults.
-  const freshEntry = !rog.customiseHydrated && !rog.keepRestoredCustomise;
-  if (!rog.customiseHydrated) {
-    try {
-      basePlan = await api.getBasePlan(rog.selectedBaseId);
-    } catch {
-      basePlan = null;
-    }
-    // Fresh base entry resets toggles; a just-loaded profile keeps its restored ones.
-    if (!rog.keepRestoredCustomise) {
-      rog.disabledModules.clear();
-      rog.enabledExtras.clear();
-    }
-    rog.keepRestoredCustomise = false;
-    rog.customiseHydrated = true;
-  }
-  void mountRogProfileBar("load"); // pick a saved profile to start from
-  // The Apps/Emulators counts need the rog.catalog loaded.
-  if (!rog.appGroups.length && api.getAppGroups) {
-    try {
-      rog.appGroups = await api.getAppGroups();
-    } catch {}
-  }
-  // Base labels for the screen header (cached by the base picker; fetch if the
-  // user deep-linked straight here).
-  if (!rog.baseOptions.length && api.getBases) {
-    try {
-      rog.baseOptions = await api.getBases();
-    } catch {}
-  }
-  // Load the removal rog.catalog for the "Remove apps" checklist (every Windows base).
-  if (!removalsCatalog.length && api.getRemovals) {
-    try {
-      removalsCatalog = await api.getRemovals();
-    } catch {}
-  }
-  // Baked-profile default: a fresh base entry pre-ticks the recommended removals
-  // (the user reviews + unticks anything to keep — not a silent nuke). A restored
-  // profile keeps exactly the removals it saved.
-  if (freshEntry) {
-    rog.selectedRemovals.clear();
-    for (const r of removalsCatalog) if (r.recommended) rog.selectedRemovals.add(r.id);
-  }
-  renderCustomise();
 }
 
 // ── strip kit (Full ROG): save to disk / USB, format, eject ─────────────────
@@ -970,189 +746,6 @@ function gatherUsbRequest(): UsbBuildRequest {
     account,
     wifi,
   };
-}
-
-// ── config profiles: capture / apply the whole UI state ─────────────────────
-const fv = (s: string) => document.querySelector<HTMLInputElement>(s)?.value ?? "";
-const fck = (s: string) => document.querySelector<HTMLInputElement>(s)?.checked ?? false;
-const setV = (s: string, v: unknown) => {
-  const e = document.querySelector<HTMLInputElement>(s);
-  if (e) e.value = typeof v === "string" ? v : "";
-};
-const setCk = (s: string, v: unknown) => {
-  const e = document.querySelector<HTMLInputElement>(s);
-  if (e) e.checked = Boolean(v);
-};
-
-/** Snapshot every UI selection into a Profile (passwords go in `secrets`, which
- *  main encrypts with DPAPI). */
-function captureProfile(name: string): Profile {
-  return {
-    name,
-    deviceModel: session.deviceId || undefined,
-    baseId: rog.selectedBaseId || undefined,
-    ui: {
-      selectedApps: [...rog.selectedApps],
-      selectedRemovals: [...rog.selectedRemovals],
-      enabledExtras: [...rog.enabledExtras],
-      disabledModules: [...rog.disabledModules],
-      selectedKeyIds: [...rog.selectedKeyIds],
-      githubUser: rog.githubUser,
-      sshPaste: rog.pastedKeys.join("\n"),
-      hostname: fv("#device-hostname"),
-      staticIp: rog.staticIp, // the whole {iface,ip,prefix,gateway,dns}, not just the address
-      edition: fck("#edition-pro") ? "pro" : "home",
-      accountMode: document.body.dataset.account ?? "local",
-      acctUser: fv("#acct-user"),
-      sunshineUser: rog.sunshineUser,
-      sunshinePromptPass: rog.sunshinePromptPass,
-      wifiSsid: fv("#wifi-ssid"),
-      ra: { sunshine: rog.sunshineEnabled, moonlight: rog.moonlight, rdp: rog.rdp },
-      raHost: { sunshine: rog.sunshineHost, moonlight: rog.moonlightHost },
-      wallpaperPath: rog.wallpaperPath,
-      lockscreenPath: rog.lockscreenPath,
-    },
-    secrets: {
-      sunshinePass: rog.sunshinePromptPass ? "" : rog.sunshinePass,
-      acctPass: fv("#acct-pass"),
-      wifiPass: fv("#wifi-pass"),
-    },
-  };
-}
-
-/** Restore a loaded Profile into the UI (Sets, inputs, checkboxes, derived UI). */
-function applyProfile(p: Profile): void {
-  rog.loadedProfileName = p.name ?? "";
-  const ui = (p.ui ?? {}) as Record<string, unknown>;
-  const list = (k: string) => (Array.isArray(ui[k]) ? (ui[k] as string[]) : []);
-  rog.selectedBaseId = p.baseId ?? "";
-  const restore = (set: Set<string>, k: string) => {
-    set.clear();
-    for (const v of list(k)) set.add(v);
-  };
-  restore(rog.selectedApps, "rog.selectedApps");
-  restore(rog.selectedRemovals, "rog.selectedRemovals");
-  restore(rog.enabledExtras, "rog.enabledExtras");
-  restore(rog.disabledModules, "rog.disabledModules");
-  restore(rog.selectedKeyIds, "rog.selectedKeyIds");
-  rog.githubUser = typeof ui.githubUser === "string" ? ui.githubUser : "";
-  rog.pastedKeys =
-    typeof ui.sshPaste === "string"
-      ? ui.sshPaste
-          .split("\n")
-          .map((k) => k.trim())
-          .filter(Boolean)
-      : [];
-  setV("#device-hostname", ui.hostname);
-  // Restore static IP into the held config + re-mount the editor. Handles legacy
-  // profiles where staticIp was just the address string + a separate staticIpIface.
-  const savedIp = ui.staticIp;
-  if (savedIp && typeof savedIp === "object") {
-    rog.staticIp = savedIp as StaticIp;
-  } else if (typeof savedIp === "string" && savedIp.trim()) {
-    rog.staticIp = {
-      iface: (ui.staticIpIface as "wifi" | "ethernet") || "wifi",
-      ip: savedIp.trim(),
-      prefix: rog.netSuggestion?.prefix ?? 24,
-      gateway: rog.netSuggestion?.gateway,
-      dns: rog.netSuggestion?.gateway,
-    };
-  } else {
-    rog.staticIp = undefined;
-  }
-  rog.intendedStaticIp = rog.staticIp?.ip ?? "";
-  mountRogNetwork();
-  setCk("#edition-pro", ui.edition === "pro");
-  setCk("#edition-home", ui.edition !== "pro");
-  setV("#acct-user", ui.acctUser);
-  setV("#wifi-ssid", ui.wifiSsid);
-  rog.sunshineUser = typeof ui.sunshineUser === "string" ? ui.sunshineUser : "";
-  const ra = (ui.ra ?? {}) as Record<string, unknown>;
-  rog.sunshineEnabled = Boolean(ra.sunshine);
-  rog.moonlight = Boolean(ra.moonlight);
-  rog.rdp = Boolean(ra.rdp);
-  const raHost = (ui.raHost ?? {}) as Record<string, unknown>;
-  rog.sunshineHost = Boolean(raHost.sunshine);
-  rog.moonlightHost = Boolean(raHost.moonlight);
-  rog.sunshinePromptPass = Boolean(ui.sunshinePromptPass);
-  rog.sunshinePass = rog.sunshinePromptPass ? "" : (p.secrets?.sunshinePass ?? "");
-  // Edition was restored just above; clamp RDP to Pro and (re)mount both the
-  // streaming + remote-access components from the restored JS state.
-  updateEditionState();
-  mountRogStreaming();
-  setV("#acct-pass", p.secrets?.acctPass);
-  setV("#wifi-pass", p.secrets?.wifiPass);
-  rog.wallpaperPath = (ui.wallpaperPath as string) ?? "";
-  rog.lockscreenPath = (ui.lockscreenPath as string) ?? "";
-  // Show the remembered image filenames on the picker buttons (the paths are saved
-  // but the labels were blank, so it looked like the images weren't remembered).
-  const imgName = (p: string) => (p ? (p.split(/[\\/]/).pop() ?? p) : "");
-  const wn = document.querySelector("#wallpaper-name");
-  if (wn) wn.textContent = imgName(rog.wallpaperPath);
-  const ln = document.querySelector("#lockscreen-name");
-  if (ln) ln.textContent = imgName(rog.lockscreenPath);
-  document.body.classList.toggle("is-strip", rog.selectedBaseId === "full-rog");
-  // Re-fetch the restored GitHub user's keys so they're baked + counted, then
-  // (re)mount the SSH editor with the restored selection.
-  if (rog.githubUser) void fetchRogGithub(rog.githubUser);
-  else mountRogSsh();
-  rog.customiseHydrated = false; // re-resolve the plan for the restored base
-  rog.keepRestoredCustomise = true; // ...but keep the restored extras/disabled modules
-}
-
-// The currently-loaded ROG profile + a status line, shown in the shared ProfileBar.
-
-/** Render the shared ProfileBar on the ROG configure (customise) screen — same
- *  component + behaviour as the Deck. */
-// Load at the start (customise) + save at the end (account). One function, two
-// mounts/modes — load-only on customise, save-only on the last config page.
-async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
-  const mount = document.querySelector<HTMLElement>(
-    mode === "load" ? "#rog-profile-load" : "#rog-profile-mount",
-  );
-  if (!mount) return;
-  const grouped = (await window.bootible?.groupProfiles?.(session.deviceId)) ?? {
-    model: [],
-    family: [],
-  };
-  const save = async (name: string): Promise<void> => {
-    const r = await window.bootible?.saveProfile?.(captureProfile(name));
-    if (r?.ok) {
-      rog.loadedProfileName = r.name;
-      rog.profileStatus = `✓ Saved "${r.name}" to this PC`;
-      void window.bootible?.cloud?.syncNow(); // push if signed in + unlocked
-    } else {
-      rog.profileStatus = "Save failed.";
-    }
-    void mountRogProfileBar("save");
-  };
-  mount.replaceChildren(
-    ProfileBar({
-      mode,
-      profiles: grouped,
-      modelLabel: `This ${session.deviceName || "device"}`,
-      familyLabel: "Other compatible devices",
-      loadedName: rog.loadedProfileName || null,
-      status: rog.profileStatus,
-      onLoad: async (name) => {
-        const p = await window.bootible?.loadProfile?.(name);
-        if (p) {
-          applyProfile(p); // restores account UI (ssh/network/hostname) + marks customise stale
-          rog.loadedProfileName = name;
-          rog.profileStatus = `Loaded "${name}"`;
-          void hydrateCustomise(); // re-render customise + the load bar with restored config
-        }
-      },
-      onSaveNew: save,
-      onUpdate: save,
-      onDelete: async (name) => {
-        await window.bootible?.deleteProfile?.(name);
-        if (rog.loadedProfileName === name) rog.loadedProfileName = "";
-        rog.profileStatus = `Deleted "${name}"`;
-        void mountRogProfileBar(mode);
-      },
-    }),
-  );
 }
 
 // Password reveal toggles (eye icon).
