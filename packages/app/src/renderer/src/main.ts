@@ -2232,6 +2232,7 @@ function updateDeckSummary(): void {
  *  Same store + cloud sync as the ROG profiles. */
 // The Deck's currently-loaded profile name (drives ProfileBar's Update button).
 let deckLoadedProfile: string | null = null;
+let deckGithubKeys: string[] = []; // last GitHub-key lookup, for the SSH editor's live count
 
 function captureDeckProfile(name: string): Profile {
   const ui = JSON.parse(JSON.stringify(deckState)) as Record<string, unknown>;
@@ -2581,26 +2582,46 @@ async function hydrateDeckSetup(): Promise<void> {
     ),
   );
 
-  // SSH access — shared SshAccessEditor (keys enable SSH; the Deck shows GitHub +
-  // paste + port). GitHub keys are fetched on-device by the provision script.
-  const sshEditor = SshAccessEditor({
-    hostKeys: [],
-    showPort: true,
-    value: {
-      hostKeyIds: [],
-      pastedKeys: deckState.ssh.authorizedKeys,
-      githubUser: deckState.ssh.githubUser,
-      port: deckState.ssh.port,
-    },
-    onChange: (next) => {
-      deckState.ssh.authorizedKeys = next.pastedKeys;
-      deckState.ssh.githubUser = next.githubUser;
-      deckState.ssh.port = next.port ?? 22;
-      deckState.ssh.enabled = next.pastedKeys.length > 0 || Boolean(next.githubUser);
-    },
-  });
-  sshEditor.classList.add("cz-span");
-  body.append(deckSection("SSH access", [sshEditor]));
+  // SSH access — shared SshAccessEditor (keys enable SSH; GitHub + paste + port).
+  const sshMount = el("div", "cz-span");
+  sshMount.id = "deck-ssh-mount";
+  body.append(deckSection("SSH access", [sshMount]));
+  mountDeckSsh();
+}
+
+/** (Re)mount the Deck's shared SshAccessEditor. Re-mounts on GitHub blur to show a
+ *  live key count (the keys themselves are fetched on-device by the provision script). */
+function mountDeckSsh(): void {
+  const mount = document.querySelector<HTMLElement>("#deck-ssh-mount");
+  if (!mount) return;
+  mount.replaceChildren(
+    SshAccessEditor({
+      hostKeys: [],
+      showPort: true,
+      githubKeyCount: deckState.ssh.githubUser ? deckGithubKeys.length : null,
+      value: {
+        hostKeyIds: [],
+        pastedKeys: deckState.ssh.authorizedKeys,
+        githubUser: deckState.ssh.githubUser,
+        port: deckState.ssh.port,
+      },
+      onChange: (next) => {
+        deckState.ssh.authorizedKeys = next.pastedKeys;
+        deckState.ssh.githubUser = next.githubUser;
+        deckState.ssh.port = next.port ?? 22;
+        deckState.ssh.enabled = next.pastedKeys.length > 0 || Boolean(next.githubUser);
+      },
+      onGithubUser: (user) => {
+        void fetchDeckGithub(user);
+      },
+    }),
+  );
+}
+
+/** Fetch the GitHub user's public keys to show a live count + re-mount (on blur). */
+async function fetchDeckGithub(user: string): Promise<void> {
+  deckGithubKeys = user ? ((await window.bootible?.githubKeys?.(user)) ?? []) : [];
+  mountDeckSsh();
 }
 
 /** A picker row (ROG style): name + description + a "Choose … (N) →" button that
