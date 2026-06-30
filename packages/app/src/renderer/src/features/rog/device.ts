@@ -1,7 +1,6 @@
 import type { BaseOption, DeviceOption, PlatformOption } from "@bootible/core";
 import { el, fill } from "../../lib/dom";
-import { APP_LOGOS, DEVICE_BRAND, DEVICE_LOGOS, OS_LOGOS, logoEl } from "../../lib/logos";
-import { rog } from "../../lib/rog-state";
+import { APP_LOGOS, DEVICE_BRAND, DEVICE_LOGOS, logoEl, OS_LOGOS } from "../../lib/logos";
 import { session } from "../../lib/session";
 
 // ── device picker (page 1 platform → page 2 device → summary) ───────────────
