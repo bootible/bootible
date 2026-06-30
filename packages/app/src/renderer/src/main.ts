@@ -44,6 +44,7 @@ import { NetworkSettings } from "./components/NetworkSettings";
 import { ProfileBar } from "./components/ProfileBar";
 import { RemoteAccessSettings } from "./components/RemoteAccessSettings";
 import { SshAccessEditor } from "./components/SshAccessEditor";
+import { StatusMessage } from "./components/StatusMessage";
 import { StreamingSettings } from "./components/StreamingSettings";
 import { countSelectedInView } from "./lib/app-selection";
 import { needsDevicePick } from "./lib/nav";
@@ -868,13 +869,23 @@ function renderApps(): void {
 async function hydrateApps(): Promise<void> {
   const api = window.bootible;
   if (!api?.getAppGroups) return;
+  const host = document.querySelector<HTMLElement>("#apps-body");
   if (!appsHydrated) {
+    host?.replaceChildren(StatusMessage({ kind: "loading", message: "Loading apps…" }));
     try {
       appGroups = await api.getAppGroups();
+      appsHydrated = true;
     } catch {
-      appGroups = [];
+      // A failed catalog fetch used to silently render an empty picker — surface it.
+      host?.replaceChildren(
+        StatusMessage({
+          kind: "error",
+          message: "Couldn't load the app catalog.",
+          onRetry: () => void hydrateApps(),
+        }),
+      );
+      return;
     }
-    appsHydrated = true;
   }
   // On (re)entering the picker, open the groups that have selections — but from
   // here the user's manual expand/collapse (toggle event) is what's respected.
@@ -2251,6 +2262,10 @@ window.bootible?.onUsbProgress?.(onUsbProgress);
 
 // ── Steam Deck config + provision-only USB (Path A) ──────────────────────────
 
+// NOTE: these defaults duplicate core's DEFAULT_DECK_CONFIG / RECOMMENDED_DECKY_PLUGINS
+// (coding-standard #8). They can't be value-imported from @bootible/core yet — the
+// barrel pulls in Node-only modules (fs/path) the renderer bundle can't include.
+// Deduplicating needs a browser-safe core export surface — remediation-plan P2 #6/#7.
 const RECOMMENDED_DECKY = ["PowerTools", "ProtonDB Badges", "SteamGridDB"];
 
 /** The Deck choices — the single source of truth (buildDeckBundle normalizes). */

@@ -2927,3 +2927,33 @@ body.booting .views {
 .cz-sec-rows [hidden] {
   display: none;
 }
+
+/* Shared async status surface (loading / empty / error-with-retry) — StatusMessage */
+.status-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 2px;
+  color: var(--dim);
+  font-size: 14px;
+}
+.status-error {
+  color: var(--amber);
+}
+.status-retry {
+  margin-left: 4px;
+}
+.status-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid var(--line);
+  border-top-color: var(--signal);
+  border-radius: 50%;
+  animation: status-spin 0.7s linear infinite;
+}
+@keyframes status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
