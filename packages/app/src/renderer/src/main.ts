@@ -41,6 +41,7 @@ import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
 import { PasswordField } from "./components/PasswordField";
 import { ProfileBar } from "./components/ProfileBar";
+import { RemoteAccessSettings } from "./components/RemoteAccessSettings";
 import { SshAccessEditor } from "./components/SshAccessEditor";
 import { StreamingSettings } from "./components/StreamingSettings";
 import { countSelectedInView } from "./lib/app-selection";
@@ -2551,32 +2552,30 @@ async function hydrateDeckSetup(): Promise<void> {
   body.append(deckSection("Game streaming", [streamMount]));
   mountDeckStreaming();
 
-  // Remote access — VNC + Tailscale.
+  // Remote access — shared RemoteAccessSettings (VNC + Tailscale on the Deck).
   body.append(
-    deckSection(
-      "Remote access",
-      [
-        deckCheck(
-          "VNC remote desktop",
-          deckState.vnc,
-          (v) => {
-            deckState.vnc = v;
+    deckSection("Remote access", [
+      RemoteAccessSettings({
+        options: [
+          {
+            id: "vnc",
+            label: "VNC remote desktop",
+            desc: "Remote access to the Deck's KDE desktop from another machine.",
+            enabled: deckState.vnc,
           },
-          "Remote access to the Deck's KDE desktop from another machine.",
-          "enables a VNC server",
-        ),
-        deckCheck(
-          "Tailscale",
-          deckState.tailscale,
-          (v) => {
-            deckState.tailscale = v;
+          {
+            id: "tailscale",
+            label: "Tailscale",
+            desc: "Zero-config mesh VPN — reach the Deck securely (run 'tailscale up' to log in).",
+            enabled: deckState.tailscale,
           },
-          "Zero-config mesh VPN — reach the Deck securely from anywhere.",
-          "installs tailscaled (run 'tailscale up' to log in)",
-        ),
-      ],
-      countOn(deckState.vnc, deckState.tailscale),
-    ),
+        ],
+        onToggle: (id, on) => {
+          if (id === "vnc") deckState.vnc = on;
+          else if (id === "tailscale") deckState.tailscale = on;
+        },
+      }),
+    ]),
   );
 
   // SSH access — shared SshAccessEditor (keys enable SSH; GitHub + paste + port).

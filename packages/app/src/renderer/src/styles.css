@@ -1901,6 +1901,16 @@ body[data-view="account"] .summary::before {
   display: none;
 }
 
+/* ── RemoteAccessSettings (shared) ── */
+.remote-access {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.remote-access .is-disabled {
+  opacity: 0.5;
+}
+
 /* ── StreamingSettings + PasswordField (shared) ── */
 .streaming-settings {
   display: flex;
