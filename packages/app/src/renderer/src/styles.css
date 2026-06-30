@@ -2940,7 +2940,9 @@ body.booting .views {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 28px;
-  align-items: start;
+  /* stretch so two cards on the same row share a height (a short card next to a
+     tall one fills to match) — content stays top-aligned via .cz-row's flex. */
+  align-items: stretch;
   margin-top: 14px;
 }
 
