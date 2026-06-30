@@ -48,6 +48,7 @@ import {
   generateStripReadme,
   generateStripScript,
   groupCatalog,
+  groupProfilesForDevice,
   type HostSshKey,
   type IsoOption,
   imageDevicePath,
@@ -1422,6 +1423,11 @@ app.whenReady().then(() => {
     },
   );
   ipcMain.handle("profiles:list", () => listProfiles());
+  // Grouping runs here (main can value-import core's deviceFamilyOf), so the
+  // renderer needn't re-implement the family mapping — it just gets {model, family}.
+  ipcMain.handle("profiles:grouped", (_event, deviceModel: string | undefined) =>
+    groupProfilesForDevice(listProfiles(), deviceModel),
+  );
   ipcMain.handle("profiles:save", (_event, p: Profile) => saveProfile(p));
   ipcMain.handle("profiles:load", (_event, name: string) => loadProfile(name));
   ipcMain.handle("profiles:delete", (_event, name: string) => deleteProfile(name));

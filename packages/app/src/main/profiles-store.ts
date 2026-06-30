@@ -68,7 +68,7 @@ function write(s: WritableProfile): void {
   const full: StoredProfile = {
     ...s,
     schemaVersion: CURRENT_PROFILE_VERSION,
-    deviceFamily: deviceFamilyOf(s.deviceId),
+    deviceFamily: deviceFamilyOf(s.deviceModel),
   };
   writeFileSync(fileFor(full.id), JSON.stringify(full, null, 2), "utf8");
 }
@@ -80,7 +80,13 @@ const byId = (id: string) => readAll().find((p) => p.id === id) ?? null;
 export function listProfiles(): ProfileSummary[] {
   return readAll()
     .filter((p) => !p.deleted)
-    .map((p) => ({ name: p.name, deviceId: p.deviceId, baseId: p.baseId, savedAt: p.savedAt }));
+    .map((p) => ({
+      name: p.name,
+      deviceModel: p.deviceModel,
+      instanceId: p.instanceId,
+      baseId: p.baseId,
+      savedAt: p.savedAt,
+    }));
 }
 
 export function saveProfile(p: Profile): { ok: boolean; name: string } {
@@ -88,7 +94,8 @@ export function saveProfile(p: Profile): { ok: boolean; name: string } {
   write({
     id: prev?.id ?? p.name,
     name: p.name,
-    deviceId: p.deviceId,
+    deviceModel: p.deviceModel,
+    instanceId: p.instanceId ?? prev?.instanceId,
     baseId: p.baseId,
     savedAt: new Date().toISOString(),
     ui: p.ui,
@@ -106,7 +113,8 @@ export function loadProfile(name: string): Profile | null {
   if (!s || s.deleted) return null;
   return {
     name: s.name,
-    deviceId: s.deviceId,
+    deviceModel: s.deviceModel,
+    instanceId: s.instanceId,
     baseId: s.baseId,
     ui: s.ui,
     secrets: decSecrets(s.secretsEnc),
@@ -128,7 +136,7 @@ export function makeLocalStore(): LocalStore {
       return readAll().map((s) => ({
         id: s.id,
         name: s.name,
-        deviceId: s.deviceId ?? null,
+        deviceModel: s.deviceModel ?? null,
         baseId: s.baseId ?? null,
         ui: s.ui,
         secrets: decSecrets(s.secretsEnc),
@@ -143,7 +151,9 @@ export function makeLocalStore(): LocalStore {
       write({
         id: p.id,
         name: p.name,
-        deviceId: p.deviceId ?? undefined,
+        deviceModel: p.deviceModel ?? undefined,
+        // instanceId is per-physical-unit and isn't synced — keep the local value.
+        instanceId: prev?.instanceId,
         baseId: p.baseId ?? undefined,
         savedAt: prev?.savedAt ?? new Date().toISOString(),
         ui: (p.ui as Record<string, unknown>) ?? {},

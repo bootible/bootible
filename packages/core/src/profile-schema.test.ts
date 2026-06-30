@@ -2,15 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   CURRENT_PROFILE_VERSION,
   deviceFamilyOf,
+  groupProfilesForDevice,
   migrateProfile,
   visibleProfiles,
 } from "./profile-schema";
 
 describe("visibleProfiles", () => {
   const profiles = [
-    { name: "rog", deviceId: "rog-ally" },
-    { name: "deck", deviceId: "steamdeck" },
-    { name: "legacy", deviceId: undefined }, // untagged / unknown family
+    { name: "rog", deviceModel: "rog-ally" },
+    { name: "deck", deviceModel: "steamdeck" },
+    { name: "legacy", deviceModel: undefined }, // untagged / unknown family
   ];
 
   it("shows a device its own family's profiles plus untagged, hiding other families", () => {
@@ -20,8 +21,29 @@ describe("visibleProfiles", () => {
 
   it("matches by family, not exact id (a windows profile shows on any windows device)", () => {
     expect(
-      visibleProfiles([{ name: "a", deviceId: "rog-ally" }], "rog-ally-x").map((p) => p.name),
+      visibleProfiles([{ name: "a", deviceModel: "rog-ally" }], "rog-ally-x").map((p) => p.name),
     ).toEqual(["a"]);
+  });
+});
+
+describe("groupProfilesForDevice", () => {
+  const list = [
+    { name: "rog", deviceModel: "rog-ally" },
+    { name: "ally-x", deviceModel: "rog-ally-x" }, // same family (windows), different model
+    { name: "deck", deviceModel: "steamdeck" },
+    { name: "shared", deviceModel: undefined }, // untagged — applies anywhere
+  ];
+
+  it("splits into this-model and same-family (incl. untagged), hiding other families", () => {
+    const g = groupProfilesForDevice(list, "rog-ally");
+    expect(g.model.map((p) => p.name)).toEqual(["rog"]); // exact model
+    expect(g.family.map((p) => p.name)).toEqual(["ally-x", "shared"]); // windows + untagged
+  });
+
+  it("puts everything in the model group when no device is selected (never hide)", () => {
+    const g = groupProfilesForDevice(list, "");
+    expect(g.model.map((p) => p.name)).toEqual(["rog", "ally-x", "deck", "shared"]);
+    expect(g.family).toEqual([]);
   });
 });
 
@@ -45,13 +67,21 @@ describe("migrateProfile", () => {
     expect(migrateProfile({ name: "   " }, NOW)).toBeNull();
   });
 
-  it("upgrades a legacy (unversioned) profile to the current schema", () => {
+  it("upgrades a legacy (unversioned) profile, mapping the old deviceId → deviceModel", () => {
     const p = migrateProfile({ name: "My ROG", deviceId: "rog-ally", ui: { hostname: "x" } }, NOW);
     expect(p).not.toBeNull();
     expect(p?.schemaVersion).toBe(CURRENT_PROFILE_VERSION);
+    expect(p?.deviceModel).toBe("rog-ally"); // back-compat: old `deviceId` carried the model
     expect(p?.deviceFamily).toBe("windows");
     expect(p?.id).toBe("My ROG"); // id defaults to name when absent
     expect(p?.ui).toEqual({ hostname: "x" });
+  });
+
+  it("carries an optional instanceId through migration", () => {
+    expect(migrateProfile({ name: "p", instanceId: "VengeanceX" }, NOW)?.instanceId).toBe(
+      "VengeanceX",
+    );
+    expect(migrateProfile({ name: "p" }, NOW)?.instanceId).toBeUndefined();
   });
 
   it("back-fills missing sync metadata with safe defaults", () => {
@@ -73,7 +103,7 @@ describe("migrateProfile", () => {
       schemaVersion: 1,
       id: "abc",
       name: "Deck",
-      deviceId: "steamdeck",
+      deviceModel: "steamdeck",
       ui: { a: 1 },
       secretsEnc: "enc",
       version: 5,

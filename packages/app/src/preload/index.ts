@@ -11,6 +11,7 @@ import type {
   DeviceSummary,
   DiscoveredDevice,
   FlatpakApp,
+  GroupedProfiles,
   GroupSummary,
   HostSshKey,
   IsoOption,
@@ -102,6 +103,8 @@ const api = {
     ipcRenderer.invoke("stripkit:usb", { req, drive }),
   ejectUsb: (drive: string): Promise<{ ok: boolean }> => ipcRenderer.invoke("usb:eject", drive),
   listProfiles: (): Promise<ProfileSummary[]> => ipcRenderer.invoke("profiles:list"),
+  groupProfiles: (deviceModel: string): Promise<GroupedProfiles<ProfileSummary>> =>
+    ipcRenderer.invoke("profiles:grouped", deviceModel),
   saveProfile: (p: Profile): Promise<{ ok: boolean; name: string }> =>
     ipcRenderer.invoke("profiles:save", p),
   loadProfile: (name: string): Promise<Profile | null> => ipcRenderer.invoke("profiles:load", name),

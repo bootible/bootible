@@ -14,6 +14,7 @@ import type {
   DeviceSummary,
   DiscoveredDevice,
   FlatpakApp,
+  GroupedProfiles,
   GroupSummary,
   HostSshKey,
   IsoOption,
@@ -46,7 +47,6 @@ import { SshAccessEditor } from "./components/SshAccessEditor";
 import { StreamingSettings } from "./components/StreamingSettings";
 import { countSelectedInView } from "./lib/app-selection";
 import { needsDevicePick } from "./lib/nav";
-import { groupProfilesForDevice } from "./lib/profiles";
 import wordlistRaw from "./wordlist.txt?raw";
 
 // EFF diceware wordlist (7776 words) for generating real word-passphrases.
@@ -186,6 +186,7 @@ interface BootibleApi {
   ejectUsb(drive: string): Promise<{ ok: boolean }>;
   formatUsb(drive: string): Promise<{ ok: boolean }>;
   listProfiles(): Promise<ProfileSummary[]>;
+  groupProfiles(deviceModel: string): Promise<GroupedProfiles<ProfileSummary>>;
   saveProfile(p: Profile): Promise<{ ok: boolean; name: string }>;
   loadProfile(name: string): Promise<Profile | null>;
   deleteProfile(name: string): Promise<{ ok: boolean }>;
@@ -1921,7 +1922,7 @@ const setCk = (s: string, v: unknown) => {
 function captureProfile(name: string): Profile {
   return {
     name,
-    deviceId: selectedDeviceId || undefined,
+    deviceModel: selectedDeviceId || undefined,
     baseId: selectedBaseId || undefined,
     ui: {
       selectedApps: [...selectedApps],
@@ -2044,7 +2045,10 @@ async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
     mode === "load" ? "#rog-profile-load" : "#rog-profile-mount",
   );
   if (!mount) return;
-  const profiles = (await window.bootible?.listProfiles?.()) ?? [];
+  const grouped = (await window.bootible?.groupProfiles?.(selectedDeviceId)) ?? {
+    model: [],
+    family: [],
+  };
   const save = async (name: string): Promise<void> => {
     const r = await window.bootible?.saveProfile?.(captureProfile(name));
     if (r?.ok) {
@@ -2059,7 +2063,7 @@ async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
   mount.replaceChildren(
     ProfileBar({
       mode,
-      profiles: groupProfilesForDevice(profiles, selectedDeviceId),
+      profiles: grouped,
       modelLabel: `This ${deviceName || "device"}`,
       familyLabel: "Other compatible devices",
       loadedName: loadedProfileName || null,
@@ -2336,7 +2340,7 @@ function captureDeckProfile(name: string): Profile {
   const pass = deckState.sunshine.pass ?? "";
   return {
     name,
-    deviceId: selectedDeviceId || undefined,
+    deviceModel: selectedDeviceId || undefined,
     ui,
     secrets: pass ? { sunshinePass: pass } : {},
   };
@@ -2357,7 +2361,10 @@ function applyDeckProfile(p: Profile): void {
 /** The shared Deck ProfileBar. "load" goes on the first config screen (pick a saved
  *  profile to start from); "save" on the last (where the full config exists). */
 async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
-  const savedProfiles = (await window.bootible?.listProfiles?.()) ?? [];
+  const grouped = (await window.bootible?.groupProfiles?.(selectedDeviceId)) ?? {
+    model: [],
+    family: [],
+  };
   const saveDeck = async (name: string): Promise<void> => {
     const r = await window.bootible?.saveProfile?.(captureDeckProfile(name));
     deckProfileStatus = r?.ok ? `✓ Saved "${name}" to this PC` : "Save failed.";
@@ -2367,7 +2374,7 @@ async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
   };
   return ProfileBar({
     mode,
-    profiles: groupProfilesForDevice(savedProfiles, selectedDeviceId),
+    profiles: grouped,
     modelLabel: `This ${deviceName || "device"}`,
     familyLabel: "Other compatible devices",
     loadedName: deckLoadedProfile,

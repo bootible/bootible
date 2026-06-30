@@ -154,10 +154,17 @@ export type { DevicePlatform, PlatformId, RoadmapDevice } from "./platforms";
 export { PLATFORMS, platformById, platformForOs, ROADMAP_DEVICES } from "./platforms";
 export type { PowerOptions } from "./power";
 export { getPowerConfigCommands } from "./power";
-export type { DeviceFamily, PersistedProfile, Profile, ProfileSummary } from "./profile-schema";
+export type {
+  DeviceFamily,
+  GroupedProfiles,
+  PersistedProfile,
+  Profile,
+  ProfileSummary,
+} from "./profile-schema";
 export {
   CURRENT_PROFILE_VERSION,
   deviceFamilyOf,
+  groupProfilesForDevice,
   migrateProfile,
   visibleProfiles,
 } from "./profile-schema";

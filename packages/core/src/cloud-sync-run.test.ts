@@ -60,7 +60,7 @@ function fakeStore(initial: LocalProfile[] = []) {
 
 const localProfile = (o: Partial<LocalProfile> & { id: string }): LocalProfile => ({
   name: "N",
-  deviceId: null,
+  deviceModel: null,
   baseId: null,
   ui: {},
   secrets: null,

@@ -12,7 +12,7 @@ import { type LocalState, type RemoteState, reconcile } from "./cloud-sync";
 export interface LocalProfile {
   id: string;
   name: string;
-  deviceId: string | null;
+  deviceModel: string | null;
   baseId: string | null;
   ui: unknown;
   secrets: unknown;
@@ -75,7 +75,7 @@ export async function runSync(
   const toPayload = (p: LocalProfile, id = p.id): ProfilePayload => ({
     id,
     name: p.name,
-    device_id: p.deviceId,
+    device_id: p.deviceModel, // the wire field stays `device_id` (DTO/protocol)
     base_id: p.baseId,
     ui_json: JSON.stringify(p.ui ?? {}),
     secrets_enc: null, // filled in by push (async encrypt)
@@ -95,7 +95,7 @@ export async function runSync(
     await store.put({
       id: localId,
       name: asConflict ? `${payload.name} (conflict)` : payload.name,
-      deviceId: payload.device_id,
+      deviceModel: payload.device_id,
       baseId: payload.base_id,
       ui: safeParse(payload.ui_json),
       secrets,
