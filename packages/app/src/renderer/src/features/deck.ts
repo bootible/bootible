@@ -1,3 +1,8 @@
+// RECORDED REASON for >400 lines (coding-standard §4): freshly carved out of the
+// main.ts god-file as one cohesive Steam Deck flow. Next decomposition target —
+// split into deck/{state,setup,pickers,profile,media}.ts around the shared
+// deckState — but getting it out of the god-file was the bigger win first.
+// See docs/v2/standards/remediation-plan.md P3.
 import type {
   DeckConfig,
   DeckyStorePlugin,

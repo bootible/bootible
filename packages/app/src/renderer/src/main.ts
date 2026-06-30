@@ -1,3 +1,10 @@
+// RECORDED REASON for >400 lines (coding-standard §4): the renderer god-file,
+// mid-decomposition. The Deck flow is already carved out to features/deck.ts
+// (−987 lines). The remaining bulk (welcome/sync-key/2FA auth, the ROG
+// account/customise/apps flow, the strip kit) all couple to the shared router
+// (syncFromHash) and request-builder (gatherUsbRequest), so the next step is to
+// extract THOSE into shared modules first, before the rest can move without
+// circular imports. See docs/v2/standards/remediation-plan.md P3.
 import "./styles.css";
 import type {
   AppEntry,

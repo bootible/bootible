@@ -83,7 +83,9 @@ Each item is a **vertical slice**: build the shared component, adopt it on both 
 
 ## P3 — hygiene
 
-8. **Decompose the god-files behind each P1/P2 slice** — the ~985-line Deck block (`main.ts:~2252-3237`) and the 11-concern `main.ts` / `main/index.ts` carve into `app/` / `state/` / `components/` / `features/` / `devices/` (TODO #6). Not a stop-the-world rewrite — it falls out of the slices above.
+8. **Decompose the god-files behind each P1/P2 slice** — carve `main.ts` / `main/index.ts` into `app/` / `state/` / `components/` / `features/` (TODO #6).
+   - **Progress:** the Deck flow is **extracted** to `features/deck.ts` (a clean pure move; `main.ts` 4022 → 3035, −987 lines), enabled by a new shared `lib/session.ts`. `StatusMessage` + `DiskPicker` components built and adopted (the three hand-built disk renderers → one).
+   - **Blocker for the rest:** the remaining `main.ts` bulk (welcome/sync-key/2FA **auth**, the ROG **account/customise/apps** flow, the **strip kit**) all couple to the shared **router** (`syncFromHash`) and **request-builder** (`gatherUsbRequest`) — so a naive extraction is circular. **Next step:** extract `syncFromHash`/the router into `lib/router.ts` and `gatherUsbRequest` into `features/rog/`, *then* the auth + ROG + strip-kit blocks move freely. `features/deck.ts` (965 lines) also still wants sub-splitting into `deck/{state,setup,pickers,profile,media}.ts`. Both files carry a recorded-reason header.
 9. **Define `--mut`** — referenced but **never defined** in `styles.css` (latent bug); finish the design-token system (spacing/radius/type/control-height/focus/semantic) and ban raw values.
 10. **Gate the orphan USB / "device connected" indicator** behind a `usb-connection` capability (UI "every element earns its place").
 11. **Remove dead handlers** (e.g. stray `data-keyId`) and fix the fragile `tailscaleBlock` JS line-continuation (`deck-provision.ts:~246`).
