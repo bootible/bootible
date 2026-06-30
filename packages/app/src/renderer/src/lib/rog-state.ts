@@ -1,4 +1,4 @@
-import type { AppGroup, GroupSummary, HostSshKey, StaticIp } from "@bootible/core";
+import type { AppGroup, BaseOption, GroupSummary, HostSshKey, StaticIp } from "@bootible/core";
 
 /**
  * The shared mutable state of the ROG (Windows) flow — the ~35 module-level vars
@@ -27,6 +27,7 @@ export const rog = {
   moonlightHost: false, // also install the Moonlight client on this PC
   rdp: false, // Windows Remote Desktop (Pro only)
   // ── base / catalog / customise ──
+  baseOptions: [] as BaseOption[], // cached base list (device summary + customise label)
   catalog: [] as GroupSummary[],
   selectedBaseId: "",
   loadedProfileName: "", // the profile currently loaded (drives Update vs Save-as-new)

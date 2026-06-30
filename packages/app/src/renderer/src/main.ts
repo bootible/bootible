@@ -67,7 +67,15 @@ import {
   hydrateDeckWrite,
 } from "./features/deck";
 import { el, fill, steps } from "./lib/dom";
-import { logoEl, logoMap } from "./lib/logos";
+import {
+  APP_LOGOS,
+  DEVICE_BRAND,
+  DEVICE_LOGOS,
+  FORCE_WHITE,
+  LOGO_SCALE,
+  logoEl,
+  OS_LOGOS,
+} from "./lib/logos";
 import { rog } from "./lib/rog-state";
 import { registerRoute, syncFromHash } from "./lib/router";
 import { session } from "./lib/session";
@@ -79,44 +87,6 @@ const favicon = document.querySelector<HTMLLinkElement>("#favicon");
 if (favicon) favicon.href = brandMark;
 const welcomeLogo = document.querySelector<HTMLImageElement>("#welcome-logo");
 if (welcomeLogo) welcomeLogo.src = brandMark;
-
-// ── Brand / OS / app logos — rendered as CSS masks so the source colour
-//    (black, white, full-colour) is discarded and everything tints to palette. ──
-const APP_LOGOS = logoMap(
-  import.meta.glob("./assets/logos/apps/*.svg", { eager: true, query: "?url", import: "default" }),
-);
-const OS_LOGOS = logoMap(
-  import.meta.glob("./assets/logos/os/*.svg", { eager: true, query: "?url", import: "default" }),
-);
-const DEVICE_LOGOS = logoMap(
-  import.meta.glob("./assets/logos/devices/*.svg", {
-    eager: true,
-    query: "?url",
-    import: "default",
-  }),
-);
-// device id (registry) → brand-logo filename under devices/
-const DEVICE_BRAND: Record<string, string> = {
-  "rog-ally": "rog",
-  "msi-claw": "msi",
-  steamdeck: "steam-deck",
-  "retroid-pocket": "retroid",
-  "ayn-odin": "ayn",
-};
-// Logos that are black/dark/low-contrast — render white so they read on the dark UI.
-const FORCE_WHITE = new Set([
-  "7zip",
-  "ea",
-  "ubisoft",
-  "tailscale",
-  "retroarch",
-  "playnite",
-  "obs",
-  "epic",
-  "gog",
-]);
-// Logos that read small (heavy internal padding) — scale up a touch.
-const LOGO_SCALE = new Set(["handheldcompanion"]);
 
 interface BootibleApi {
   version: string;
@@ -442,11 +412,11 @@ async function hydrateBases(): Promise<void> {
   const list = document.querySelector<HTMLElement>(".base-list");
   if (!api?.getBases || !list) return;
   try {
-    baseOptions = await api.getBases();
+    rog.baseOptions = await api.getBases();
   } catch {
     return;
   }
-  list.replaceChildren(...baseOptions.map(baseCard));
+  list.replaceChildren(...rog.baseOptions.map(baseCard));
 }
 
 // ── review & customise screen ───────────────────────────────────────────────
@@ -499,7 +469,7 @@ function renderCustomise(): void {
   if (!host || !basePlan) return;
   // Show which base this is — easy to forget if you step away and come back.
   const baseLabel =
-    baseOptions.find((b) => b.id === rog.selectedBaseId)?.label ?? rog.selectedBaseId;
+    rog.baseOptions.find((b) => b.id === rog.selectedBaseId)?.label ?? rog.selectedBaseId;
   fill("customise-base", baseLabel ? ` · ${baseLabel}` : "");
   const secs: HTMLElement[] = [];
   secs.push(
@@ -641,9 +611,9 @@ async function hydrateCustomise(): Promise<void> {
   }
   // Base labels for the screen header (cached by the base picker; fetch if the
   // user deep-linked straight here).
-  if (!baseOptions.length && api.getBases) {
+  if (!rog.baseOptions.length && api.getBases) {
     try {
-      baseOptions = await api.getBases();
+      rog.baseOptions = await api.getBases();
     } catch {}
   }
   // Load the removal rog.catalog for the "Remove apps" checklist (every Windows base).
@@ -1145,8 +1115,6 @@ const GROUP_TAGS: Record<string, string> = {
   apps: "install",
   library: "link",
 };
-
-let baseOptions: BaseOption[] = []; // cached base list — for the customise-screen label
 
 /** OSes provisioned via the SteamOS/Linux host-carrier flow (mirrors core's
  *  usesDeckCarrier — kept in sync; SteamOS today, Bazzite later). */
