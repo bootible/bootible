@@ -499,8 +499,6 @@
 
             <aside class="receipt" aria-label="Setup receipt">
               <div class="rline"><span class="mark"></span><span class="rkey">applied</span><span class="rval">14 of 14 steps</span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">target</span><span class="rval">Syncthing · home-nas</span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">backup</span><span class="rval">snapshot saved</span></div>
               <div class="rline"><span class="mark"></span><span class="rkey">receipt</span><span class="rval">.bootible/receipt.md<span class="cursor"></span></span></div>
             </aside>
 
@@ -511,63 +509,6 @@
           </div>
         </main>
 
-        <!-- ───────────────────── RESTORE ───────────────────── -->
-        <main class="view setup" data-view="restore">
-          <div class="setup-head">
-            <p class="eyebrow">Restore</p>
-            <h1 class="setup-title">Restore a backup</h1>
-            <p class="setup-sub">
-              Roll your Ally back to an earlier snapshot. Your saves are kept and
-              merged — only the setup is rewound.
-            </p>
-          </div>
-
-          <div class="setup-body">
-            <div class="snaps">
-              <button class="snap is-sel" type="button" aria-pressed="true">
-                <span class="snap-radio" aria-hidden="true"></span>
-                <span class="group-main">
-                  <span class="group-name">Today, 14:02</span>
-                  <span class="group-desc">Full setup — 14 steps, saves included.</span>
-                </span>
-                <span class="group-meta"><span class="group-tag">latest</span><span class="group-count">2.4 GB</span></span>
-              </button>
-
-              <button class="snap" type="button" aria-pressed="false">
-                <span class="snap-radio" aria-hidden="true"></span>
-                <span class="group-main">
-                  <span class="group-name">3 days ago, 09:18</span>
-                  <span class="group-desc">Auto-snapshot taken before a Windows update.</span>
-                </span>
-                <span class="group-meta"><span class="group-tag">auto</span><span class="group-count">2.1 GB</span></span>
-              </button>
-
-              <button class="snap" type="button" aria-pressed="false">
-                <span class="snap-radio" aria-hidden="true"></span>
-                <span class="group-main">
-                  <span class="group-name">2 weeks ago, 20:40</span>
-                  <span class="group-desc">Your very first bootible setup on this device.</span>
-                </span>
-                <span class="group-meta"><span class="group-tag">initial</span><span class="group-count">1.8 GB</span></span>
-              </button>
-            </div>
-
-            <aside class="summary" aria-label="Restore summary">
-              <div class="rline"><span class="mark"></span><span class="rkey">from</span><span class="rval">Today, 14:02</span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">steps</span><span class="rval">14 restored</span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">saves</span><span class="rval">kept &amp; merged</span></div>
-              <div class="rline"><span class="mark"></span><span class="rkey">source</span><span class="rval">home-nas<span class="cursor"></span></span></div>
-
-              <div class="summary-actions">
-                <button class="btn-primary" type="button" data-go="provision">
-                  Restore this backup <span class="arrow" aria-hidden="true">→</span>
-                </button>
-                <button class="btn-ghost" type="button" data-back>Back</button>
-              </div>
-              <p class="readout-foot">A safety snapshot of the current state is taken first.</p>
-            </aside>
-          </div>
-        </main>
 
         <!-- ───────────────────── EMPTY / HOST MODE (no device here) ───────────────────── -->
         <main class="view done" data-view="empty">

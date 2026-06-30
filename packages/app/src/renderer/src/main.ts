@@ -265,7 +265,6 @@ const VIEWS = [
   "connect",
   "provision",
   "done",
-  "restore",
   "empty",
   "failed",
 ] as const;
