@@ -2276,6 +2276,7 @@ function updateDeckSummary(): void {
  *  Same store + cloud sync as the ROG profiles. */
 // The Deck's currently-loaded profile name (drives ProfileBar's Update button).
 let deckLoadedProfile: string | null = null;
+let deckProfileStatus = ""; // ProfileBar status line (Saved/Loaded/Deleted feedback)
 let deckGithubKeys: string[] = []; // last GitHub-key lookup, for the SSH editor's live count
 let deckGithubFetchedFor = ""; // the username deckGithubKeys was fetched for
 
@@ -2309,7 +2310,8 @@ function applyDeckProfile(p: Profile): void {
 async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
   const savedProfiles = (await window.bootible?.listProfiles?.()) ?? [];
   const saveDeck = async (name: string): Promise<void> => {
-    await window.bootible?.saveProfile?.(captureDeckProfile(name));
+    const r = await window.bootible?.saveProfile?.(captureDeckProfile(name));
+    deckProfileStatus = r?.ok ? `✓ Saved "${name}" to this PC` : "Save failed.";
     void window.bootible?.cloud?.syncNow(); // push if signed in + unlocked
     deckLoadedProfile = name;
     void hydrateDeckSetup();
@@ -2320,10 +2322,12 @@ async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
     modelLabel: `This ${deviceName || "device"}`,
     familyLabel: "Other compatible devices",
     loadedName: deckLoadedProfile,
+    status: deckProfileStatus,
     onLoad: async (name) => {
       const p = await window.bootible?.loadProfile?.(name);
       if (p) {
         deckLoadedProfile = name;
+        deckProfileStatus = `Loaded "${name}"`;
         applyDeckProfile(p);
         void hydrateDeck(); // re-render the start screen with the restored config
       }
@@ -2333,6 +2337,7 @@ async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
     onDelete: async (name) => {
       await window.bootible?.deleteProfile?.(name);
       if (deckLoadedProfile === name) deckLoadedProfile = null;
+      deckProfileStatus = `Deleted "${name}"`;
       void (mode === "load" ? hydrateDeck() : hydrateDeckSetup());
     },
   });
