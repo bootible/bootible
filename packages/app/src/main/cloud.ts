@@ -32,20 +32,20 @@ const PROVIDERS = new Set(["google", "github", "discord", "twitch"]);
 const tokenFile = () => join(app.getPath("userData"), "cloud-session.bin");
 
 function saveToken(token: string): void {
-  const data = safeStorage.isEncryptionAvailable()
-    ? safeStorage.encryptString(token)
-    : Buffer.from(token, "utf8");
-  writeFileSync(tokenFile(), data);
+  // Fail closed: never write the bearer token in plaintext. Without OS encryption
+  // it stays in-memory for this session only; scrub any stale file a prior build left.
+  if (!safeStorage.isEncryptionAvailable()) {
+    clearToken();
+    return;
+  }
+  writeFileSync(tokenFile(), safeStorage.encryptString(token));
 }
 
 function loadToken(): string | null {
   const f = tokenFile();
-  if (!existsSync(f)) return null;
+  if (!existsSync(f) || !safeStorage.isEncryptionAvailable()) return null;
   try {
-    const buf = readFileSync(f);
-    return safeStorage.isEncryptionAvailable()
-      ? safeStorage.decryptString(buf)
-      : buf.toString("utf8");
+    return safeStorage.decryptString(readFileSync(f));
   } catch {
     return null;
   }
@@ -75,21 +75,21 @@ const dekFile = () => join(app.getPath("userData"), "cloud-dek.bin");
 let dek: Uint8Array | null = null;
 
 function saveDek(bytes: Uint8Array): void {
+  // Fail closed: the E2E data key never touches disk in plaintext. Without OS
+  // encryption it stays in-memory; the user re-unlocks with their passphrase next run.
+  if (!safeStorage.isEncryptionAvailable()) {
+    clearDek();
+    return;
+  }
   const b64 = Buffer.from(bytes).toString("base64");
-  const data = safeStorage.isEncryptionAvailable()
-    ? safeStorage.encryptString(b64)
-    : Buffer.from(b64, "utf8");
-  writeFileSync(dekFile(), data);
+  writeFileSync(dekFile(), safeStorage.encryptString(b64));
 }
 
 function loadDek(): Uint8Array | null {
   const f = dekFile();
-  if (!existsSync(f)) return null;
+  if (!existsSync(f) || !safeStorage.isEncryptionAvailable()) return null;
   try {
-    const buf = readFileSync(f);
-    const b64 = safeStorage.isEncryptionAvailable()
-      ? safeStorage.decryptString(buf)
-      : buf.toString("utf8");
+    const b64 = safeStorage.decryptString(readFileSync(f));
     return new Uint8Array(Buffer.from(b64, "base64"));
   } catch {
     return null;
