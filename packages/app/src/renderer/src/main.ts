@@ -66,7 +66,8 @@ import {
   hydrateDeckSetup,
   hydrateDeckWrite,
 } from "./features/deck";
-import { logoMap } from "./lib/logos";
+import { el, fill, steps } from "./lib/dom";
+import { logoEl, logoMap } from "./lib/logos";
 import { rog } from "./lib/rog-state";
 import { registerRoute, syncFromHash } from "./lib/router";
 import { session } from "./lib/session";
@@ -116,16 +117,6 @@ const FORCE_WHITE = new Set([
 ]);
 // Logos that read small (heavy internal padding) — scale up a touch.
 const LOGO_SCALE = new Set(["handheldcompanion"]);
-/** An <img> of the real brand logo (full colour), or a blank `.no-logo` span. */
-function logoEl(url: string | undefined, cls: string): HTMLElement {
-  if (!url) return el("span", `${cls} no-logo`);
-  const img = el("img", cls) as HTMLImageElement;
-  img.src = url;
-  img.alt = "";
-  img.loading = "lazy";
-  img.decoding = "async";
-  return img;
-}
 
 interface BootibleApi {
   version: string;
@@ -317,11 +308,6 @@ document.addEventListener("click", (event) => {
 });
 
 /** Write a value into every [data-field="<field>"] element. */
-function fill(field: string, value: string): void {
-  for (const el of document.querySelectorAll<HTMLElement>(`[data-field="${field}"]`)) {
-    el.textContent = value;
-  }
-}
 
 // Reflect the real core version in the system bar without clobbering the LED.
 const statusText = document.querySelector<HTMLElement>(".sysstatus-text");
@@ -1223,17 +1209,7 @@ function pickCounts(): { apps: number; emulators: number } {
   return { apps, emulators };
 }
 
-function el(tag: string, className: string, text?: string): HTMLElement {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
 /** "1 step" / "3 steps" — pluralise the step count. */
-function steps(n: number): string {
-  return `${n} step${n === 1 ? "" : "s"}`;
-}
 
 /** Render the setup screen: per group, a toggle-all header + per-module rows. */
 function renderGroups(): void {
