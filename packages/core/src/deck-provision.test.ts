@@ -148,11 +148,22 @@ describe("generateDeckProvision", () => {
     expect(s).not.toContain("nmcli connection modify");
   });
 
-  it("installs Sunshine and Tailscale when enabled", () => {
+  it("installs Sunshine + Tailscale (via the SteamOS-native deck-tailscale installer)", () => {
     const s = generateDeckProvision({ sunshine: { enabled: true }, tailscale: true });
     expect(s).toContain("dev.lizardbyte.app.Sunshine");
-    expect(s).toContain("tailscale.com/install.sh");
-    expect(s).toContain("systemctl enable --now tailscaled");
+    // The generic tailscale.com/install.sh refuses on SteamOS — use deck-tailscale.
+    expect(s).toContain("tailscale-dev/deck-tailscale");
+    expect(s).not.toContain("tailscale.com/install.sh");
+    // No more contradictory "ok installed" after a failure — it's gated on success.
+    expect(s).toContain('Tailscale install failed — install manually');
+  });
+
+  it("StickDeck picks the non-Windows .zip asset and unzips it (was the linux-filter bug)", () => {
+    const s = generateDeckProvision({ stickdeck: true });
+    expect(s).toContain("DiscreteTom/stickdeck-rs");
+    expect(s).toContain("'win' not in a['name'].lower()"); // the Deck asset has no "linux"
+    expect(s).toContain("zipfile"); // it's a .zip, not a tarball
+    expect(s).not.toContain("tar -xzf /tmp/stickdeck");
   });
 
   it("pre-sets Sunshine credentials with --creds when provided", () => {

@@ -234,16 +234,21 @@ function streamingBlock(cfg: DeckConfig): string {
 
 function tailscaleBlock(cfg: DeckConfig): string {
   if (!cfg.tailscale) return "";
+  // The generic tailscale.com/install.sh refuses on SteamOS (immutable /usr). The
+  // official Deck method is the deck-tailscale installer (systemd-sysext overlay
+  // into /var, survives SteamOS updates). `tailscale up` stays interactive (QR auth).
   return `say "Installing Tailscale"
-if ! command -v tailscale >/dev/null 2>&1; then
-  (
-    trap 'sudo steamos-readonly enable 2>/dev/null || true' EXIT
-    sudo steamos-readonly disable 2>/dev/null || true
-    curl -fsSL https://tailscale.com/install.sh | sh || warn "tailscale install failed"
-  )
-fi
-sudo systemctl enable --now tailscaled 2>/dev/null || true
-ok "Tailscale installed — run 'tailscale up' to log in"`;
+if command -v tailscale >/dev/null 2>&1; then
+  ok "Tailscale already installed — run 'tailscale up' to log in"
+else
+  rm -rf "$HOME/deck-tailscale"
+  if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" >/dev/null 2>&1 \
+     && sudo bash "$HOME/deck-tailscale/tailscale.sh" >/dev/null 2>&1; then
+    ok "Tailscale installed — run 'tailscale up' to log in"
+  else
+    warn "Tailscale install failed — install manually: https://github.com/tailscale-dev/deck-tailscale"
+  fi
+fi`;
 }
 
 function networkBlock(cfg: DeckConfig): string {
@@ -293,21 +298,29 @@ ok "Waydroid installer staged — run it from Desktop"`;
 
 function stickdeckBlock(cfg: DeckConfig): string {
   if (!cfg.stickdeck) return "";
+  // Release assets are stickdeck-vX.zip (Deck) + stickdeck-win-vX.zip (Windows) —
+  // pick the non-Windows .zip (NOT one matching "linux"; the old filter found nothing).
+  // It's a .zip (unzip via python3), and the Deck binary is run via launch.sh.
   return `say "Installing StickDeck"
-install -d "$HOME/Applications" "$HOME/Desktop"
-SD_URL="$(curl -fsSL https://api.github.com/repos/DiscreteTom/stickdeck-rs/releases/latest | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if 'linux' in a['name'].lower()),''))" 2>/dev/null)"
+install -d "$HOME/Applications/stickdeck" "$HOME/Desktop"
+SD_URL="$(curl -fsSL https://api.github.com/repos/DiscreteTom/stickdeck-rs/releases/latest | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if a['name'].lower().endswith('.zip') and 'win' not in a['name'].lower()),''))" 2>/dev/null)"
 if [ -n "$SD_URL" ]; then
-  curl -fsSL "$SD_URL" -o /tmp/stickdeck.tar.gz && tar -xzf /tmp/stickdeck.tar.gz -C "$HOME/Applications/" && ok "StickDeck installed" || warn "StickDeck extract failed"
-  rm -f /tmp/stickdeck.tar.gz
-  cat > "$HOME/Desktop/StickDeck.desktop" <<'BOOTIBLE_SD'
+  if curl -fsSL "$SD_URL" -o /tmp/stickdeck.zip && python3 -c "import zipfile,sys; zipfile.ZipFile('/tmp/stickdeck.zip').extractall(sys.argv[1])" "$HOME/Applications/stickdeck"; then
+    SD_LAUNCH="$(find "$HOME/Applications/stickdeck" -name launch.sh -type f | head -1)"
+    [ -n "$SD_LAUNCH" ] && chmod +x "$SD_LAUNCH"
+    cat > "$HOME/Desktop/StickDeck.desktop" <<BOOTIBLE_SD
 [Desktop Entry]
 Name=StickDeck
-Exec=$HOME/Applications/stickdeck
+Exec=\${SD_LAUNCH:-$HOME/Applications/stickdeck/launch.sh}
+Path=$HOME/Applications/stickdeck
 Terminal=true
 Type=Application
 Categories=Game;Utility;
 BOOTIBLE_SD
-  chmod +x "$HOME/Desktop/StickDeck.desktop"
+    chmod +x "$HOME/Desktop/StickDeck.desktop"
+    ok "StickDeck installed"
+  else warn "StickDeck extract failed"; fi
+  rm -f /tmp/stickdeck.zip
 else warn "StickDeck: release lookup failed"; fi`;
 }
 
