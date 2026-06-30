@@ -49,6 +49,7 @@ import { StatusMessage } from "./components/StatusMessage";
 import { StreamingSettings } from "./components/StreamingSettings";
 import { countSelectedInView } from "./lib/app-selection";
 import { needsDevicePick } from "./lib/nav";
+import { session } from "./lib/session";
 import wordlistRaw from "./wordlist.txt?raw";
 
 // EFF diceware wordlist (7776 words) for generating real word-passphrases.
@@ -307,10 +308,10 @@ function setApplyLabel(): void {
 /** Drive the active view from the URL hash so screens are deep-linkable. */
 function syncFromHash(): void {
   const view = location.hash.replace(/^#/, "") || "welcome";
-  // Device-dependent screens reached by deep link / reload have lost selectedDeviceId
+  // Device-dependent screens reached by deep link / reload have lost session.deviceId
   // (and the desktop builder can't auto-detect a handheld) — send the user to pick a
   // device first so customise is never device-less. See needsDevicePick.
-  if (needsDevicePick(view, selectedDeviceId)) {
+  if (needsDevicePick(view, session.deviceId)) {
     location.hash = "platform";
     return;
   }
@@ -512,8 +513,8 @@ async function selectDeviceAndGo(id: string): Promise<void> {
   if (!api?.selectDevice) return;
   const device = await api.selectDevice(id);
   if (!device) return;
-  selectedDeviceId = id;
-  deviceName = device.name;
+  session.deviceId = id;
+  session.deviceName = device.name;
   fill("name", device.name);
   fill("system", device.system);
   fill("device-sub", `${device.system} handheld — selected.`);
@@ -1283,8 +1284,6 @@ const GROUP_TAGS: Record<string, string> = {
 };
 
 let catalog: GroupSummary[] = [];
-let deviceName = "ROG Ally X";
-let selectedDeviceId = "";
 let selectedBaseId = "";
 let baseOptions: BaseOption[] = []; // cached base list — for the customise-screen label
 
@@ -1848,7 +1847,7 @@ async function runExport(): Promise<void> {
   const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
   if (receipt) {
     receipt.replaceChildren(
-      receiptRow("device", deviceName),
+      receiptRow("device", session.deviceName),
       receiptRow("modules", `${modules.length} selected`),
       receiptRow("format", "config.yml"),
       receiptRow("saved", result.path),
@@ -1934,7 +1933,7 @@ const setCk = (s: string, v: unknown) => {
 function captureProfile(name: string): Profile {
   return {
     name,
-    deviceModel: selectedDeviceId || undefined,
+    deviceModel: session.deviceId || undefined,
     baseId: selectedBaseId || undefined,
     ui: {
       selectedApps: [...selectedApps],
@@ -2057,7 +2056,7 @@ async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
     mode === "load" ? "#rog-profile-load" : "#rog-profile-mount",
   );
   if (!mount) return;
-  const grouped = (await window.bootible?.groupProfiles?.(selectedDeviceId)) ?? {
+  const grouped = (await window.bootible?.groupProfiles?.(session.deviceId)) ?? {
     model: [],
     family: [],
   };
@@ -2076,7 +2075,7 @@ async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
     ProfileBar({
       mode,
       profiles: grouped,
-      modelLabel: `This ${deviceName || "device"}`,
+      modelLabel: `This ${session.deviceName || "device"}`,
       familyLabel: "Other compatible devices",
       loadedName: loadedProfileName || null,
       status: rogProfileStatus,
@@ -2343,7 +2342,7 @@ function captureDeckProfile(name: string): Profile {
   const pass = deckState.sunshine.pass ?? "";
   return {
     name,
-    deviceModel: selectedDeviceId || undefined,
+    deviceModel: session.deviceId || undefined,
     ui,
     secrets: pass ? { sunshinePass: pass } : {},
   };
@@ -2364,7 +2363,7 @@ function applyDeckProfile(p: Profile): void {
 /** The shared Deck ProfileBar. "load" goes on the first config screen (pick a saved
  *  profile to start from); "save" on the last (where the full config exists). */
 async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
-  const grouped = (await window.bootible?.groupProfiles?.(selectedDeviceId)) ?? {
+  const grouped = (await window.bootible?.groupProfiles?.(session.deviceId)) ?? {
     model: [],
     family: [],
   };
@@ -2378,7 +2377,7 @@ async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
   return ProfileBar({
     mode,
     profiles: grouped,
-    modelLabel: `This ${deviceName || "device"}`,
+    modelLabel: `This ${session.deviceName || "device"}`,
     familyLabel: "Other compatible devices",
     loadedName: deckLoadedProfile,
     status: deckProfileStatus,
@@ -3406,7 +3405,9 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("#ssh-generate")) {
     void (async () => {
-      const created = await window.bootible?.generateHostSshKey?.(`${deviceName} via bootible`);
+      const created = await window.bootible?.generateHostSshKey?.(
+        `${session.deviceName} via bootible`,
+      );
       if (!created) return;
       if (!hostSshKeys.some((k) => k.id === created.id)) hostSshKeys.push(created);
       selectedKeyIds.add(created.id);
@@ -3451,7 +3452,7 @@ async function runApplyDevice(): Promise<void> {
     "An elevated window is running the setup. Restore points are taken before and after — you can roll back any time.",
   );
   receipt?.replaceChildren(
-    receiptRow("device", deviceName),
+    receiptRow("device", session.deviceName),
     receiptRow("restore", "fresh + post-config"),
     receiptRow("log", "C:\\bootible\\bootstrap.log"),
   );
