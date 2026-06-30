@@ -89,6 +89,15 @@ The model+family dropdown grouping is shipped. Remaining: rename `profile.device
 (ssh/wifi/usb), and move the family-grouping main-side so the renderer needn't
 re-implement `deviceFamilyOf`. See the `device-class-vs-instance` memory.
 
-## 6. Merge `docs/v2` → `main`
+## 6. Decompose the `main.ts` / `index.ts` god-files
+
+The standards now mandate it ([coding-standards.md](standards/coding-standards.md) §4:
+no file over ~400 lines without a recorded reason; changes near the god-files must
+leave them smaller). Reality: `renderer/src/main.ts` ≈ 4,000 lines and
+`main/index.ts` ≈ 1,500. Carve features out into `app/` / `state/` / `components/`
+/ `features/` / `devices/`. The multi-model code review (below) produces the
+concrete, agreed decomposition + fix plan — execute against that.
+
+## 7. Merge `docs/v2` → `main`
 
 When the alpha is ready (and after a clean visual sweep + hardware passes above).

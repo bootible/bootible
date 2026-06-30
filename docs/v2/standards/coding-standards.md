@@ -35,10 +35,12 @@ These are rules, not suggestions. They exist because the codebase grew two paral
 8. **Defaults exist once, in core.** The renderer imports normalized defaults; it may define *presentation* defaults only. A default duplicated in the renderer is a guaranteed future divergence.
 9. **Catalog data has stable IDs independent of installer tech.** Winget IDs, Flatpak refs, and module IDs are adapter metadata hanging off a stable `id`. Derived views (`apps.ts`, `deck-apps.ts`) share projection utilities — no copy-pasted mapping.
 10. **Persisted objects are versioned domain objects.** Every saved profile carries `schemaVersion` + `deviceFamily` + typed `config` + `secrets`, with a migration path. **Never persist DOM/UI state** (selector values, route names, expanded groups, ad-hoc sets). Filter persisted objects by device family before offering them.
+10b. **Device CLASS and device INSTANCE are distinct fields.** The class — a `deviceModel` (e.g. `rog-ally`) plus its derived `deviceFamily` — is what drives profile visibility and capability. A true `instanceId` (a unit reachable over ssh/wifi/usb) is a *separate* optional field, owned by the headless/remote flows, never used for profile linking and never synced (it is per-unit). Don't conflate the two under one id — that was the original `deviceId` mistake.
 
 ## 4. File & module discipline
 
-11. **One feature per renderer module.** A renderer source file over ~400 lines needs an explicit architectural reason in the PR. `main.ts` is the cautionary tale — decompose toward `app/`, `state/`, `components/`, `features/`, `devices/`; don't add to the monolith.
+11. **One concern per module, every layer.** A source file over ~400 lines needs a recorded architectural reason — this is not renderer-only. The renderer `main.ts` and `main/index.ts` are **god-files and standing debt**: they are the worked example of what *not* to do, and every change near them should leave them smaller, never larger. Carve a feature out (its state, its components, its handlers) into its own module rather than appending to the monolith; decompose toward `app/`, `state/`, `components/`, `features/`, `devices/`. "I'll add it to main.ts for now" is how it got this big.
+11a. **Clean, small, readable code is a standard, not a nicety.** A function does one thing and reads top-to-bottom; a module is understandable on its own without holding the whole file in your head; names state intent so the code needs few comments to follow. Prefer many small, well-named units over one large clever one. Deep nesting, long parameter lists, boolean-flag parameters that fork behaviour, and `utils`/`misc` dumping grounds are smells — the fix is a smaller, named seam. The test: a new reader can find where a thing lives and understand it in isolation.
 12. **A reusable component owns behavior, not just a CSS class.** If two screens build the same widget by hand, extract a real primitive (see [ui-ux-standards.md](ui-ux-standards.md) §components). Matching `.cz-*` classes is not reuse.
 
 ## 5. Error handling
@@ -65,7 +67,8 @@ These are rules, not suggestions. They exist because the codebase grew two paral
 - [ ] Any cross-layer type comes from the **shared** contracts module; nothing re-declared.
 - [ ] New config is **typed**, validated at the boundary, with versioned persistence if saved.
 - [ ] Shared features have **cross-device contract tests**; generated scripts are interpreter-verified.
-- [ ] No file grew past ~400 lines without justification; no silent catch added.
+- [ ] No file grew past ~400 lines without a recorded reason; any change near the `main.ts` / `main/index.ts` god-files left them **smaller**, not larger; functions stay small and single-purpose.
+- [ ] A new reader could find where the changed concern lives and follow it **without reading the whole file**; no silent catch added.
 - [ ] If the change touches a user-facing task, it satisfies the **cross-device UX check** in [ui-ux-standards.md](ui-ux-standards.md).
 
 ---

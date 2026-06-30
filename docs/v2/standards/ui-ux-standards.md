@@ -29,7 +29,7 @@ The whole point of the shared component set: **a new device should cost ~zero fr
 **The model — device is data, the UI is a capability registry:**
 
 1. A device adapter declares a **capability set** (which features it supports + any parameters) — not a layout. e.g. `{ apps, network, ssh, streaming, media: ["provision", "reimage"] }`.
-2. The renderer holds a **registry mapping capability → shared component** (`apps → GroupedPicker`, `network → NetworkSettings`, `ssh → SshAccessEditor`, `streaming → StreamingSetup`, `media → MediaBuilder`, …).
+2. The renderer holds a **registry mapping capability → shared component** (`apps → GroupedPicker`, `network → NetworkSettings`, `ssh → SshAccessEditor`, `streaming → StreamingSettings`, `remote-access → RemoteAccessSettings`, `media → MediaBuilder`, …).
 3. The Configure screen is **generated** by walking the device's capabilities and rendering each one's component, in a fixed order. No device-specific screen; no `if (device === …)` in the renderer.
 
 **What this buys:**
@@ -82,6 +82,9 @@ These **are** the capability registry from "Adding a device" above — each capa
 | `ProfileBar` | ROG profile rows + Deck toolbar | load, save-new, update, delete, dirty state, confirm, success/error, cloud-sync status |
 | `NetworkSettings` | ROG static-IP field + Deck Network section | DHCP default, capability-gated static fields, shared validation |
 | `SshAccessEditor` | ROG SSH tabs + Deck SSH toggle/textarea | enable, port, keys, paste, GitHub import, resulting-key preview |
+| `StreamingSettings` | ROG `ra-*` rows + Deck streaming section | Sunshine host + credentials, Moonlight client, optional "also on this PC" host toggles |
+| `RemoteAccessSettings` | ROG RDP row + Deck VNC/Tailscale | capability-gated remote-access toggles (RDP/VNC/VPN), disabled-in-place with a reason |
+| `PasswordField` | ad-hoc password inputs | masked entry, reveal, "set on the device instead" defer, plaintext-on-media warning |
 | `DiskPicker` | the 3 disk renderers | enumerate, refresh, select, loading/empty/error |
 | `ProgressPanel` | the 3 progress UIs | phase, %, cancel, failure, completion |
 | `StatusMessage` | ad-hoc success/error text | consistent success / warning / error / retry |

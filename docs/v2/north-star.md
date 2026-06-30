@@ -66,6 +66,14 @@ This is what bootible v2 must let them do. The declarations below are the testab
 - A player and a tinkerer reach the **same outcome through different doors** (app vs CLI) — never two different journeys.
 - A user **moves a setup between CLI and app** without re-creating anything; both read and write the same artifact.
 
+### The same task, the same way
+
+- A user who learns to do something on one handheld — pick apps, save a profile, set a static IP, build the media — **does it the identical way on every other handheld**: same steps, same labels, same controls.
+- A device that **can't do something disables or hides that one control in place, with a reason** — it never gets a different screen, a different flow, or a different widget for a task another device already does.
+- **Adding a device changes which capabilities appear, never how any shared task behaves** — a new device inherits the experience that already exists rather than inventing its own.
+- A user **never meets two names for the same thing**: "profile", "apps", "network", "SSH access", "build media", "erase" mean the same everywhere.
+- When a device *can* do something smarter (the ROG infers a static IP's prefix/gateway/DNS from the host subnet, honouring "minimise typing"), the user sees it **as the same control doing less work** — inferred and revealed in place — not as a separate screen.
+
 ---
 
 ## What We Won't Accept
@@ -78,6 +86,8 @@ This is what bootible v2 must let them do. The declarations below are the testab
 - Snapshotting a tool's volatile config and restoring it stale on the next wipe.
 - Auto-picking a block device for a destructive write — the target is always explicit and confirmed (size + label shown).
 - A "great experience" that only one persona gets — both the player and the tinkerer are first-class, or it doesn't ship.
+- The **same task built two different ways for two devices** — a divergent per-device journey where a shared one was possible. A genuinely unique task is the only exception, and it still reuses the shared pieces.
+- A device-prefixed screen, flow, or widget (`deckapps`, `deckwrite`, …) for a task another device already performs.
 
 ---
 
@@ -86,5 +96,7 @@ This is what bootible v2 must let them do. The declarations below are the testab
 This north star is the evaluation target for every v2 design and plan. Each design decision should trace to one or more declarations above; a decision that serves a declaration is justified, and one that doesn't needs a reason recorded.
 
 Read the chain in order: **findings** (`findings.md`) records what is true today; this **north star** records what should be true; **flows** (`flows/`) are the journeys that realise it; **design** (`design.md`) translates declarations into architecture; **plan** (`plan.md`) slices the architecture into shippable phases.
+
+The declarations under *The same task, the same way* are a promise to the **user**; their expression in the **code** is the job of the standards. How that consistency is actually built — one shared component per task, one source of truth per concept, a new device added by composing existing seams rather than forking a parallel path — lives in [`standards/ui-ux-standards.md`](standards/ui-ux-standards.md) (the "same task = same experience" contract + the shared component set) and [`standards/coding-standards.md`](standards/coding-standards.md) (layering, shared types, DRY). A divergent per-device experience and the duplicated code behind it are the same failure seen from two sides.
 
 When a declaration here conflicts with a proposal, the declaration wins or is amended explicitly — never silently superseded.
