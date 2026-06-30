@@ -88,7 +88,7 @@ describe("generateDeckProvision", () => {
   it("installs Decky + chosen plugins (store names) and restarts the loader", () => {
     const s = generateDeckProvision({ decky: { enabled: true, plugins: ["PowerTools"] } });
     expect(s).toContain("decky-installer");
-    expect(s).toContain('"PowerTools"'); // store name passed straight to the loop
+    expect(s).toContain("'PowerTools'"); // store name single-quote-escaped, passed to the loop
     expect(s).toContain("plugins.deckbrew.xyz/plugins");
     expect(s).toContain("systemctl restart plugin_loader"); // the v1 fix
     // The plugin name MUST be an env-var PREFIX (N="$NAME" python3 …), not a
@@ -202,6 +202,31 @@ describe("generateDeckProvision", () => {
 
   it("omits password managers when none chosen", () => {
     expect(generateDeckProvision({})).not.toContain("Password managers");
+  });
+
+  // ── injection hardening: user values reach generated bash run under sudo, and
+  //    can arrive from an imported/cloud profile, so they must be neutralized. ──
+  it("neutralizes a hostile hostname — no raw command substitution", () => {
+    const s = generateDeckProvision({ hostname: "$(touch pwned)" });
+    expect(s).not.toContain("$(touch"); // sanitized to [A-Za-z0-9-], then single-quoted
+    expect(s).toContain("hostnamectl set-hostname 'touchpwned'");
+  });
+
+  it("single-quote-escapes Decky plugin names — no command substitution", () => {
+    const s = generateDeckProvision({ decky: { enabled: true, plugins: ["$(evil)"] } });
+    expect(s).toContain("'$(evil)'"); // literal inside single quotes
+    expect(s).not.toContain('"$(evil)"'); // never the unsafe double-quoted form
+  });
+
+  it("drops an out-of-range or non-integer ssh port to 22", () => {
+    expect(
+      generateDeckProvision({ ssh: { enabled: true, port: 99999, authorizedKeys: [] } }),
+    ).not.toContain("99999");
+    // a port smuggled as a string via an untyped profile is coerced/dropped too
+    const evil = generateDeckProvision({
+      ssh: { enabled: true, port: "22; rm -rf ~" as unknown as number, authorizedKeys: [] },
+    });
+    expect(evil).not.toContain("rm -rf");
   });
 
   it("broadcasts a completion beacon when a buildId is set", () => {

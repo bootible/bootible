@@ -93,18 +93,37 @@ export const DEFAULT_DECK_CONFIG: DeckConfig = {
   passwordManagers: { managers: [], method: "flatpak" },
 };
 
+/** RFC-1123-ish hostname: letters/digits/hyphens only, no leading/trailing hyphen,
+ *  ≤63 chars. Strips anything else so the value is safe to embed in the generated
+ *  bash (which runs under sudo) even if it arrived from an imported/cloud profile. */
+function sanitizeHostname(raw: string | undefined): string | undefined {
+  const h = (raw ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9-]/g, "")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63);
+  return h || undefined;
+}
+
+/** A usable TCP port, else 22 — defends the generated sshd_config edits against a
+ *  hostile/garbage value (a profile loaded from untyped JSON can carry anything). */
+function validatePort(raw: unknown): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : 22;
+}
+
 /** Fill any missing fields with defaults — tolerant of partial configs from the UI/carrier. */
 export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): DeckConfig {
   const p = partial ?? {};
   const d = DEFAULT_DECK_CONFIG;
   return {
-    hostname: p.hostname?.trim() || undefined,
+    hostname: sanitizeHostname(p.hostname),
     buildId: p.buildId?.trim() || undefined,
     createSnapshot: p.createSnapshot ?? d.createSnapshot,
     flatpakApps: [...new Set(p.flatpakApps ?? d.flatpakApps)],
     ssh: {
       enabled: p.ssh?.enabled ?? false,
-      port: p.ssh?.port ?? 22,
+      port: validatePort(p.ssh?.port),
       authorizedKeys: (p.ssh?.authorizedKeys ?? []).map((k) => k.trim()).filter(Boolean),
       // GitHub usernames are [A-Za-z0-9-] only — strip anything else so the value
       // is safe to embed in the on-device curl URL.

@@ -144,7 +144,9 @@ function deckyBlock(cfg: DeckConfig): string {
   // plugins actually register (the missing step that broke manual installs in v1).
   const names = cfg.decky.plugins;
   if (names.length > 0) {
-    const arr = names.map((n) => `"${n.replace(/"/g, '\\"')}"`).join(" ");
+    // Single-quote-escape each store name — a manual `\"` escape doesn't stop
+    // $()/backtick expansion, and names can arrive from an imported profile.
+    const arr = names.map((n) => shq(n)).join(" ");
     lines.push(
       `say "Installing ${names.length} Decky plugin(s)"`,
       // Stop the loader first so no plugin's backend binary is running — otherwise
@@ -410,8 +412,10 @@ export function generateDeckProvision(input: Partial<DeckConfig>): string {
 
   if (cfg.createSnapshot) blocks.push(SNAPSHOT);
   if (cfg.hostname) {
-    blocks.push(`say "Setting hostname ${cfg.hostname}"
-sudo hostnamectl set-hostname ${JSON.stringify(cfg.hostname)}`);
+    // shq() both — JSON.stringify is a JSON escape, not a bash one ($()/backticks
+    // still expand inside its double quotes. (hostname is also sanitized upstream.)
+    blocks.push(`say ${shq(`Setting hostname ${cfg.hostname}`)}
+sudo hostnamectl set-hostname ${shq(cfg.hostname)}`);
   }
   blocks.push(FLATHUB);
 
