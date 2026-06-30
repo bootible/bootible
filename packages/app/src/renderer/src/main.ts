@@ -559,13 +559,12 @@ async function hydrateBases(): Promise<void> {
   const api = window.bootible;
   const list = document.querySelector<HTMLElement>(".base-list");
   if (!api?.getBases || !list) return;
-  let bases: BaseOption[] = [];
   try {
-    bases = await api.getBases();
+    baseOptions = await api.getBases();
   } catch {
     return;
   }
-  list.replaceChildren(...bases.map(baseCard));
+  list.replaceChildren(...baseOptions.map(baseCard));
 }
 
 // ── review & customise screen ───────────────────────────────────────────────
@@ -616,6 +615,9 @@ function section(title: string, count: number, rows: HTMLElement[]): HTMLElement
 function renderCustomise(): void {
   const host = document.querySelector<HTMLElement>("#customise-body");
   if (!host || !basePlan) return;
+  // Show which base this is — easy to forget if you step away and come back.
+  const baseLabel = baseOptions.find((b) => b.id === selectedBaseId)?.label ?? selectedBaseId;
+  fill("customise-base", baseLabel ? ` · ${baseLabel}` : "");
   const secs: HTMLElement[] = [];
   secs.push(
     section(
@@ -752,6 +754,13 @@ async function hydrateCustomise(): Promise<void> {
   if (!appGroups.length && api.getAppGroups) {
     try {
       appGroups = await api.getAppGroups();
+    } catch {}
+  }
+  // Base labels for the screen header (cached by the base picker; fetch if the
+  // user deep-linked straight here).
+  if (!baseOptions.length && api.getBases) {
+    try {
+      baseOptions = await api.getBases();
     } catch {}
   }
   // Load the removal catalog for the "Remove apps" checklist (every Windows base).
@@ -1185,6 +1194,7 @@ let catalog: GroupSummary[] = [];
 let deviceName = "ROG Ally X";
 let selectedDeviceId = "";
 let selectedBaseId = "";
+let baseOptions: BaseOption[] = []; // cached base list — for the customise-screen label
 
 /** OSes provisioned via the SteamOS/Linux host-carrier flow (mirrors core's
  *  usesDeckCarrier — kept in sync; SteamOS today, Bazzite later). */
