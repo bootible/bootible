@@ -195,10 +195,6 @@ document.addEventListener("change", (event) => {
   if (target.id === "region-select") {
     rog.usbState.regionId = (target as HTMLSelectElement).value;
   }
-  if (target instanceof HTMLInputElement && target.dataset.keyId) {
-    if (target.checked) rog.selectedKeyIds.add(target.dataset.keyId);
-    else rog.selectedKeyIds.delete(target.dataset.keyId);
-  }
   if (target.id === "edition-home" || target.id === "edition-pro") updateEditionState();
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
   // Customise screen: a module toggle (floor/base = untick to disable; extra = tick to add).

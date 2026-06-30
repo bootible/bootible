@@ -245,8 +245,7 @@ if command -v tailscale >/dev/null 2>&1; then
   ok "Tailscale already installed — run 'tailscale up' to log in"
 else
   rm -rf "$HOME/deck-tailscale"
-  if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" >/dev/null 2>&1 \
-     && sudo bash "$HOME/deck-tailscale/tailscale.sh" >/dev/null 2>&1; then
+  if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" >/dev/null 2>&1 && sudo bash "$HOME/deck-tailscale/tailscale.sh" >/dev/null 2>&1; then
     ok "Tailscale installed — run 'tailscale up' to log in"
   else
     warn "Tailscale install failed — install manually: https://github.com/tailscale-dev/deck-tailscale"
