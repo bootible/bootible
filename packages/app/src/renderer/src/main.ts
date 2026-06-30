@@ -1,15 +1,13 @@
 // RECORDED REASON for >400 lines (coding-standard §4): the renderer god-file,
-// well into decomposition — 4022 → ~2480 lines. Already carved out: the Deck flow
+// well into decomposition — 4022 → ~2450 lines. Already carved out: the Deck flow
 // (features/deck/*), the auth flow (features/auth.ts), the hash router
-// (lib/router.ts), shared device context (lib/session.ts), logoMap (lib/logos.ts).
-// What remains is the tightly-coupled ROG core: device-pick → customise → apps →
-// ssh → bundles → method → provisioning → profiles → USB-writer → watch, all of
-// which read/write ~19 shared module-level state vars (usbState, selectedBaseId,
-// enabled/disabled modules, selected apps/removals/keys, the rog* family, …) and
-// funnel through gatherUsbRequest. Extracting it cleanly first needs those 19 vars
-// moved into a shared rog-state module (a large, cross-cutting migration), then the
-// screens split into features/rog/*. That's the next step — bigger than the
-// self-contained extractions done so far. See docs/v2/standards/remediation-plan.md P3.
+// (lib/router.ts), shared device context (lib/session.ts), logoMap (lib/logos.ts),
+// and now the ROG flow's ~35 shared state vars into lib/rog-state.ts (the `rog`
+// object). What remains is the ROG SCREENS themselves — device-pick → customise →
+// apps → ssh → bundles → method → provisioning → profiles → USB-writer → watch +
+// gatherUsbRequest — which now all read/write `rog.*` and can be split into
+// features/rog/* next (no shared-state blocker any more).
+// See docs/v2/standards/remediation-plan.md P3.
 import "./styles.css";
 import type {
   AppEntry,
@@ -69,6 +67,7 @@ import {
   hydrateDeckWrite,
 } from "./features/deck";
 import { logoMap } from "./lib/logos";
+import { rog } from "./lib/rog-state";
 import { registerRoute, syncFromHash } from "./lib/router";
 import { session } from "./lib/session";
 
@@ -270,7 +269,7 @@ document.addEventListener("click", (event) => {
   let target = trigger.dataset.go;
   // Full ROG isn't a clean-install: customise → account (for SSH/access, with the
   // clean-only fields hidden) → strip-kit builder, not the USB writer.
-  if (selectedBaseId === "full-rog") {
+  if (rog.selectedBaseId === "full-rog") {
     if (target === "method") target = "account";
     else if (target === "wifi") target = "stripkit";
   }
@@ -468,10 +467,10 @@ async function hydrateBases(): Promise<void> {
 const FLOOR_WARNING = "Not recommended — every bootible device is meant to be tuned & debloated.";
 
 /** One toggle row on the customise screen. Floor/base are checked by default
- *  (untick → disabledModules); extras are unchecked (tick → enabledExtras). */
+ *  (untick → rog.disabledModules); extras are unchecked (tick → rog.enabledExtras). */
 function customiseRow(m: PlanModule, kind: "floor" | "base" | "extra"): HTMLElement {
   const isApps = m.id === "apps";
-  const checked = kind === "extra" ? enabledExtras.has(m.id) : !disabledModules.has(m.id);
+  const checked = kind === "extra" ? rog.enabledExtras.has(m.id) : !rog.disabledModules.has(m.id);
   const row = el("div", `cz-row${checked ? "" : " is-off"}`);
   const cb = el("input", "cz-check") as HTMLInputElement;
   cb.type = "checkbox";
@@ -487,7 +486,7 @@ function customiseRow(m: PlanModule, kind: "floor" | "base" | "extra"): HTMLElem
     const pick = el(
       "button",
       "cz-applink",
-      `Choose apps (${selectedApps.size}) →`,
+      `Choose apps (${rog.selectedApps.size}) →`,
     ) as HTMLButtonElement;
     pick.type = "button";
     pick.dataset.go = "apps";
@@ -513,7 +512,8 @@ function renderCustomise(): void {
   const host = document.querySelector<HTMLElement>("#customise-body");
   if (!host || !basePlan) return;
   // Show which base this is — easy to forget if you step away and come back.
-  const baseLabel = baseOptions.find((b) => b.id === selectedBaseId)?.label ?? selectedBaseId;
+  const baseLabel =
+    baseOptions.find((b) => b.id === rog.selectedBaseId)?.label ?? rog.selectedBaseId;
   fill("customise-base", baseLabel ? ` · ${baseLabel}` : "");
   const secs: HTMLElement[] = [];
   secs.push(
@@ -551,9 +551,9 @@ function renderCustomise(): void {
   }
   host.replaceChildren(...secs);
   // Running summary.
-  const floorOn = basePlan.floor.filter((m) => !disabledModules.has(m.id)).length;
-  const baseOn = basePlan.base.filter((m) => !disabledModules.has(m.id)).length;
-  const extrasOn = enabledExtras.size + selectedApps.size;
+  const floorOn = basePlan.floor.filter((m) => !rog.disabledModules.has(m.id)).length;
+  const baseOn = basePlan.base.filter((m) => !rog.disabledModules.has(m.id)).length;
+  const extrasOn = rog.enabledExtras.size + rog.selectedApps.size;
   const sum = document.querySelector("#customise-summary");
   if (sum) {
     sum.textContent = `${floorOn + baseOn + extrasOn} things will run · ${floorOn} core · ${baseOn} base · ${extrasOn} extras`;
@@ -572,8 +572,8 @@ function removalsSection(): HTMLElement {
     el("span", "app-group-name", "Remove apps (optional)"),
     el(
       "span",
-      `app-group-count${selectedRemovals.size > 0 ? " on" : ""}`,
-      `${selectedRemovals.size} / ${removalsCatalog.length}`,
+      `app-group-count${rog.selectedRemovals.size > 0 ? " on" : ""}`,
+      `${rog.selectedRemovals.size} / ${removalsCatalog.length}`,
     ),
   );
   const body = el("div", "app-items");
@@ -591,7 +591,7 @@ function removalsSection(): HTMLElement {
     const cb = el("input", "app-check") as HTMLInputElement;
     cb.type = "checkbox";
     cb.dataset.removal = r.id;
-    cb.checked = selectedRemovals.has(r.id);
+    cb.checked = rog.selectedRemovals.has(r.id);
     const meta = el("span", "app-meta");
     const name = el("span", "app-name", r.name);
     if (r.recommended) name.append(el("span", "cz-rec-tag", "Recommended"));
@@ -629,28 +629,28 @@ function pickerRow(
 /** Fetch the base's plan once per base, then render the customise screen. */
 async function hydrateCustomise(): Promise<void> {
   const api = window.bootible;
-  if (!api?.getBasePlan || !selectedBaseId) return;
+  if (!api?.getBasePlan || !rog.selectedBaseId) return;
   // A fresh base entry (not a just-loaded profile) gets the base's baked defaults.
-  const freshEntry = !customiseHydrated && !keepRestoredCustomise;
-  if (!customiseHydrated) {
+  const freshEntry = !rog.customiseHydrated && !rog.keepRestoredCustomise;
+  if (!rog.customiseHydrated) {
     try {
-      basePlan = await api.getBasePlan(selectedBaseId);
+      basePlan = await api.getBasePlan(rog.selectedBaseId);
     } catch {
       basePlan = null;
     }
     // Fresh base entry resets toggles; a just-loaded profile keeps its restored ones.
-    if (!keepRestoredCustomise) {
-      disabledModules.clear();
-      enabledExtras.clear();
+    if (!rog.keepRestoredCustomise) {
+      rog.disabledModules.clear();
+      rog.enabledExtras.clear();
     }
-    keepRestoredCustomise = false;
-    customiseHydrated = true;
+    rog.keepRestoredCustomise = false;
+    rog.customiseHydrated = true;
   }
   void mountRogProfileBar("load"); // pick a saved profile to start from
-  // The Apps/Emulators counts need the catalog loaded.
-  if (!appGroups.length && api.getAppGroups) {
+  // The Apps/Emulators counts need the rog.catalog loaded.
+  if (!rog.appGroups.length && api.getAppGroups) {
     try {
-      appGroups = await api.getAppGroups();
+      rog.appGroups = await api.getAppGroups();
     } catch {}
   }
   // Base labels for the screen header (cached by the base picker; fetch if the
@@ -660,7 +660,7 @@ async function hydrateCustomise(): Promise<void> {
       baseOptions = await api.getBases();
     } catch {}
   }
-  // Load the removal catalog for the "Remove apps" checklist (every Windows base).
+  // Load the removal rog.catalog for the "Remove apps" checklist (every Windows base).
   if (!removalsCatalog.length && api.getRemovals) {
     try {
       removalsCatalog = await api.getRemovals();
@@ -670,8 +670,8 @@ async function hydrateCustomise(): Promise<void> {
   // (the user reviews + unticks anything to keep — not a silent nuke). A restored
   // profile keeps exactly the removals it saved.
   if (freshEntry) {
-    selectedRemovals.clear();
-    for (const r of removalsCatalog) if (r.recommended) selectedRemovals.add(r.id);
+    rog.selectedRemovals.clear();
+    for (const r of removalsCatalog) if (r.recommended) rog.selectedRemovals.add(r.id);
   }
   renderCustomise();
 }
@@ -680,15 +680,15 @@ async function hydrateCustomise(): Promise<void> {
 /** An entry is "on" if its winget pick is selected, or — for a module entry like
  *  EmuDeck — its module is enabled. */
 function entryOn(a: AppEntry): boolean {
-  return a.module ? enabledExtras.has(a.module) : selectedApps.has(a.id);
+  return a.module ? rog.enabledExtras.has(a.module) : rog.selectedApps.has(a.id);
 }
 
 /** The groups shown in the current picker mode (Apps = everything but emulators;
  *  Emulators = just that group). */
 function pickerGroups(): AppGroup[] {
-  return pickerMode === "emulators"
-    ? appGroups.filter((g) => g.id === EMU_GROUP)
-    : appGroups.filter((g) => g.id !== EMU_GROUP);
+  return rog.pickerMode === "emulators"
+    ? rog.appGroups.filter((g) => g.id === EMU_GROUP)
+    : rog.appGroups.filter((g) => g.id !== EMU_GROUP);
 }
 
 /** Map an AppEntry to a shared-picker item, with the ROG app logo. */
@@ -710,15 +710,15 @@ function rogAppItem(a: AppEntry): PickerItem {
 function refreshAppsCount(): void {
   const count = document.querySelector("#apps-count");
   if (!count) return;
-  const n = pickerMode === "emulators" ? pickCounts().emulators : pickCounts().apps;
-  const word = pickerMode === "emulators" ? "emulator" : "app";
+  const n = rog.pickerMode === "emulators" ? pickCounts().emulators : pickCounts().apps;
+  const word = rog.pickerMode === "emulators" ? "emulator" : "app";
   count.textContent = `${n} ${word}${n === 1 ? "" : "s"} selected`;
 }
 
-/** Apply an AppEntry toggle to the right set (winget app → selectedApps, module
- *  entry like EmuDeck → enabledExtras). */
+/** Apply an AppEntry toggle to the right set (winget app → rog.selectedApps, module
+ *  entry like EmuDeck → rog.enabledExtras). */
 function applyAppToggle(a: AppEntry, on: boolean): void {
-  const set = a.module ? enabledExtras : selectedApps;
+  const set = a.module ? rog.enabledExtras : rog.selectedApps;
   const key = a.module ?? a.id;
   if (on) set.add(key);
   else set.delete(key);
@@ -733,26 +733,26 @@ function renderApps(): void {
         id: g.id,
         label: g.label,
         note: g.note,
-        open: openGroups.has(g.id),
+        open: rog.openGroups.has(g.id),
         items: g.apps.map(rogAppItem),
       })),
       onToggleItem: (groupId, itemId, on) => {
-        const a = appGroups.find((x) => x.id === groupId)?.apps.find((x) => x.id === itemId);
+        const a = rog.appGroups.find((x) => x.id === groupId)?.apps.find((x) => x.id === itemId);
         if (a) applyAppToggle(a, on);
         refreshAppsCount();
       },
       onToggleGroup: (groupId, on) => {
-        const g = appGroups.find((x) => x.id === groupId);
+        const g = rog.appGroups.find((x) => x.id === groupId);
         if (g) for (const a of g.apps) applyAppToggle(a, on);
         refreshAppsCount();
       },
       onToggleOpen: (groupId, open) => {
-        if (open) openGroups.add(groupId);
-        else openGroups.delete(groupId);
+        if (open) rog.openGroups.add(groupId);
+        else rog.openGroups.delete(groupId);
       },
     }),
   );
-  fill("apps-title", pickerMode === "emulators" ? "Choose emulators" : "Choose apps");
+  fill("apps-title", rog.pickerMode === "emulators" ? "Choose emulators" : "Choose apps");
   refreshAppsCount();
 }
 
@@ -760,17 +760,17 @@ async function hydrateApps(): Promise<void> {
   const api = window.bootible;
   if (!api?.getAppGroups) return;
   const host = document.querySelector<HTMLElement>("#apps-body");
-  if (!appsHydrated) {
+  if (!rog.appsHydrated) {
     host?.replaceChildren(StatusMessage({ kind: "loading", message: "Loading apps…" }));
     try {
-      appGroups = await api.getAppGroups();
-      appsHydrated = true;
+      rog.appGroups = await api.getAppGroups();
+      rog.appsHydrated = true;
     } catch {
-      // A failed catalog fetch used to silently render an empty picker — surface it.
+      // A failed rog.catalog fetch used to silently render an empty picker — surface it.
       host?.replaceChildren(
         StatusMessage({
           kind: "error",
-          message: "Couldn't load the app catalog.",
+          message: "Couldn't load the app rog.catalog.",
           onRetry: () => void hydrateApps(),
         }),
       );
@@ -779,9 +779,9 @@ async function hydrateApps(): Promise<void> {
   }
   // On (re)entering the picker, open the groups that have selections — but from
   // here the user's manual expand/collapse (toggle event) is what's respected.
-  openGroups.clear();
+  rog.openGroups.clear();
   for (const g of pickerGroups()) {
-    if (pickerMode === "emulators" || g.apps.some(entryOn)) openGroups.add(g.id);
+    if (rog.pickerMode === "emulators" || g.apps.some(entryOn)) rog.openGroups.add(g.id);
   }
   renderApps();
 }
@@ -976,20 +976,9 @@ document.addEventListener("change", (event) => {
 });
 
 // ── SSH source: BYO key / GitHub / Both ─────────────────────────────────────
-let sshHydrated = false;
-let githubKeys: string[] = []; // keys fetched from the chosen GitHub user (baked at build)
-let githubFetchedFor = ""; // the username githubKeys was fetched for (so we don't show a stale count)
 // ROG game-streaming + remote-access state — the single source of truth (the
 // shared StreamingSettings / RemoteAccessSettings render from it; gather/profile
 // read it), the same pattern the Sunshine password already used.
-let rogSunshineEnabled = false;
-let rogSunshineUser = "";
-let rogSunshinePass = ""; // held in JS; the shared PasswordField owns the input
-let rogSunshinePromptPass = false; // defer — set on the device instead of baking it onto the USB
-let rogSunshineHost = false; // also install the Sunshine host on this PC
-let rogMoonlight = false;
-let rogMoonlightHost = false; // also install the Moonlight client on this PC
-let rogRdp = false; // Windows Remote Desktop (Pro only)
 
 function currentEditionIsPro(): boolean {
   return document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
@@ -1004,28 +993,28 @@ function mountRogStreaming(): void {
     StreamingSettings({
       showHost: true,
       value: {
-        sunshineEnabled: rogSunshineEnabled,
-        sunshineUser: rogSunshineUser || undefined,
-        sunshinePass: rogSunshinePromptPass ? undefined : rogSunshinePass || undefined,
-        sunshinePromptPass: rogSunshinePromptPass,
-        sunshineHost: rogSunshineHost,
-        moonlight: rogMoonlight,
-        moonlightHost: rogMoonlightHost,
+        sunshineEnabled: rog.sunshineEnabled,
+        sunshineUser: rog.sunshineUser || undefined,
+        sunshinePass: rog.sunshinePromptPass ? undefined : rog.sunshinePass || undefined,
+        sunshinePromptPass: rog.sunshinePromptPass,
+        sunshineHost: rog.sunshineHost,
+        moonlight: rog.moonlight,
+        moonlightHost: rog.moonlightHost,
       },
       onChange: (next) => {
         // Re-mount only when a toggle changes which fields show, so typing in
         // user/password keeps focus (matches the Deck's mountDeckStreaming).
         const toggled =
-          rogSunshineEnabled !== next.sunshineEnabled ||
-          rogMoonlight !== next.moonlight ||
-          Boolean(rogSunshinePromptPass) !== Boolean(next.sunshinePromptPass);
-        rogSunshineEnabled = next.sunshineEnabled;
-        rogSunshineUser = next.sunshineUser ?? "";
-        rogSunshinePromptPass = Boolean(next.sunshinePromptPass);
-        rogSunshinePass = next.sunshinePromptPass ? "" : (next.sunshinePass ?? "");
-        rogSunshineHost = Boolean(next.sunshineHost);
-        rogMoonlight = next.moonlight;
-        rogMoonlightHost = Boolean(next.moonlightHost);
+          rog.sunshineEnabled !== next.sunshineEnabled ||
+          rog.moonlight !== next.moonlight ||
+          Boolean(rog.sunshinePromptPass) !== Boolean(next.sunshinePromptPass);
+        rog.sunshineEnabled = next.sunshineEnabled;
+        rog.sunshineUser = next.sunshineUser ?? "";
+        rog.sunshinePromptPass = Boolean(next.sunshinePromptPass);
+        rog.sunshinePass = next.sunshinePromptPass ? "" : (next.sunshinePass ?? "");
+        rog.sunshineHost = Boolean(next.sunshineHost);
+        rog.moonlight = next.moonlight;
+        rog.moonlightHost = Boolean(next.moonlightHost);
         if (toggled) mountRogStreaming();
       },
     }),
@@ -1045,19 +1034,17 @@ function mountRogRemoteAccess(): void {
           id: "rdp",
           label: "Windows Remote Desktop",
           desc: "The full Windows desktop via mstsc, from another machine.",
-          enabled: rogRdp && pro,
+          enabled: rog.rdp && pro,
           disabled: !pro,
           note: pro ? undefined : "needs Windows Pro — switch the edition above",
         },
       ],
       onToggle: (_id, on) => {
-        rogRdp = on;
+        rog.rdp = on;
       },
     }),
   );
 }
-let rogPastedKeys: string[] = [];
-let rogGithubUser = "";
 
 /** (Re)mount the shared SshAccessEditor on the ROG account screen (host-key
  *  discovery + GitHub + paste; keys enable SSH). */
@@ -1065,20 +1052,21 @@ function mountRogSsh(): void {
   const mount = document.querySelector<HTMLElement>("#ssh-mount");
   if (!mount) return;
   const editor = SshAccessEditor({
-    hostKeys: hostSshKeys,
+    hostKeys: rog.hostSshKeys,
     value: {
-      hostKeyIds: [...selectedKeyIds],
-      pastedKeys: rogPastedKeys,
-      githubUser: rogGithubUser || undefined,
+      hostKeyIds: [...rog.selectedKeyIds],
+      pastedKeys: rog.pastedKeys,
+      githubUser: rog.githubUser || undefined,
     },
     // Only show a count once we've actually fetched for THIS username (else a
     // restored profile would show a stale "0 keys" before the fetch runs).
-    githubKeyCount: rogGithubUser && githubFetchedFor === rogGithubUser ? githubKeys.length : null,
+    githubKeyCount:
+      rog.githubUser && rog.githubFetchedFor === rog.githubUser ? rog.githubKeys.length : null,
     onChange: (next) => {
-      selectedKeyIds.clear();
-      for (const id of next.hostKeyIds) selectedKeyIds.add(id);
-      rogPastedKeys = next.pastedKeys;
-      rogGithubUser = next.githubUser ?? "";
+      rog.selectedKeyIds.clear();
+      for (const id of next.hostKeyIds) rog.selectedKeyIds.add(id);
+      rog.pastedKeys = next.pastedKeys;
+      rog.githubUser = next.githubUser ?? "";
     },
     onGithubUser: (user) => {
       void fetchRogGithub(user);
@@ -1086,28 +1074,29 @@ function mountRogSsh(): void {
   });
   mount.replaceChildren(editor);
   // No SSH key on this PC yet? Offer to generate one (handler at #ssh-generate).
-  if (hostSshKeys.length === 0) {
+  if (rog.hostSshKeys.length === 0) {
     const gen = el("button", "linkbtn", "Generate a key on this PC") as HTMLButtonElement;
     gen.type = "button";
     gen.id = "ssh-generate";
     editor.prepend(gen);
   }
   // A username we haven't fetched yet (e.g. just restored from a profile) → fetch it.
-  if (rogGithubUser && githubFetchedFor !== rogGithubUser) void fetchRogGithub(rogGithubUser);
+  if (rog.githubUser && rog.githubFetchedFor !== rog.githubUser)
+    void fetchRogGithub(rog.githubUser);
 }
 
 /** Fetch the GitHub user's public keys (baked into the build) + re-mount to show
  *  the live count. Runs on blur, so the re-mount doesn't steal focus mid-type. */
 async function fetchRogGithub(user: string): Promise<void> {
-  githubFetchedFor = user; // set before the await so the re-mount doesn't re-trigger
-  githubKeys = user ? ((await window.bootible?.githubKeys?.(user)) ?? []) : [];
+  rog.githubFetchedFor = user; // set before the await so the re-mount doesn't re-trigger
+  rog.githubKeys = user ? ((await window.bootible?.githubKeys?.(user)) ?? []) : [];
   mountRogSsh();
 }
 
 /** RDP is only usable on Pro (Home can't host Remote Desktop), so clear it on Home
  *  and re-mount the remote-access component (which greys the toggle out). */
 function updateEditionState(): void {
-  if (!currentEditionIsPro()) rogRdp = false;
+  if (!currentEditionIsPro()) rog.rdp = false;
   mountRogRemoteAccess();
 }
 
@@ -1116,21 +1105,21 @@ async function hydrateSshKeys(): Promise<void> {
   const api = window.bootible;
   if (!api?.getHostSshKeys) return;
   try {
-    hostSshKeys = await api.getHostSshKeys();
+    rog.hostSshKeys = await api.getHostSshKeys();
   } catch {
-    hostSshKeys = [];
+    rog.hostSshKeys = [];
   }
-  if (!sshHydrated) {
-    for (const k of hostSshKeys) selectedKeyIds.add(k.id);
-    sshHydrated = true;
+  if (!rog.sshHydrated) {
+    for (const k of rog.hostSshKeys) rog.selectedKeyIds.add(k.id);
+    rog.sshHydrated = true;
   }
   mountRogSsh();
   updateEditionState();
   // Learn this PC's subnet so the network editor can infer prefix/gateway/dns
   // (the user types only the host), then mount the shared NetworkSettings editor.
-  if (!netSuggestion && api.suggestNetwork) {
+  if (!rog.netSuggestion && api.suggestNetwork) {
     try {
-      netSuggestion = await api.suggestNetwork();
+      rog.netSuggestion = await api.suggestNetwork();
     } catch {}
   }
   mountRogNetwork();
@@ -1149,8 +1138,8 @@ document.addEventListener("click", (event) => {
   } else if (card.dataset.pick === "device") {
     void selectDeviceAndGo(id);
   } else if (card.dataset.pick === "base") {
-    selectedBaseId = id;
-    customiseHydrated = false; // re-resolve the plan for the newly chosen base
+    rog.selectedBaseId = id;
+    rog.customiseHydrated = false; // re-resolve the plan for the newly chosen base
     // Full ROG reuses the account screen for SSH/access but hides the
     // clean-install-only fields (account mode, edition, password).
     document.body.classList.toggle("is-strip", id === "full-rog");
@@ -1160,9 +1149,9 @@ document.addEventListener("click", (event) => {
 
 void hydratePlatforms();
 
-// ── module catalog ────────────────────────────────────────────────────────
+// ── module rog.catalog ────────────────────────────────────────────────────────
 // The setup groups, the review plan and every module count are driven by the
-// real catalog the core exposes — no hardcoded "14".
+// real rog.catalog the core exposes — no hardcoded "14".
 
 const GROUP_TAGS: Record<string, string> = {
   system: "configure",
@@ -1171,8 +1160,6 @@ const GROUP_TAGS: Record<string, string> = {
   library: "link",
 };
 
-let catalog: GroupSummary[] = [];
-let selectedBaseId = "";
 let baseOptions: BaseOption[] = []; // cached base list — for the customise-screen label
 
 /** OSes provisioned via the SteamOS/Linux host-carrier flow (mirrors core's
@@ -1181,13 +1168,7 @@ const CARRIER_OSES = new Set(["steamos"]);
 function usesDeckCarrierOs(os: string): boolean {
   return CARRIER_OSES.has(os);
 }
-let loadedProfileName = ""; // the profile currently loaded (drives Update vs Save-as-new)
-let hostSshKeys: HostSshKey[] = [];
-const selectedKeyIds = new Set<string>();
-let netSuggestion: { prefix: number; gateway: string; subnet: string } | null = null;
-let intendedStaticIp = "";
 // ROG static-IP config, held in JS (the shared NetworkSettings component owns the UI).
-let rogStaticIp: StaticIp | undefined;
 
 /** (Re)mount the shared NetworkSettings editor into the ROG config screen. ROG can
  *  infer prefix/gateway/dns from this PC's subnet ("minimize typing"), so it passes
@@ -1195,57 +1176,49 @@ let rogStaticIp: StaticIp | undefined;
 function mountRogNetwork(): void {
   const mount = document.querySelector<HTMLElement>("#static-ip-mount");
   if (!mount) return;
-  const infer = netSuggestion
-    ? { prefix: netSuggestion.prefix, gateway: netSuggestion.gateway, dns: netSuggestion.gateway }
+  const infer = rog.netSuggestion
+    ? {
+        prefix: rog.netSuggestion.prefix,
+        gateway: rog.netSuggestion.gateway,
+        dns: rog.netSuggestion.gateway,
+      }
     : undefined;
   mount.replaceChildren(
     NetworkSettings({
-      value: rogStaticIp,
+      value: rog.staticIp,
       interfaces: ["wifi", "ethernet"],
       infer,
       onChange: (next) => {
-        rogStaticIp = next;
-        intendedStaticIp = next?.ip ?? "";
+        rog.staticIp = next;
+        rog.intendedStaticIp = next?.ip ?? "";
       },
     }),
   );
 }
-let wallpaperPath = "";
-let lockscreenPath = "";
 // Review/customise + app-picker state.
 let basePlan: BasePlan | null = null;
-let customiseHydrated = false;
 // Set by applyProfile so the next hydrateCustomise keeps the restored extras/
 // disabled modules instead of resetting them for a fresh base.
-let keepRestoredCustomise = false;
-const disabledModules = new Set<string>(); // unticked floor/base modules
-const enabledExtras = new Set<string>(); // ticked optional extras (incl. "apps")
-let appGroups: AppGroup[] = [];
-const selectedApps = new Set<string>();
-const openGroups = new Set<string>(); // which app-picker groups are expanded
 // Full ROG opt-in removals (off until ticked).
 let removalsCatalog: RemovalEntry[] = [];
-const selectedRemovals = new Set<string>();
-let appsHydrated = false;
-let pickerMode: "apps" | "emulators" = "apps";
 const EMU_GROUP = "emulators";
 
 /** Slugs of every emulator entry (so Apps vs Emulators counts can be split). */
 function emulatorSlugs(): Set<string> {
-  return new Set(appGroups.find((g) => g.id === EMU_GROUP)?.apps.map((a) => a.id) ?? []);
+  return new Set(rog.appGroups.find((g) => g.id === EMU_GROUP)?.apps.map((a) => a.id) ?? []);
 }
 
-/** Whether an emulator entry counts as "on" — winget picks live in selectedApps,
- *  EmuDeck (a module) lives in enabledExtras. */
+/** Whether an emulator entry counts as "on" — winget picks live in rog.selectedApps,
+ *  EmuDeck (a module) lives in rog.enabledExtras. */
 function emuEntryOn(a: AppEntry): boolean {
-  return a.module ? enabledExtras.has(a.module) : selectedApps.has(a.id);
+  return a.module ? rog.enabledExtras.has(a.module) : rog.selectedApps.has(a.id);
 }
 
 /** Count of picked apps (non-emulators) and emulators, for the Review rows. */
 function pickCounts(): { apps: number; emulators: number } {
   const emu = emulatorSlugs();
-  const apps = [...selectedApps].filter((s) => !emu.has(s)).length;
-  const emuGroup = appGroups.find((g) => g.id === EMU_GROUP);
+  const apps = [...rog.selectedApps].filter((s) => !emu.has(s)).length;
+  const emuGroup = rog.appGroups.find((g) => g.id === EMU_GROUP);
   const emulators = emuGroup ? emuGroup.apps.filter(emuEntryOn).length : 0;
   return { apps, emulators };
 }
@@ -1268,7 +1241,7 @@ function renderGroups(): void {
   if (!container) return;
 
   container.replaceChildren(
-    ...catalog.map((group) => {
+    ...rog.catalog.map((group) => {
       const block = el("div", "group-block");
 
       const head = el("button", "group group-head is-on") as HTMLButtonElement;
@@ -1358,7 +1331,7 @@ function renderReviewPlan(): void {
 
   const selected = new Set(selectedModuleIds());
   const foot = plan.querySelector(".readout-foot");
-  const rows = catalog.map((group) => {
+  const rows = rog.catalog.map((group) => {
     const picked = group.modules.filter((m) => selected.has(m.id)).length;
     const row = el("div", "plan-row");
     row.append(
@@ -1387,7 +1360,7 @@ function updateSetupSummary(): void {
     ),
   );
   groupsOn.delete("");
-  fill("groups-summary", `${groupsOn.size} of ${catalog.length} on`);
+  fill("groups-summary", `${groupsOn.size} of ${rog.catalog.length} on`);
   fill("steps-summary", `${selected.length} to run`);
   updateGroupHeads();
 }
@@ -1397,13 +1370,13 @@ async function hydrateCatalog(): Promise<void> {
   if (!api?.getCatalog) return;
 
   try {
-    catalog = await api.getCatalog();
+    rog.catalog = await api.getCatalog();
   } catch {
     return;
   }
-  if (catalog.length === 0) return;
+  if (rog.catalog.length === 0) return;
 
-  const total = catalog.reduce((sum, group) => sum + group.moduleCount, 0);
+  const total = rog.catalog.reduce((sum, group) => sum + group.moduleCount, 0);
   fill("modules-ready", `${total} modules ready`);
   renderGroups();
   renderReviewPlan();
@@ -1430,7 +1403,7 @@ async function hydrateBundles(): Promise<void> {
 /** Look up each module's summary by id, across all groups. */
 function moduleIndex(): Map<string, ModuleSummary> {
   const index = new Map<string, ModuleSummary>();
-  for (const group of catalog) for (const module of group.modules) index.set(module.id, module);
+  for (const group of rog.catalog) for (const module of group.modules) index.set(module.id, module);
   return index;
 }
 
@@ -1622,7 +1595,7 @@ function provisionEl(): HTMLElement | null {
 }
 
 function provisionTotal(): number {
-  return catalog.reduce((sum, group) => sum + group.moduleCount, 0) || provisionLines.size || 1;
+  return rog.catalog.reduce((sum, group) => sum + group.moduleCount, 0) || provisionLines.size || 1;
 }
 
 function resetProvision(): void {
@@ -1758,47 +1731,49 @@ function gatherUsbRequest(): UsbBuildRequest {
   const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
   // SSH keys = every source the SshAccessEditor collected (keys enable SSH): the
   // selected host keys, pasted keys, and the fetched GitHub keys.
-  const picked = hostSshKeys.filter((k) => selectedKeyIds.has(k.id)).map((k) => k.publicKey);
-  const sshPublicKeys = [...new Set([...picked, ...rogPastedKeys, ...githubKeys])];
+  const picked = rog.hostSshKeys
+    .filter((k) => rog.selectedKeyIds.has(k.id))
+    .map((k) => k.publicKey);
+  const sshPublicKeys = [...new Set([...picked, ...rog.pastedKeys, ...rog.githubKeys])];
   const hostname = val("#device-hostname") || undefined;
-  // Static IP comes from the shared NetworkSettings component (held in rogStaticIp),
+  // Static IP comes from the shared NetworkSettings component (held in rog.staticIp),
   // which already folded in the inferred prefix/gateway/dns. Drop it if no address.
-  const staticIp: StaticIp | undefined = rogStaticIp?.ip ? rogStaticIp : undefined;
-  intendedStaticIp = staticIp?.ip ?? "";
+  const staticIp: StaticIp | undefined = rog.staticIp?.ip ? rog.staticIp : undefined;
+  rog.intendedStaticIp = staticIp?.ip ?? "";
   // When a base is chosen it defines the full module set; modifiers (the tinker
   // screen) are an explicit add-on path, not the default all-on toggles.
   // With a base chosen, the customise screen drives the extras (incl. "apps");
-  // the floor/base come from baseId minus disabledModules (resolved in main).
-  const modules = selectedBaseId ? [...enabledExtras] : selectedModuleIds();
+  // the floor/base come from baseId minus rog.disabledModules (resolved in main).
+  const modules = rog.selectedBaseId ? [...rog.enabledExtras] : selectedModuleIds();
   const checked = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.checked ?? false;
   const edition = checked("#edition-pro") ? "pro" : "home";
   const remoteAccess = {
-    sunshine: rogSunshineEnabled,
-    moonlight: rogMoonlight,
-    rdp: rogRdp,
+    sunshine: rog.sunshineEnabled,
+    moonlight: rog.moonlight,
+    rdp: rog.rdp,
   };
   const remoteAccessHost = {
-    sunshine: rogSunshineHost,
-    moonlight: rogMoonlightHost,
+    sunshine: rog.sunshineHost,
+    moonlight: rog.moonlightHost,
   };
   return {
     modules,
-    baseId: selectedBaseId || undefined,
+    baseId: rog.selectedBaseId || undefined,
     sshPublicKeys: sshPublicKeys.length ? sshPublicKeys : undefined,
     hostname,
     staticIp,
     edition,
     remoteAccess,
     remoteAccessHost,
-    sunshineUser: rogSunshineUser || undefined,
+    sunshineUser: rog.sunshineUser || undefined,
     // Deferred → kept off the USB (the device's sunshine-creds step skips, so the
     // user sets it via the Sunshine web UI on first run).
-    sunshinePass: rogSunshinePromptPass ? undefined : rogSunshinePass || undefined,
-    wallpaperPath: wallpaperPath || undefined,
-    lockscreenPath: lockscreenPath || undefined,
-    disabledModules: disabledModules.size ? [...disabledModules] : undefined,
-    selectedApps: selectedApps.size ? [...selectedApps] : undefined,
-    selectedRemovals: selectedRemovals.size ? [...selectedRemovals] : undefined,
+    sunshinePass: rog.sunshinePromptPass ? undefined : rog.sunshinePass || undefined,
+    wallpaperPath: rog.wallpaperPath || undefined,
+    lockscreenPath: rog.lockscreenPath || undefined,
+    disabledModules: rog.disabledModules.size ? [...rog.disabledModules] : undefined,
+    selectedApps: rog.selectedApps.size ? [...rog.selectedApps] : undefined,
+    selectedRemovals: rog.selectedRemovals.size ? [...rog.selectedRemovals] : undefined,
     account,
     wifi,
   };
@@ -1822,30 +1797,30 @@ function captureProfile(name: string): Profile {
   return {
     name,
     deviceModel: session.deviceId || undefined,
-    baseId: selectedBaseId || undefined,
+    baseId: rog.selectedBaseId || undefined,
     ui: {
-      selectedApps: [...selectedApps],
-      selectedRemovals: [...selectedRemovals],
-      enabledExtras: [...enabledExtras],
-      disabledModules: [...disabledModules],
-      selectedKeyIds: [...selectedKeyIds],
-      githubUser: rogGithubUser,
-      sshPaste: rogPastedKeys.join("\n"),
+      selectedApps: [...rog.selectedApps],
+      selectedRemovals: [...rog.selectedRemovals],
+      enabledExtras: [...rog.enabledExtras],
+      disabledModules: [...rog.disabledModules],
+      selectedKeyIds: [...rog.selectedKeyIds],
+      githubUser: rog.githubUser,
+      sshPaste: rog.pastedKeys.join("\n"),
       hostname: fv("#device-hostname"),
-      staticIp: rogStaticIp, // the whole {iface,ip,prefix,gateway,dns}, not just the address
+      staticIp: rog.staticIp, // the whole {iface,ip,prefix,gateway,dns}, not just the address
       edition: fck("#edition-pro") ? "pro" : "home",
       accountMode: document.body.dataset.account ?? "local",
       acctUser: fv("#acct-user"),
-      sunshineUser: rogSunshineUser,
-      sunshinePromptPass: rogSunshinePromptPass,
+      sunshineUser: rog.sunshineUser,
+      sunshinePromptPass: rog.sunshinePromptPass,
       wifiSsid: fv("#wifi-ssid"),
-      ra: { sunshine: rogSunshineEnabled, moonlight: rogMoonlight, rdp: rogRdp },
-      raHost: { sunshine: rogSunshineHost, moonlight: rogMoonlightHost },
-      wallpaperPath,
-      lockscreenPath,
+      ra: { sunshine: rog.sunshineEnabled, moonlight: rog.moonlight, rdp: rog.rdp },
+      raHost: { sunshine: rog.sunshineHost, moonlight: rog.moonlightHost },
+      wallpaperPath: rog.wallpaperPath,
+      lockscreenPath: rog.lockscreenPath,
     },
     secrets: {
-      sunshinePass: rogSunshinePromptPass ? "" : rogSunshinePass,
+      sunshinePass: rog.sunshinePromptPass ? "" : rog.sunshinePass,
       acctPass: fv("#acct-pass"),
       wifiPass: fv("#wifi-pass"),
     },
@@ -1854,21 +1829,21 @@ function captureProfile(name: string): Profile {
 
 /** Restore a loaded Profile into the UI (Sets, inputs, checkboxes, derived UI). */
 function applyProfile(p: Profile): void {
-  loadedProfileName = p.name ?? "";
+  rog.loadedProfileName = p.name ?? "";
   const ui = (p.ui ?? {}) as Record<string, unknown>;
   const list = (k: string) => (Array.isArray(ui[k]) ? (ui[k] as string[]) : []);
-  selectedBaseId = p.baseId ?? "";
+  rog.selectedBaseId = p.baseId ?? "";
   const restore = (set: Set<string>, k: string) => {
     set.clear();
     for (const v of list(k)) set.add(v);
   };
-  restore(selectedApps, "selectedApps");
-  restore(selectedRemovals, "selectedRemovals");
-  restore(enabledExtras, "enabledExtras");
-  restore(disabledModules, "disabledModules");
-  restore(selectedKeyIds, "selectedKeyIds");
-  rogGithubUser = typeof ui.githubUser === "string" ? ui.githubUser : "";
-  rogPastedKeys =
+  restore(rog.selectedApps, "rog.selectedApps");
+  restore(rog.selectedRemovals, "rog.selectedRemovals");
+  restore(rog.enabledExtras, "rog.enabledExtras");
+  restore(rog.disabledModules, "rog.disabledModules");
+  restore(rog.selectedKeyIds, "rog.selectedKeyIds");
+  rog.githubUser = typeof ui.githubUser === "string" ? ui.githubUser : "";
+  rog.pastedKeys =
     typeof ui.sshPaste === "string"
       ? ui.sshPaste
           .split("\n")
@@ -1880,60 +1855,59 @@ function applyProfile(p: Profile): void {
   // profiles where staticIp was just the address string + a separate staticIpIface.
   const savedIp = ui.staticIp;
   if (savedIp && typeof savedIp === "object") {
-    rogStaticIp = savedIp as StaticIp;
+    rog.staticIp = savedIp as StaticIp;
   } else if (typeof savedIp === "string" && savedIp.trim()) {
-    rogStaticIp = {
+    rog.staticIp = {
       iface: (ui.staticIpIface as "wifi" | "ethernet") || "wifi",
       ip: savedIp.trim(),
-      prefix: netSuggestion?.prefix ?? 24,
-      gateway: netSuggestion?.gateway,
-      dns: netSuggestion?.gateway,
+      prefix: rog.netSuggestion?.prefix ?? 24,
+      gateway: rog.netSuggestion?.gateway,
+      dns: rog.netSuggestion?.gateway,
     };
   } else {
-    rogStaticIp = undefined;
+    rog.staticIp = undefined;
   }
-  intendedStaticIp = rogStaticIp?.ip ?? "";
+  rog.intendedStaticIp = rog.staticIp?.ip ?? "";
   mountRogNetwork();
   setCk("#edition-pro", ui.edition === "pro");
   setCk("#edition-home", ui.edition !== "pro");
   setV("#acct-user", ui.acctUser);
   setV("#wifi-ssid", ui.wifiSsid);
-  rogSunshineUser = typeof ui.sunshineUser === "string" ? ui.sunshineUser : "";
+  rog.sunshineUser = typeof ui.sunshineUser === "string" ? ui.sunshineUser : "";
   const ra = (ui.ra ?? {}) as Record<string, unknown>;
-  rogSunshineEnabled = Boolean(ra.sunshine);
-  rogMoonlight = Boolean(ra.moonlight);
-  rogRdp = Boolean(ra.rdp);
+  rog.sunshineEnabled = Boolean(ra.sunshine);
+  rog.moonlight = Boolean(ra.moonlight);
+  rog.rdp = Boolean(ra.rdp);
   const raHost = (ui.raHost ?? {}) as Record<string, unknown>;
-  rogSunshineHost = Boolean(raHost.sunshine);
-  rogMoonlightHost = Boolean(raHost.moonlight);
-  rogSunshinePromptPass = Boolean(ui.sunshinePromptPass);
-  rogSunshinePass = rogSunshinePromptPass ? "" : (p.secrets?.sunshinePass ?? "");
+  rog.sunshineHost = Boolean(raHost.sunshine);
+  rog.moonlightHost = Boolean(raHost.moonlight);
+  rog.sunshinePromptPass = Boolean(ui.sunshinePromptPass);
+  rog.sunshinePass = rog.sunshinePromptPass ? "" : (p.secrets?.sunshinePass ?? "");
   // Edition was restored just above; clamp RDP to Pro and (re)mount both the
   // streaming + remote-access components from the restored JS state.
   updateEditionState();
   mountRogStreaming();
   setV("#acct-pass", p.secrets?.acctPass);
   setV("#wifi-pass", p.secrets?.wifiPass);
-  wallpaperPath = (ui.wallpaperPath as string) ?? "";
-  lockscreenPath = (ui.lockscreenPath as string) ?? "";
+  rog.wallpaperPath = (ui.wallpaperPath as string) ?? "";
+  rog.lockscreenPath = (ui.lockscreenPath as string) ?? "";
   // Show the remembered image filenames on the picker buttons (the paths are saved
   // but the labels were blank, so it looked like the images weren't remembered).
   const imgName = (p: string) => (p ? (p.split(/[\\/]/).pop() ?? p) : "");
   const wn = document.querySelector("#wallpaper-name");
-  if (wn) wn.textContent = imgName(wallpaperPath);
+  if (wn) wn.textContent = imgName(rog.wallpaperPath);
   const ln = document.querySelector("#lockscreen-name");
-  if (ln) ln.textContent = imgName(lockscreenPath);
-  document.body.classList.toggle("is-strip", selectedBaseId === "full-rog");
+  if (ln) ln.textContent = imgName(rog.lockscreenPath);
+  document.body.classList.toggle("is-strip", rog.selectedBaseId === "full-rog");
   // Re-fetch the restored GitHub user's keys so they're baked + counted, then
   // (re)mount the SSH editor with the restored selection.
-  if (rogGithubUser) void fetchRogGithub(rogGithubUser);
+  if (rog.githubUser) void fetchRogGithub(rog.githubUser);
   else mountRogSsh();
-  customiseHydrated = false; // re-resolve the plan for the restored base
-  keepRestoredCustomise = true; // ...but keep the restored extras/disabled modules
+  rog.customiseHydrated = false; // re-resolve the plan for the restored base
+  rog.keepRestoredCustomise = true; // ...but keep the restored extras/disabled modules
 }
 
 // The currently-loaded ROG profile + a status line, shown in the shared ProfileBar.
-let rogProfileStatus = "";
 
 /** Render the shared ProfileBar on the ROG configure (customise) screen — same
  *  component + behaviour as the Deck. */
@@ -1951,11 +1925,11 @@ async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
   const save = async (name: string): Promise<void> => {
     const r = await window.bootible?.saveProfile?.(captureProfile(name));
     if (r?.ok) {
-      loadedProfileName = r.name;
-      rogProfileStatus = `✓ Saved "${r.name}" to this PC`;
+      rog.loadedProfileName = r.name;
+      rog.profileStatus = `✓ Saved "${r.name}" to this PC`;
       void window.bootible?.cloud?.syncNow(); // push if signed in + unlocked
     } else {
-      rogProfileStatus = "Save failed.";
+      rog.profileStatus = "Save failed.";
     }
     void mountRogProfileBar("save");
   };
@@ -1965,14 +1939,14 @@ async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
       profiles: grouped,
       modelLabel: `This ${session.deviceName || "device"}`,
       familyLabel: "Other compatible devices",
-      loadedName: loadedProfileName || null,
-      status: rogProfileStatus,
+      loadedName: rog.loadedProfileName || null,
+      status: rog.profileStatus,
       onLoad: async (name) => {
         const p = await window.bootible?.loadProfile?.(name);
         if (p) {
           applyProfile(p); // restores account UI (ssh/network/hostname) + marks customise stale
-          loadedProfileName = name;
-          rogProfileStatus = `Loaded "${name}"`;
+          rog.loadedProfileName = name;
+          rog.profileStatus = `Loaded "${name}"`;
           void hydrateCustomise(); // re-render customise + the load bar with restored config
         }
       },
@@ -1980,8 +1954,8 @@ async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
       onUpdate: save,
       onDelete: async (name) => {
         await window.bootible?.deleteProfile?.(name);
-        if (loadedProfileName === name) loadedProfileName = "";
-        rogProfileStatus = `Deleted "${name}"`;
+        if (rog.loadedProfileName === name) rog.loadedProfileName = "";
+        rog.profileStatus = `Deleted "${name}"`;
         void mountRogProfileBar(mode);
       },
     }),
@@ -1997,12 +1971,6 @@ document.addEventListener("click", (event) => {
 });
 
 // ── in-app USB writer screen ────────────────────────────────────────────────
-const usbState: { isoId: string; isoPath: string; regionId: string; disk: number } = {
-  isoId: "",
-  isoPath: "",
-  regionId: "",
-  disk: -1,
-};
 
 /** Populate the language + region dropdowns and disk list when the writer opens.
  *  The language option's value is its ISO id, so picking a language sets the
@@ -2026,8 +1994,8 @@ async function hydrateUsbWrite(): Promise<void> {
       }),
     );
     if (langs[0]) {
-      usbState.isoId = langs[0].isoId;
-      usbState.isoPath = "";
+      rog.usbState.isoId = langs[0].isoId;
+      rog.usbState.isoPath = "";
     }
   }
 
@@ -2045,7 +2013,7 @@ async function hydrateUsbWrite(): Promise<void> {
         return opt;
       }),
     );
-    if (regions[0]) usbState.regionId = regions[0].id;
+    if (regions[0]) rog.usbState.regionId = regions[0].id;
   }
 
   await refreshDisks();
@@ -2062,9 +2030,9 @@ async function refreshDisks(): Promise<void> {
     usbDiskPicker = DiskPicker({
       fetch: async () => (await window.bootible?.getUsbDisks?.()) ?? [],
       mode: "number",
-      selected: String(usbState.disk),
+      selected: String(rog.usbState.disk),
       onSelect: (k) => {
-        usbState.disk = Number(k);
+        rog.usbState.disk = Number(k);
         updateWriteButton();
       },
     });
@@ -2076,8 +2044,8 @@ async function refreshDisks(): Promise<void> {
 function updateWriteButton(): void {
   const btn = document.querySelector<HTMLButtonElement>("#usb-write-btn");
   const confirmed = document.querySelector<HTMLInputElement>("#erase-confirm")?.checked ?? false;
-  const hasIso = Boolean(usbState.isoId || usbState.isoPath);
-  if (btn) btn.disabled = !(confirmed && hasIso && usbState.disk >= 0);
+  const hasIso = Boolean(rog.usbState.isoId || rog.usbState.isoPath);
+  if (btn) btn.disabled = !(confirmed && hasIso && rog.usbState.disk >= 0);
 }
 
 async function startUsbWrite(): Promise<void> {
@@ -2094,10 +2062,10 @@ async function startUsbWrite(): Promise<void> {
   const req = gatherUsbRequest();
   const result = await api.writeUsb({
     ...req,
-    diskNumber: usbState.disk,
-    isoPath: usbState.isoPath || undefined,
-    isoId: usbState.isoId || undefined,
-    regionId: usbState.regionId || undefined,
+    diskNumber: rog.usbState.disk,
+    isoPath: rog.usbState.isoPath || undefined,
+    isoId: rog.usbState.isoId || undefined,
+    regionId: rog.usbState.regionId || undefined,
   });
   if (result && !result.started) {
     onUsbProgress({
@@ -2167,15 +2135,15 @@ function renderDiscovered(): void {
       card.append(head, el("div", "watch-meta muted", detail));
 
       // Static-IP reconciliation: the beacon's actual IP vs what we asked for.
-      if (d.mine && intendedStaticIp) {
-        const ok = d.ip === intendedStaticIp;
+      if (d.mine && rog.intendedStaticIp) {
+        const ok = d.ip === rog.intendedStaticIp;
         card.append(
           el(
             "div",
             `watch-reconcile ${ok ? "ok" : "warn"}`,
             ok
-              ? `✓ static IP ${intendedStaticIp} applied`
-              : `⚠ wanted ${intendedStaticIp} but it's on ${d.ip} (static IP didn't take — still reachable here)`,
+              ? `✓ static IP ${rog.intendedStaticIp} applied`
+              : `⚠ wanted ${rog.intendedStaticIp} but it's on ${d.ip} (static IP didn't take — still reachable here)`,
           ),
         );
       }
@@ -2239,8 +2207,8 @@ document.addEventListener("click", (event) => {
     const path = await window.bootible?.browseImage?.();
     if (!path) return;
     const name = path.split(/[\\/]/).pop() ?? path;
-    if (isWall) wallpaperPath = path;
-    else lockscreenPath = path;
+    if (isWall) rog.wallpaperPath = path;
+    else rog.lockscreenPath = path;
     const label = document.querySelector(isWall ? "#wallpaper-name" : "#lockscreen-name");
     if (label) label.textContent = name;
   })();
@@ -2269,17 +2237,17 @@ document.addEventListener("click", (event) => {
 document.addEventListener("change", (event) => {
   const target = event.target as HTMLElement;
   if (target.id === "lang-select") {
-    usbState.isoId = (target as HTMLSelectElement).value;
-    usbState.isoPath = "";
+    rog.usbState.isoId = (target as HTMLSelectElement).value;
+    rog.usbState.isoPath = "";
     const path = document.querySelector("#iso-path");
     if (path) path.textContent = "";
   }
   if (target.id === "region-select") {
-    usbState.regionId = (target as HTMLSelectElement).value;
+    rog.usbState.regionId = (target as HTMLSelectElement).value;
   }
   if (target instanceof HTMLInputElement && target.dataset.keyId) {
-    if (target.checked) selectedKeyIds.add(target.dataset.keyId);
-    else selectedKeyIds.delete(target.dataset.keyId);
+    if (target.checked) rog.selectedKeyIds.add(target.dataset.keyId);
+    else rog.selectedKeyIds.delete(target.dataset.keyId);
   }
   if (target.id === "edition-home" || target.id === "edition-pro") updateEditionState();
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
@@ -2287,19 +2255,19 @@ document.addEventListener("change", (event) => {
   if (target instanceof HTMLInputElement && target.dataset.moduleId) {
     const id = target.dataset.moduleId;
     if (target.dataset.kind === "extra") {
-      if (target.checked) enabledExtras.add(id);
-      else enabledExtras.delete(id);
+      if (target.checked) rog.enabledExtras.add(id);
+      else rog.enabledExtras.delete(id);
     } else if (target.checked) {
-      disabledModules.delete(id);
+      rog.disabledModules.delete(id);
     } else {
-      disabledModules.add(id);
+      rog.disabledModules.add(id);
     }
     renderCustomise();
   }
   // Removals checklist (Full ROG): opt-in app removals — off until ticked.
   if (target instanceof HTMLInputElement && target.dataset.removal) {
-    if (target.checked) selectedRemovals.add(target.dataset.removal);
-    else selectedRemovals.delete(target.dataset.removal);
+    if (target.checked) rog.selectedRemovals.add(target.dataset.removal);
+    else rog.selectedRemovals.delete(target.dataset.removal);
     renderCustomise();
   }
   // The app picker (ROG apps/emulators) is the shared GroupedPicker — it owns its
@@ -2311,14 +2279,14 @@ document.addEventListener("change", (event) => {
 document.addEventListener("click", (event) => {
   const btn = (event.target as HTMLElement).closest<HTMLElement>("[data-picker]");
   if (!btn) return;
-  pickerMode = btn.dataset.picker === "emulators" ? "emulators" : "apps";
+  rog.pickerMode = btn.dataset.picker === "emulators" ? "emulators" : "apps";
   location.hash = "apps";
 });
 
 // "Select recommended" on the removals checklist: tick the recommended set.
 document.addEventListener("click", (event) => {
   if (!(event.target as HTMLElement).closest("[data-removals-rec]")) return;
-  for (const r of removalsCatalog) if (r.recommended) selectedRemovals.add(r.id);
+  for (const r of removalsCatalog) if (r.recommended) rog.selectedRemovals.add(r.id);
   renderCustomise();
 });
 
@@ -2331,7 +2299,7 @@ document.addEventListener("click", (event) => {
       if (!picked) return;
       // Use the local ISO for the image, but keep the chosen language's isoId so
       // the answer file's UI language still matches (uiLanguage is derived from it).
-      usbState.isoPath = picked;
+      rog.usbState.isoPath = picked;
       const path = document.querySelector("#iso-path");
       if (path) path.textContent = picked;
       updateWriteButton();
@@ -2350,8 +2318,8 @@ document.addEventListener("click", (event) => {
         `${session.deviceName} via bootible`,
       );
       if (!created) return;
-      if (!hostSshKeys.some((k) => k.id === created.id)) hostSshKeys.push(created);
-      selectedKeyIds.add(created.id);
+      if (!rog.hostSshKeys.some((k) => k.id === created.id)) rog.hostSshKeys.push(created);
+      rog.selectedKeyIds.add(created.id);
       mountRogSsh();
     })();
     return;
@@ -2437,7 +2405,7 @@ registerRoute("account", () => {
   void mountRogProfileBar("save"); // save on the last config page (full config)
   // Full ROG restores the factory image — it doesn't create an account, so re-word
   // the screen away from "pick how it signs in".
-  const strip = selectedBaseId === "full-rog";
+  const strip = rog.selectedBaseId === "full-rog";
   const root = document.querySelector('[data-view="account"]');
   const e = root?.querySelector(".eyebrow");
   const t = root?.querySelector(".setup-title");
