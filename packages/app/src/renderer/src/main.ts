@@ -63,7 +63,7 @@ import {
   hydrateDeckSetup,
   hydrateDeckWrite,
 } from "./features/deck";
-import { needsDevicePick } from "./lib/nav";
+import { registerRoute, syncFromHash } from "./lib/router";
 import { session } from "./lib/session";
 import wordlistRaw from "./wordlist.txt?raw";
 
@@ -254,60 +254,6 @@ declare global {
   }
 }
 
-const VIEWS = [
-  "welcome",
-  "synckey",
-  "verifymail",
-  "twofa",
-  "twofasetup",
-  "platform",
-  "devices",
-  "home",
-  "base",
-  "customise",
-  "apps",
-  "stripkit",
-  "bundles",
-  "method",
-  "setup",
-  "account",
-  "wifi",
-  "review",
-  "usbwrite",
-  "deck",
-  "decksetup",
-  "deckapps",
-  "deckemu",
-  "deckplugins",
-  "deckpm",
-  "deckmethod",
-  "deckwrite",
-  "deckreimage",
-  "watch",
-  "connect",
-  "provision",
-  "done",
-  "empty",
-  "failed",
-] as const;
-type View = (typeof VIEWS)[number];
-
-function isView(value: string): value is View {
-  return (VIEWS as readonly string[]).includes(value);
-}
-
-/** Show a view by name, falling back to home for anything unknown. */
-function show(view: string): void {
-  const next: View = isView(view) ? view : "home";
-  document.body.dataset.view = next;
-  // Always land at the top of the new screen (Continue used to drop you mid-page).
-  requestAnimationFrame(() => {
-    document.querySelector(".views")?.scrollTo({ top: 0 });
-    document.querySelector<HTMLElement>(`.view[data-view="${next}"]`)?.scrollTo({ top: 0 });
-    window.scrollTo({ top: 0 });
-  });
-}
-
 const APPLY_LABELS: Record<string, string> = {
   usb: "Build USB",
   export: "Export config",
@@ -321,60 +267,6 @@ function setApplyLabel(): void {
 }
 
 /** Drive the active view from the URL hash so screens are deep-linkable. */
-function syncFromHash(): void {
-  const view = location.hash.replace(/^#/, "") || "welcome";
-  // Device-dependent screens reached by deep link / reload have lost session.deviceId
-  // (and the desktop builder can't auto-detect a handheld) — send the user to pick a
-  // device first so customise is never device-less. See needsDevicePick.
-  if (needsDevicePick(view, session.deviceId)) {
-    location.hash = "platform";
-    return;
-  }
-  show(view);
-  if (view === "platform") void hydratePlatforms();
-  if (view === "base") void hydrateBases();
-  if (view === "customise") void hydrateCustomise();
-  if (view === "apps") void hydrateApps();
-  if (view === "stripkit") void hydrateStripkit();
-  if (view === "account") {
-    void hydrateSshKeys();
-    mountRogStreaming();
-    mountRogRemoteAccess();
-    void mountRogProfileBar("save"); // save on the last config page (full config)
-    // Full ROG restores the factory image — it doesn't create an account, so
-    // re-word the screen away from "pick how it signs in".
-    const strip = selectedBaseId === "full-rog";
-    const root = document.querySelector('[data-view="account"]');
-    const e = root?.querySelector(".eyebrow");
-    const t = root?.querySelector(".setup-title");
-    const s = root?.querySelector(".setup-sub");
-    if (e) e.textContent = strip ? "Access" : "Account & access";
-    if (t) t.textContent = strip ? "Access & SSH" : "Account & access";
-    if (s) {
-      s.textContent = strip
-        ? "Name the device and choose how you'll reach it."
-        : "Pick how it signs in, then name it and choose how you'll reach it.";
-    }
-  }
-  if (view === "review") {
-    setApplyLabel();
-    renderReviewPlan();
-  }
-  if (view === "usbwrite") void hydrateUsbWrite();
-  if (view === "deck") void hydrateDeck();
-  if (view === "decksetup") void hydrateDeckSetup();
-  if (view === "deckapps") void hydrateDeckApps();
-  if (view === "deckemu") void hydrateDeckEmulators();
-  if (view === "deckplugins") void hydrateDeckPlugins();
-  if (view === "deckpm") void hydrateDeckPm();
-  if (view === "deckwrite") void hydrateDeckWrite();
-  if (view === "deckreimage") void hydrateDeckReimage();
-  if (view === "watch") {
-    void window.bootible?.startDiscovery?.();
-    renderDiscovered();
-  }
-  if (view === "provision") startProvision();
-}
 
 // Navigation: any [data-go] control sets the hash, which drives the view. A
 // [data-method] control also records which provisioning method was chosen.
@@ -441,8 +333,6 @@ document.addEventListener("click", (event) => {
   // Account cards drive which install-time fields show (local vs Microsoft).
   if (snap.dataset.account) document.body.dataset.account = snap.dataset.account;
 });
-
-window.addEventListener("hashchange", syncFromHash);
 
 /** Write a value into every [data-field="<field>"] element. */
 function fill(field: string, value: string): void {
@@ -3021,6 +2911,53 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>(".provider-ico"))
     })();
   });
 }
+
+// Route registry — each view's on-enter handler (replaces the old syncFromHash
+// if/else). Views without a handler are just shown; their interactions are wired
+// by global listeners. Deck handlers come from features/deck; the rest are local.
+registerRoute("platform", () => void hydratePlatforms());
+registerRoute("base", () => void hydrateBases());
+registerRoute("customise", () => void hydrateCustomise());
+registerRoute("apps", () => void hydrateApps());
+registerRoute("stripkit", () => void hydrateStripkit());
+registerRoute("account", () => {
+  void hydrateSshKeys();
+  mountRogStreaming();
+  mountRogRemoteAccess();
+  void mountRogProfileBar("save"); // save on the last config page (full config)
+  // Full ROG restores the factory image — it doesn't create an account, so re-word
+  // the screen away from "pick how it signs in".
+  const strip = selectedBaseId === "full-rog";
+  const root = document.querySelector('[data-view="account"]');
+  const e = root?.querySelector(".eyebrow");
+  const t = root?.querySelector(".setup-title");
+  const s = root?.querySelector(".setup-sub");
+  if (e) e.textContent = strip ? "Access" : "Account & access";
+  if (t) t.textContent = strip ? "Access & SSH" : "Account & access";
+  if (s) {
+    s.textContent = strip
+      ? "Name the device and choose how you'll reach it."
+      : "Pick how it signs in, then name it and choose how you'll reach it.";
+  }
+});
+registerRoute("review", () => {
+  setApplyLabel();
+  renderReviewPlan();
+});
+registerRoute("usbwrite", () => void hydrateUsbWrite());
+registerRoute("deck", () => void hydrateDeck());
+registerRoute("decksetup", () => void hydrateDeckSetup());
+registerRoute("deckapps", () => void hydrateDeckApps());
+registerRoute("deckemu", () => void hydrateDeckEmulators());
+registerRoute("deckplugins", () => void hydrateDeckPlugins());
+registerRoute("deckpm", () => void hydrateDeckPm());
+registerRoute("deckwrite", () => void hydrateDeckWrite());
+registerRoute("deckreimage", () => void hydrateDeckReimage());
+registerRoute("watch", () => {
+  void window.bootible?.startDiscovery?.();
+  renderDiscovered();
+});
+registerRoute("provision", () => startProvision());
 
 // First render. Resolve the session BEFORE painting so a signed-in user doesn't
 // flash the welcome screen before being redirected in. Views stay hidden until then.
