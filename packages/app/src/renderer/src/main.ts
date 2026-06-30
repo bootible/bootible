@@ -1075,6 +1075,7 @@ document.addEventListener("change", (event) => {
 // ── SSH source: BYO key / GitHub / Both ─────────────────────────────────────
 let sshHydrated = false;
 let githubKeys: string[] = []; // keys fetched from the chosen GitHub user (baked at build)
+let githubFetchedFor = ""; // the username githubKeys was fetched for (so we don't show a stale count)
 let rogPastedKeys: string[] = [];
 let rogGithubUser = "";
 
@@ -1090,7 +1091,9 @@ function mountRogSsh(): void {
       pastedKeys: rogPastedKeys,
       githubUser: rogGithubUser || undefined,
     },
-    githubKeyCount: rogGithubUser ? githubKeys.length : null,
+    // Only show a count once we've actually fetched for THIS username (else a
+    // restored profile would show a stale "0 keys" before the fetch runs).
+    githubKeyCount: rogGithubUser && githubFetchedFor === rogGithubUser ? githubKeys.length : null,
     onChange: (next) => {
       selectedKeyIds.clear();
       for (const id of next.hostKeyIds) selectedKeyIds.add(id);
@@ -1109,11 +1112,14 @@ function mountRogSsh(): void {
     gen.id = "ssh-generate";
     editor.prepend(gen);
   }
+  // A username we haven't fetched yet (e.g. just restored from a profile) → fetch it.
+  if (rogGithubUser && githubFetchedFor !== rogGithubUser) void fetchRogGithub(rogGithubUser);
 }
 
 /** Fetch the GitHub user's public keys (baked into the build) + re-mount to show
  *  the live count. Runs on blur, so the re-mount doesn't steal focus mid-type. */
 async function fetchRogGithub(user: string): Promise<void> {
+  githubFetchedFor = user; // set before the await so the re-mount doesn't re-trigger
   githubKeys = user ? ((await window.bootible?.githubKeys?.(user)) ?? []) : [];
   mountRogSsh();
 }
@@ -2239,6 +2245,7 @@ function updateDeckSummary(): void {
 // The Deck's currently-loaded profile name (drives ProfileBar's Update button).
 let deckLoadedProfile: string | null = null;
 let deckGithubKeys: string[] = []; // last GitHub-key lookup, for the SSH editor's live count
+let deckGithubFetchedFor = ""; // the username deckGithubKeys was fetched for
 
 function captureDeckProfile(name: string): Profile {
   const ui = JSON.parse(JSON.stringify(deckState)) as Record<string, unknown>;
@@ -2605,11 +2612,14 @@ async function hydrateDeckSetup(): Promise<void> {
 function mountDeckSsh(): void {
   const mount = document.querySelector<HTMLElement>("#deck-ssh-mount");
   if (!mount) return;
+  const ghUser = deckState.ssh.githubUser ?? "";
   mount.replaceChildren(
     SshAccessEditor({
       hostKeys: [],
       showPort: true,
-      githubKeyCount: deckState.ssh.githubUser ? deckGithubKeys.length : null,
+      // Only show a count once fetched for THIS username (a restored profile would
+      // otherwise show a stale "0 keys" before the fetch runs).
+      githubKeyCount: ghUser && deckGithubFetchedFor === ghUser ? deckGithubKeys.length : null,
       value: {
         hostKeyIds: [],
         pastedKeys: deckState.ssh.authorizedKeys,
@@ -2627,10 +2637,13 @@ function mountDeckSsh(): void {
       },
     }),
   );
+  // A username we haven't fetched yet (e.g. just restored from a profile) → fetch it.
+  if (ghUser && deckGithubFetchedFor !== ghUser) void fetchDeckGithub(ghUser);
 }
 
 /** Fetch the GitHub user's public keys to show a live count + re-mount (on blur). */
 async function fetchDeckGithub(user: string): Promise<void> {
+  deckGithubFetchedFor = user; // set before the await so the re-mount doesn't re-trigger
   deckGithubKeys = user ? ((await window.bootible?.githubKeys?.(user)) ?? []) : [];
   mountDeckSsh();
 }
