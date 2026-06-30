@@ -77,7 +77,7 @@ describe("generateDeckProvision", () => {
     });
     expect(s).not.toContain("s3cret"); // never written to the USB
     expect(s).toContain("read -rs _sunpass");
-    expect(s).toContain('--creds \'me\' "$_sunpass"');
+    expect(s).toContain("--creds 'me' \"$_sunpass\"");
   });
 
   it("sets the hostname only when given", () => {
@@ -155,7 +155,7 @@ describe("generateDeckProvision", () => {
     expect(s).toContain("tailscale-dev/deck-tailscale");
     expect(s).not.toContain("tailscale.com/install.sh");
     // No more contradictory "ok installed" after a failure — it's gated on success.
-    expect(s).toContain('Tailscale install failed — install manually');
+    expect(s).toContain("Tailscale install failed — install manually");
   });
 
   it("StickDeck picks the non-Windows .zip asset and unzips it (was the linux-filter bug)", () => {
@@ -202,5 +202,30 @@ describe("generateDeckProvision", () => {
 
   it("omits password managers when none chosen", () => {
     expect(generateDeckProvision({})).not.toContain("Password managers");
+  });
+
+  it("broadcasts a completion beacon when a buildId is set", () => {
+    const s = generateDeckProvision({ buildId: "deadbeef" });
+    // Mirrors the ROG beacon: a bounded python3 UDP broadcast on BEACON_PORT.
+    expect(s).toContain("50474"); // BEACON_PORT
+    expect(s).toContain("python3");
+    expect(s).toContain("'status': 'done'"); // the python source builds the payload
+    expect(s).toContain("'bootible': 1");
+    // buildId is passed as an argv (not interpolated into the python source).
+    expect(s).toContain("'deadbeef'");
+    // Detached + bounded so it isn't a permanent agent.
+    expect(s).toContain("nohup");
+    expect(s).toContain("range(120)");
+  });
+
+  it("omits the beacon when no buildId is set", () => {
+    const s = generateDeckProvision({});
+    expect(s).not.toContain("50474");
+    expect(s).not.toContain("BOOTIBLE_BEACON");
+  });
+
+  it("single-quote-escapes a hostile buildId into the argv", () => {
+    const s = generateDeckProvision({ buildId: "a'b" });
+    expect(s).toContain("'a'\\''b'");
   });
 });

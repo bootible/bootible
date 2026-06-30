@@ -1,3 +1,4 @@
+import { BEACON_PORT } from "./beacon";
 import { flatpakRefs, passwordManagers } from "./deck-apps";
 import type { DeckConfig } from "./deck-config";
 import { normalizeDeckConfig } from "./deck-config";
@@ -359,6 +360,50 @@ function passwordManagerBlock(cfg: DeckConfig): string {
   return lines.join("\n");
 }
 
+/**
+ * The end-of-provision beacon — mirrors the ROG `beaconBody` in strip.ts, but in
+ * bash via python3 (always present on SteamOS). Once provision.sh finishes it
+ * broadcasts {bootible:1, buildId, ip, hostname, username, status:"done"} on
+ * BEACON_PORT every 5s for ~10 min, so the desktop's "Watch" screen discovers
+ * this exact Deck (matched by buildId) with no IP hunting. Runs detached (nohup
+ * &) so it keeps reporting after the script returns, and is bounded so it isn't a
+ * permanent agent. Only emitted when the writer baked a buildId in.
+ */
+function beaconBlock(cfg: DeckConfig): string {
+  if (!cfg.buildId) return "";
+  // buildId + port + user cross as argv (NOT interpolated into the python source),
+  // so a hostile value can't break out. The heredoc is single-quoted → the python
+  // body is literal; only the argv on the command line is shell-expanded.
+  return `say "Reporting back to bootible on your PC"
+nohup python3 - ${shq(cfg.buildId)} ${BEACON_PORT} "$USER" >/dev/null 2>&1 <<'BOOTIBLE_BEACON' &
+import sys, socket, time, json
+build_id = sys.argv[1]
+port = int(sys.argv[2])
+username = sys.argv[3] if len(sys.argv) > 3 else ''
+hostname = socket.gethostname()
+def local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return ''
+for _ in range(120):
+    payload = json.dumps({'bootible': 1, 'buildId': build_id, 'ip': local_ip(), 'hostname': hostname, 'username': username, 'status': 'done'})
+    try:
+        u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        u.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        u.sendto(payload.encode(), ('255.255.255.255', port))
+        u.close()
+    except Exception:
+        pass
+    time.sleep(5)
+BOOTIBLE_BEACON
+ok "this Deck will report 'done' to bootible for ~10 min — open Watch on your PC"`;
+}
+
 export function generateDeckProvision(input: Partial<DeckConfig>): string {
   const cfg = normalizeDeckConfig(input);
   const blocks: string[] = [HEADER];
@@ -382,6 +427,7 @@ sudo hostnamectl set-hostname ${JSON.stringify(cfg.hostname)}`);
     passwordManagerBlock(cfg),
     stickdeckBlock(cfg),
     waydroidBlock(cfg),
+    beaconBlock(cfg),
   ]) {
     if (block) blocks.push(block);
   }

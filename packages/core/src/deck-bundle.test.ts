@@ -32,4 +32,18 @@ describe("buildDeckBundle", () => {
     const readme = buildDeckBundle({}).find((f) => f.path === "bootible/README.txt");
     expect(readme?.content).toContain("/run/media/*/BOOTIBLE/bootible/provision.sh");
   });
+
+  it("threads a buildId into the beacon and config.json", () => {
+    const files = buildDeckBundle({ buildId: "feedface" });
+    const sh = files.find((f) => f.path === "bootible/provision.sh");
+    const json = files.find((f) => f.path === "bootible/config.json");
+    expect(sh?.content).toContain("'feedface'"); // beacon broadcasts this token
+    expect(sh?.content).toContain("50474");
+    expect(JSON.parse(json?.content ?? "{}").buildId).toBe("feedface");
+  });
+
+  it("omits the beacon when no buildId is set (hand-built carrier)", () => {
+    const sh = buildDeckBundle({}).find((f) => f.path === "bootible/provision.sh");
+    expect(sh?.content).not.toContain("50474");
+  });
 });

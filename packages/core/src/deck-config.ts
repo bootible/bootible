@@ -39,6 +39,10 @@ export interface DeckProtonConfig {
 export interface DeckConfig {
   /** Optional hostname to set; empty/undefined keeps the current one. */
   hostname?: string;
+  /** Build token baked into this USB so the device's end-of-provision beacon is
+   *  recognised as "mine" on the desktop's discover screen. Set by the writer;
+   *  absent → no beacon (e.g. a hand-built carrier). */
+  buildId?: string;
   /** Take a btrfs snapshot of / before any change (SteamOS-safe rollback). */
   createSnapshot: boolean;
   /** Chosen Flatpak app ids (see FLATPAK_APPS in deck-apps.ts). */
@@ -95,6 +99,7 @@ export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): D
   const d = DEFAULT_DECK_CONFIG;
   return {
     hostname: p.hostname?.trim() || undefined,
+    buildId: p.buildId?.trim() || undefined,
     createSnapshot: p.createSnapshot ?? d.createSnapshot,
     flatpakApps: [...new Set(p.flatpakApps ?? d.flatpakApps)],
     ssh: {

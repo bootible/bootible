@@ -3084,6 +3084,9 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (target.closest("#deck-write-btn")) void startDeckWrite();
+  // Hop to the Watch screen so the Deck can report "done" back to the host once
+  // provision.sh finishes (the beacon carries this build's id → flagged "mine").
+  if (target.closest("#deck-watch-btn")) location.hash = "watch";
   if (target.closest("#deck-usb-eject")) {
     void (async () => {
       const pct = document.querySelector("#deck-pct");

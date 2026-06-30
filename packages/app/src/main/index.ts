@@ -1025,7 +1025,13 @@ function writeDeckProvisionUsb(
   let files: BundleFile[];
   try {
     emit(5, "Building the bootible payload");
-    files = buildDeckBundle(req.config);
+    // A build token so the Deck's end-of-provision beacon is recognised as "mine"
+    // on the desktop's Watch screen (the device reports back when provision.sh ends).
+    lastBuildId = randomBytes(6).toString("hex");
+    lastBuildUsername = "deck"; // SteamOS' default account — for Verify-over-SSH
+    lastBuildHostname = sanitizeHostname(req.config.hostname);
+    lastBuildIdentity = "";
+    files = buildDeckBundle({ ...req.config, buildId: lastBuildId });
   } catch (error) {
     emit(0, `Couldn't build the payload: ${(error as Error).message}`, "error");
     return { started: false };
@@ -1109,7 +1115,12 @@ async function writeDeckReimageUsb(
 
   let staging: string;
   try {
-    staging = stageDeckBundle(req.config);
+    // Same build token as Path A — the reimaged Deck's beacon is matched as "mine".
+    lastBuildId = randomBytes(6).toString("hex");
+    lastBuildUsername = "deck";
+    lastBuildHostname = sanitizeHostname(req.config.hostname);
+    lastBuildIdentity = "";
+    staging = stageDeckBundle({ ...req.config, buildId: lastBuildId });
   } catch (error) {
     emit(0, `Couldn't build the payload: ${(error as Error).message}`, "error");
     return { started: false };
