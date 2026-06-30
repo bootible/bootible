@@ -43,7 +43,7 @@ import { ProfileBar } from "./components/ProfileBar";
 import { SshAccessEditor } from "./components/SshAccessEditor";
 import { countSelectedInView } from "./lib/app-selection";
 import { needsDevicePick } from "./lib/nav";
-import { profilesForDevice } from "./lib/profiles";
+import { groupProfilesForDevice } from "./lib/profiles";
 import wordlistRaw from "./wordlist.txt?raw";
 
 // EFF diceware wordlist (7776 words) for generating real word-passphrases.
@@ -1966,7 +1966,9 @@ async function mountRogProfileBar(): Promise<void> {
   };
   mount.replaceChildren(
     ProfileBar({
-      profiles: profilesForDevice(profiles, selectedDeviceId),
+      profiles: groupProfilesForDevice(profiles, selectedDeviceId),
+      modelLabel: `This ${deviceName || "device"}`,
+      familyLabel: "Other compatible devices",
       loadedName: loadedProfileName || null,
       status: rogProfileStatus,
       onLoad: async (name) => {
@@ -2273,7 +2275,9 @@ async function hydrateDeck(): Promise<void> {
       // Filter to this device's profiles (+ untagged). Family-aware filtering lives
       // in core (visibleProfiles); the renderer can't value-import core (the barrel
       // pulls Node-only modules), so it filters inline or via IPC.
-      profiles: profilesForDevice(savedProfiles, selectedDeviceId),
+      profiles: groupProfilesForDevice(savedProfiles, selectedDeviceId),
+      modelLabel: `This ${deviceName || "device"}`,
+      familyLabel: "Other compatible devices",
       loadedName: deckLoadedProfile,
       onLoad: async (name) => {
         const p = await window.bootible?.loadProfile?.(name);

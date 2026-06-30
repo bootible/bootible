@@ -2,8 +2,16 @@ import type { ProfileSummary } from "@bootible/core";
 import { el } from "../lib/dom";
 
 export interface ProfileBarOptions {
-  /** Profiles to offer — already filtered to this device (see visibleProfiles). */
-  profiles: readonly ProfileSummary[];
+  /** Profiles to offer, grouped: `model` (this exact device) shown first, then
+   *  `family` (same-family + untagged). See groupProfilesForDevice. */
+  profiles: {
+    model: readonly ProfileSummary[];
+    family: readonly ProfileSummary[];
+  };
+  /** Optgroup label for the model section, e.g. "This ROG Ally X". */
+  modelLabel?: string;
+  /** Optgroup label for the family section, e.g. "Other compatible devices". */
+  familyLabel?: string;
   /** The currently-loaded profile, if any (drives Update vs Save-new). */
   loadedName?: string | null;
   /** Optional status line (e.g. "Saved ✓", "Synced", an error). */
@@ -25,17 +33,26 @@ export function ProfileBar(o: ProfileBarOptions): HTMLElement {
 
   const sel = el("select", "uw-select") as HTMLSelectElement;
   sel.dataset.field = "select";
+  const total = o.profiles.model.length + o.profiles.family.length;
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = o.profiles.length ? "Saved profiles…" : "No saved profiles yet";
+  placeholder.textContent = total ? "Saved profiles…" : "No saved profiles yet";
   sel.append(placeholder);
-  for (const p of o.profiles) {
-    const opt = document.createElement("option");
-    opt.value = p.name;
-    opt.textContent = p.name;
-    if (p.name === o.loadedName) opt.selected = true;
-    sel.append(opt);
-  }
+  const addGroup = (label: string, profiles: readonly ProfileSummary[]): void => {
+    if (profiles.length === 0) return;
+    const group = document.createElement("optgroup");
+    group.label = label;
+    for (const p of profiles) {
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = p.name;
+      if (p.name === o.loadedName) opt.selected = true;
+      group.append(opt);
+    }
+    sel.append(group);
+  };
+  addGroup(o.modelLabel ?? "This device", o.profiles.model);
+  addGroup(o.familyLabel ?? "Other compatible devices", o.profiles.family);
 
   const btn = (action: string, label: string): HTMLButtonElement => {
     const b = el("button", "btn-ghost") as HTMLButtonElement;

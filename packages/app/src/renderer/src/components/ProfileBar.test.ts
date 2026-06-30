@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ProfileBar } from "./ProfileBar";
 
-const profiles = [{ name: "Alpha" }, { name: "Beta" }];
+const profiles = { model: [{ name: "Alpha" }, { name: "Beta" }], family: [] };
 /** Query that asserts presence (non-null without a `!` assertion). */
 const get = <T extends Element>(r: Element, s: string): T => {
   const el = r.querySelector<T>(s);
@@ -59,9 +59,23 @@ describe("ProfileBar", () => {
 
   it("shows a status message and an empty-state when there are no profiles", () => {
     const h = handlers();
-    const bar = ProfileBar({ profiles: [], status: "Saved ✓", ...h });
+    const bar = ProfileBar({ profiles: { model: [], family: [] }, status: "Saved ✓", ...h });
     expect(get(bar, "[data-field=status]").textContent).toContain("Saved");
     const sel = get<HTMLSelectElement>(bar, "[data-field=select]");
     expect(sel.querySelector("option")?.textContent?.toLowerCase()).toContain("no saved");
+  });
+
+  it("renders model and family profiles in separate labelled optgroups", () => {
+    const h = handlers();
+    const bar = ProfileBar({
+      profiles: { model: [{ name: "Mine" }], family: [{ name: "Shared" }] },
+      modelLabel: "This ROG Ally X",
+      familyLabel: "Other compatible devices",
+      ...h,
+    });
+    const groups = [...bar.querySelectorAll("optgroup")];
+    expect(groups.map((g) => g.label)).toEqual(["This ROG Ally X", "Other compatible devices"]);
+    expect(groups[0]?.querySelector("option")?.value).toBe("Mine");
+    expect(groups[1]?.querySelector("option")?.value).toBe("Shared");
   });
 });

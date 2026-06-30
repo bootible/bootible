@@ -1,18 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { profilesForDevice } from "./profiles";
+import { groupProfilesForDevice } from "./profiles";
 
 const list = [
   { name: "rog", deviceId: "rog-ally" },
+  { name: "ally-x", deviceId: "rog-ally-x" }, // same family (windows), different model
   { name: "deck", deviceId: "steamdeck" },
-  { name: "untagged", deviceId: undefined },
+  { name: "shared", deviceId: undefined }, // untagged — applies anywhere
 ];
 
-describe("profilesForDevice", () => {
-  it("shows everything when no device is selected (unknown context — never hide)", () => {
-    expect(profilesForDevice(list, "").map((p) => p.name)).toEqual(["rog", "deck", "untagged"]);
+describe("groupProfilesForDevice", () => {
+  it("splits into this-model and same-family (incl. untagged), hiding other families", () => {
+    const g = groupProfilesForDevice(list, "rog-ally");
+    expect(g.model.map((p) => p.name)).toEqual(["rog"]); // exact model
+    expect(g.family.map((p) => p.name)).toEqual(["ally-x", "shared"]); // windows + untagged
+    // deck (steamos) is not visible for a windows device — in neither group
   });
 
-  it("shows untagged + this-device profiles when a device is selected", () => {
-    expect(profilesForDevice(list, "rog-ally").map((p) => p.name)).toEqual(["rog", "untagged"]);
+  it("puts everything in the model group when no device is selected (never hide)", () => {
+    const g = groupProfilesForDevice(list, "");
+    expect(g.model.map((p) => p.name)).toEqual(["rog", "ally-x", "deck", "shared"]);
+    expect(g.family).toEqual([]);
   });
 });
