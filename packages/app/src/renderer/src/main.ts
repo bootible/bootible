@@ -2821,7 +2821,9 @@ function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
   // fetchDeckyPlugins returns them sorted by downloads (most-installed first).
   const cards: { el: HTMLElement; hay: string }[] = list.map((p) => {
     const card = el("div", "plugin-card");
-    const row = el("label", "app-row");
+    // A div, not a label — clicking the bar expands details (below); only the
+    // checkbox toggles selection.
+    const row = el("div", "app-row plugin-row");
     const cb = el("input", "app-check") as HTMLInputElement;
     cb.type = "checkbox";
     cb.checked = deckState.decky.plugins.includes(p.name);
@@ -2832,6 +2834,7 @@ function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
       deckState.decky.plugins = [...set];
       setDeckPickCount("deckplugins", deckState.decky.plugins.length, "plugin");
     });
+    cb.addEventListener("click", (e) => e.stopPropagation()); // tick only, don't expand
     const meta = el("span", "app-meta");
     meta.append(el("span", "app-name", p.name));
     meta.append(
@@ -2860,12 +2863,14 @@ function renderDeckPlugins(box: HTMLElement, list: DeckyStorePlugin[]): void {
       detail.append(tags);
     }
     if (p.version) detail.append(el("p", "plugin-ver", `v${p.version}`));
-    info.addEventListener("click", () => {
+    const toggleDetail = (): void => {
       const open = detail.hidden;
       detail.hidden = !open;
       info.setAttribute("aria-expanded", String(open));
       info.textContent = open ? "Hide" : "Details";
-    });
+    };
+    info.addEventListener("click", toggleDetail);
+    row.addEventListener("click", toggleDetail); // click the bar's empty space to expand
     const head = el("div", "plugin-head");
     head.append(row, info);
     card.append(head, detail);

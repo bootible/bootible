@@ -1983,6 +1983,10 @@ body[data-view="account"] .summary::before {
   flex: 1;
   min-width: 0;
 }
+/* the plugin bar (not the checkbox) expands details on click */
+.plugin-row {
+  cursor: pointer;
+}
 .plugin-info-btn {
   flex: none;
   background: transparent;
