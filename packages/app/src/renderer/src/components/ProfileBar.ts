@@ -14,6 +14,10 @@ export interface ProfileBarOptions {
   familyLabel?: string;
   /** The currently-loaded profile, if any (drives Update vs Save-new). */
   loadedName?: string | null;
+  /** Which controls to show. "load" = pick + Load + Delete (use at the start of the
+   *  flow); "save" = name + Save new + Update (use on the last config page, where the
+   *  full config exists); "full" = both. Default "full". */
+  mode?: "load" | "save" | "full";
   /** Optional status line (e.g. "Saved ✓", "Synced", an error). */
   status?: string;
   onLoad(name: string): void;
@@ -85,11 +89,15 @@ export function ProfileBar(o: ProfileBarOptions): HTMLElement {
     if (name) o.onSaveNew(name);
   });
 
+  const mode = o.mode ?? "full";
+  const showLoad = mode === "load" || mode === "full";
+  const showSave = mode === "save" || mode === "full";
   const row = el("div", "profile-bar-row");
-  row.append(sel, loadBtn, delBtn, nameInput, saveBtn);
+  if (showLoad) row.append(sel, loadBtn, delBtn);
+  if (showSave) row.append(nameInput, saveBtn);
 
-  // Update appears only when a profile is loaded — overwrites that one.
-  if (o.loadedName) {
+  // Update appears only when saving with a profile loaded — overwrites that one.
+  if (showSave && o.loadedName) {
     const updateBtn = btn("update", `Update "${o.loadedName}"`);
     updateBtn.classList.remove("btn-ghost");
     updateBtn.classList.add("btn-primary");

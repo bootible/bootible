@@ -316,7 +316,7 @@ function syncFromHash(): void {
   if (view === "stripkit") void hydrateStripkit();
   if (view === "account") {
     void hydrateSshKeys();
-    void mountRogProfileBar(); // save/load on the last config page (full config)
+    void mountRogProfileBar("save"); // save on the last config page (full config)
     // Full ROG restores the factory image — it doesn't create an account, so
     // re-word the screen away from "pick how it signs in".
     const strip = selectedBaseId === "full-rog";
@@ -749,6 +749,7 @@ async function hydrateCustomise(): Promise<void> {
     keepRestoredCustomise = false;
     customiseHydrated = true;
   }
+  void mountRogProfileBar("load"); // pick a saved profile to start from
   // The Apps/Emulators counts need the catalog loaded.
   if (!appGroups.length && api.getAppGroups) {
     try {
@@ -1949,8 +1950,12 @@ let rogProfileStatus = "";
 
 /** Render the shared ProfileBar on the ROG configure (customise) screen — same
  *  component + behaviour as the Deck. */
-async function mountRogProfileBar(): Promise<void> {
-  const mount = document.querySelector<HTMLElement>("#rog-profile-mount");
+// Load at the start (customise) + save at the end (account). One function, two
+// mounts/modes — load-only on customise, save-only on the last config page.
+async function mountRogProfileBar(mode: "load" | "save"): Promise<void> {
+  const mount = document.querySelector<HTMLElement>(
+    mode === "load" ? "#rog-profile-load" : "#rog-profile-mount",
+  );
   if (!mount) return;
   const profiles = (await window.bootible?.listProfiles?.()) ?? [];
   const save = async (name: string): Promise<void> => {
@@ -1962,10 +1967,11 @@ async function mountRogProfileBar(): Promise<void> {
     } else {
       rogProfileStatus = "Save failed.";
     }
-    void mountRogProfileBar();
+    void mountRogProfileBar("save");
   };
   mount.replaceChildren(
     ProfileBar({
+      mode,
       profiles: groupProfilesForDevice(profiles, selectedDeviceId),
       modelLabel: `This ${deviceName || "device"}`,
       familyLabel: "Other compatible devices",
@@ -1977,7 +1983,7 @@ async function mountRogProfileBar(): Promise<void> {
           applyProfile(p); // restores account UI (ssh/network/hostname) + marks customise stale
           loadedProfileName = name;
           rogProfileStatus = `Loaded "${name}"`;
-          void mountRogProfileBar(); // refresh the bar's loaded-name + status
+          void hydrateCustomise(); // re-render customise + the load bar with restored config
         }
       },
       onSaveNew: save,
@@ -1986,7 +1992,7 @@ async function mountRogProfileBar(): Promise<void> {
         await window.bootible?.deleteProfile?.(name);
         if (loadedProfileName === name) loadedProfileName = "";
         rogProfileStatus = `Deleted "${name}"`;
-        void mountRogProfileBar();
+        void mountRogProfileBar(mode);
       },
     }),
   );
@@ -2256,12 +2262,12 @@ function applyDeckProfile(p: Profile): void {
   deckState.hostname = (ui.hostname as string) || undefined;
   deckState.staticIp = (ui.staticIp as DeckConfig["staticIp"]) ?? undefined;
   deckState.sunshine = { ...deckState.sunshine, pass: p.secrets?.sunshinePass || undefined };
-  void hydrateDeckSetup(); // ProfileBar lives on the device-setup screen
+  // Caller re-renders the screen it's on (load lives on the deck config screen).
 }
 
-/** The shared ProfileBar for the Deck device-setup screen — the last config page,
- *  where the full config exists (save earlier would miss the setup settings). */
-async function deckProfileBar(): Promise<HTMLElement> {
+/** The shared Deck ProfileBar. "load" goes on the first config screen (pick a saved
+ *  profile to start from); "save" on the last (where the full config exists). */
+async function deckProfileBar(mode: "load" | "save"): Promise<HTMLElement> {
   const savedProfiles = (await window.bootible?.listProfiles?.()) ?? [];
   const saveDeck = async (name: string): Promise<void> => {
     await window.bootible?.saveProfile?.(captureDeckProfile(name));
@@ -2270,6 +2276,7 @@ async function deckProfileBar(): Promise<HTMLElement> {
     void hydrateDeckSetup();
   };
   return ProfileBar({
+    mode,
     profiles: groupProfilesForDevice(savedProfiles, selectedDeviceId),
     modelLabel: `This ${deviceName || "device"}`,
     familyLabel: "Other compatible devices",
@@ -2278,7 +2285,8 @@ async function deckProfileBar(): Promise<HTMLElement> {
       const p = await window.bootible?.loadProfile?.(name);
       if (p) {
         deckLoadedProfile = name;
-        applyDeckProfile(p); // re-renders the setup screen
+        applyDeckProfile(p);
+        void hydrateDeck(); // re-render the start screen with the restored config
       }
     },
     onSaveNew: saveDeck,
@@ -2286,7 +2294,7 @@ async function deckProfileBar(): Promise<HTMLElement> {
     onDelete: async (name) => {
       await window.bootible?.deleteProfile?.(name);
       if (deckLoadedProfile === name) deckLoadedProfile = null;
-      void hydrateDeckSetup();
+      void (mode === "load" ? hydrateDeck() : hydrateDeckSetup());
     },
   });
 }
@@ -2295,6 +2303,9 @@ async function hydrateDeck(): Promise<void> {
   const body = document.querySelector<HTMLElement>("#deck-body");
   if (!body) return;
   body.replaceChildren();
+
+  // Load a saved profile to start from (save is on the device-setup screen).
+  body.append(await deckProfileBar("load"));
 
   // Catalog (loaded once) drives which flatpak ids belong to the Emulators picker
   // and the Game-streaming section, so the Apps picker count excludes them — no
@@ -2456,8 +2467,8 @@ async function hydrateDeckSetup(): Promise<void> {
   if (!body) return;
   body.replaceChildren();
 
-  // Save/load profiles — on this last config page, where the full config exists.
-  body.append(await deckProfileBar());
+  // Save profiles — on this last config page, where the full config exists.
+  body.append(await deckProfileBar("save"));
 
   // Hostname.
   const hostField = el("div", "cz-span deck-field");

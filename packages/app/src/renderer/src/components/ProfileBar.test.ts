@@ -65,6 +65,26 @@ describe("ProfileBar", () => {
     expect(sel.querySelector("option")?.textContent?.toLowerCase()).toContain("no saved");
   });
 
+  it("load mode shows the picker but no save controls", () => {
+    const h = handlers();
+    const bar = ProfileBar({ profiles, mode: "load", loadedName: "Alpha", ...h });
+    expect(bar.querySelector("[data-field=select]")).not.toBeNull();
+    expect(bar.querySelector("[data-action=load]")).not.toBeNull();
+    expect(bar.querySelector("[data-field=name]")).toBeNull();
+    expect(bar.querySelector("[data-action=save-new]")).toBeNull();
+    expect(bar.querySelector("[data-action=update]")).toBeNull();
+  });
+
+  it("save mode shows save controls (incl. Update when loaded) but no picker", () => {
+    const h = handlers();
+    const bar = ProfileBar({ profiles, mode: "save", loadedName: "Alpha", ...h });
+    expect(bar.querySelector("[data-field=select]")).toBeNull();
+    expect(bar.querySelector("[data-action=load]")).toBeNull();
+    expect(bar.querySelector("[data-field=name]")).not.toBeNull();
+    expect(bar.querySelector("[data-action=save-new]")).not.toBeNull();
+    expect(bar.querySelector("[data-action=update]")).not.toBeNull();
+  });
+
   it("renders model and family profiles in separate labelled optgroups", () => {
     const h = handlers();
     const bar = ProfileBar({
