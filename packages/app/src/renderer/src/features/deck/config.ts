@@ -1,4 +1,5 @@
 import type { DeckConfig, Profile } from "@bootible/core";
+import { DEFAULT_DECK_CONFIG } from "@bootible/core/browser";
 import { ProfileBar } from "../../components/ProfileBar";
 import { el } from "../../lib/dom";
 import { session } from "../../lib/session";
@@ -8,29 +9,10 @@ import { hydrateDeck, hydrateDeckSetup } from "./setup";
 
 // ── Steam Deck config + provision-only USB (Path A) ──────────────────────────
 
-// NOTE: these defaults duplicate core's DEFAULT_DECK_CONFIG / RECOMMENDED_DECKY_PLUGINS
-// (coding-standard #8). They can't be value-imported from @bootible/core yet — the
-// barrel pulls in Node-only modules (fs/path) the renderer bundle can't include.
-// Deduplicating needs a browser-safe core export surface — remediation-plan P2 #6/#7.
-const RECOMMENDED_DECKY = ["PowerTools", "ProtonDB Badges", "SteamGridDB"];
-
-/** The Deck choices — the single source of truth (buildDeckBundle normalizes). */
-export const deckState: DeckConfig = {
-  hostname: undefined,
-  createSnapshot: true,
-  flatpakApps: ["flatseal"],
-  ssh: { enabled: false, port: 22, authorizedKeys: [] },
-  decky: { enabled: true, plugins: [...RECOMMENDED_DECKY] },
-  proton: { ge: true, protonUpQt: true, protontricks: true },
-  emudeck: false,
-  emulationStorage: "auto",
-  sunshine: { enabled: false },
-  vnc: false,
-  tailscale: false,
-  waydroid: false,
-  stickdeck: false,
-  passwordManagers: { managers: [], method: "flatpak" },
-};
+/** The Deck choices — the single source of truth (buildDeckBundle normalizes).
+ *  Seeded from core's DEFAULT_DECK_CONFIG (deep-cloned so the UI can mutate it),
+ *  so the renderer never re-hardcodes the defaults — one source, no drift. */
+export const deckState: DeckConfig = structuredClone(DEFAULT_DECK_CONFIG);
 
 /** A rich toggle row in the ROG `.cz-*` style: name + description + an optional
  *  "what it does" line, bound to a setter on deckState. */
