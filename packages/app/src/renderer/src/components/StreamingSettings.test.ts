@@ -38,6 +38,39 @@ describe("StreamingSettings", () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ moonlight: true }));
   });
 
+  it("hides the host toggles unless showHost is set", () => {
+    const on = { ...base, sunshineEnabled: true, moonlight: true };
+    const noHost = StreamingSettings({ value: on, onChange: vi.fn() });
+    expect(noHost.querySelector("[data-toggle=sunshine-host]")).toBeNull();
+    expect(noHost.querySelector("[data-toggle=moonlight-host]")).toBeNull();
+    const withHost = StreamingSettings({ value: on, showHost: true, onChange: vi.fn() });
+    expect(withHost.querySelector("[data-toggle=sunshine-host]")).not.toBeNull();
+    expect(withHost.querySelector("[data-toggle=moonlight-host]")).not.toBeNull();
+  });
+
+  it("only shows a service's host toggle when that service is enabled", () => {
+    const root = StreamingSettings({
+      value: { ...base, sunshineEnabled: true, moonlight: false },
+      showHost: true,
+      onChange: vi.fn(),
+    });
+    expect(root.querySelector("[data-toggle=sunshine-host]")).not.toBeNull();
+    expect(root.querySelector("[data-toggle=moonlight-host]")).toBeNull();
+  });
+
+  it("toggling a host option emits the change", () => {
+    const onChange = vi.fn();
+    const root = StreamingSettings({
+      value: { ...base, sunshineEnabled: true },
+      showHost: true,
+      onChange,
+    });
+    const host = get<HTMLInputElement>(root, "[data-toggle=sunshine-host]");
+    host.checked = true;
+    fire(host, "change");
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ sunshineHost: true }));
+  });
+
   it("deferring the password clears it and sets the prompt flag", () => {
     const onChange = vi.fn();
     const root = StreamingSettings({

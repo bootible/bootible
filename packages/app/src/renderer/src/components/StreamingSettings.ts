@@ -7,11 +7,18 @@ export interface StreamingValue {
   sunshinePass?: string;
   /** Set the Sunshine password on the device during setup, not baked onto the USB. */
   sunshinePromptPass?: boolean;
+  /** Also set up Sunshine on THIS PC (host) — only meaningful when showHost. */
+  sunshineHost?: boolean;
   moonlight: boolean;
+  /** Also set up Moonlight on THIS PC (host) — only meaningful when showHost. */
+  moonlightHost?: boolean;
 }
 
 export interface StreamingSettingsOptions {
   value: StreamingValue;
+  /** Show "also set up X on this PC (host)" toggles (the ROG runs on the host PC,
+   *  so it can install the host counterpart too; the Deck's host is a separate PC). */
+  showHost?: boolean;
   onChange(next: StreamingValue): void;
 }
 
@@ -89,6 +96,17 @@ export function StreamingSettings(o: StreamingSettingsOptions): HTMLElement {
       }),
     );
     root.append(creds);
+    if (o.showHost) {
+      root.append(
+        toggleRow(
+          "sunshine-host",
+          "Also set up Sunshine on this PC (host)",
+          "Install the Sunshine host on this desktop too, so it can stream to the device.",
+          Boolean(v.sunshineHost),
+          (on) => emit({ sunshineHost: on }),
+        ),
+      );
+    }
   }
 
   root.append(
@@ -100,6 +118,18 @@ export function StreamingSettings(o: StreamingSettingsOptions): HTMLElement {
       (on) => emit({ moonlight: on }),
     ),
   );
+
+  if (o.showHost && v.moonlight) {
+    root.append(
+      toggleRow(
+        "moonlight-host",
+        "Also set up Moonlight on this PC (host)",
+        "Install the Moonlight client on this desktop too.",
+        Boolean(v.moonlightHost),
+        (on) => emit({ moonlightHost: on }),
+      ),
+    );
+  }
 
   return root;
 }

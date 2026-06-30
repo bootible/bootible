@@ -625,32 +625,15 @@
               </div>
 
               <div class="field">
-                <label class="field-label">Remote access <span class="muted">— install on the device</span></label>
-                <label class="ra-row">
-                  <input type="checkbox" id="ra-sunshine" />
-                  <span class="ra-name">Sunshine</span><span class="ra-role">server — shares this device</span>
-                  <span class="ra-i" title="Sunshine — streaming server. Shares this device's screen so you can view and control it from another machine (e.g. your desktop).">i</span>
-                </label>
-                <label class="ra-host" data-host="sunshine" hidden><input type="checkbox" id="ra-sunshine-host" /> Also set up Sunshine on this PC (host)</label>
-                <div class="ra-creds" data-host="sunshine" hidden>
-                  <div class="cfg-row">
-                    <div class="field"><label class="field-label" for="sunshine-user">Sunshine username</label><input class="field-input" id="sunshine-user" type="text" placeholder="e.g. admin" autocomplete="off" spellcheck="false" /></div>
-                    <div class="field"><label class="field-label">Sunshine password</label><!-- shared PasswordField (warning + defer) mounted here --><div id="rog-sunshine-pass-mount"></div></div>
-                  </div>
-                  <p class="ra-warn">⚠ Save these somewhere safe (your password manager). They're baked into the build and can't be recovered from bootible.</p>
-                </div>
-                <label class="ra-row">
-                  <input type="checkbox" id="ra-moonlight" />
-                  <span class="ra-name">Moonlight</span><span class="ra-role">client — view another machine</span>
-                  <span class="ra-i" title="Moonlight — streaming client. View and play from another machine (your gaming PC, or another handheld) here.">i</span>
-                </label>
-                <label class="ra-host" data-host="moonlight" hidden><input type="checkbox" id="ra-moonlight-host" /> Also set up Moonlight on this PC (host)</label>
-                <label class="ra-row" id="ra-rdp-row">
-                  <input type="checkbox" id="ra-rdp" disabled />
-                  <span class="ra-name">Windows Remote Desktop</span><span class="ra-role">mstsc — full desktop</span>
-                  <span class="ra-req">needs Pro</span>
-                  <span class="ra-i" title="Microsoft Remote Desktop — the full Windows desktop via mstsc. Windows Pro only; switch the edition to Pro to enable it.">i</span>
-                </label>
+                <label class="field-label">Game streaming <span class="muted">— install on the device</span></label>
+                <!-- Shared StreamingSettings (Sunshine host + creds + Moonlight + "also on this PC"). -->
+                <div id="rog-streaming-mount"></div>
+              </div>
+
+              <div class="field">
+                <label class="field-label">Remote access <span class="muted">(optional)</span></label>
+                <!-- Shared RemoteAccessSettings (RDP; disabled unless the edition is Pro). -->
+                <div id="rog-remote-access-mount"></div>
               </div>
 
               <div class="field">

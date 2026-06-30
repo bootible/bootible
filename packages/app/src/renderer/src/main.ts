@@ -39,7 +39,6 @@ import type {
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
-import { PasswordField } from "./components/PasswordField";
 import { ProfileBar } from "./components/ProfileBar";
 import { RemoteAccessSettings } from "./components/RemoteAccessSettings";
 import { SshAccessEditor } from "./components/SshAccessEditor";
@@ -319,7 +318,8 @@ function syncFromHash(): void {
   if (view === "stripkit") void hydrateStripkit();
   if (view === "account") {
     void hydrateSshKeys();
-    mountRogSunshinePass();
+    mountRogStreaming();
+    mountRogRemoteAccess();
     void mountRogProfileBar("save"); // save on the last config page (full config)
     // Full ROG restores the factory image — it doesn't create an account, so
     // re-word the screen away from "pick how it signs in".
@@ -1080,26 +1080,79 @@ document.addEventListener("change", (event) => {
 let sshHydrated = false;
 let githubKeys: string[] = []; // keys fetched from the chosen GitHub user (baked at build)
 let githubFetchedFor = ""; // the username githubKeys was fetched for (so we don't show a stale count)
-let rogSunshinePass = ""; // Sunshine password (held in JS; the shared PasswordField owns the input)
+// ROG game-streaming + remote-access state — the single source of truth (the
+// shared StreamingSettings / RemoteAccessSettings render from it; gather/profile
+// read it), the same pattern the Sunshine password already used.
+let rogSunshineEnabled = false;
+let rogSunshineUser = "";
+let rogSunshinePass = ""; // held in JS; the shared PasswordField owns the input
 let rogSunshinePromptPass = false; // defer — set on the device instead of baking it onto the USB
+let rogSunshineHost = false; // also install the Sunshine host on this PC
+let rogMoonlight = false;
+let rogMoonlightHost = false; // also install the Moonlight client on this PC
+let rogRdp = false; // Windows Remote Desktop (Pro only)
 
-/** (Re)mount the shared PasswordField for the ROG Sunshine password. */
-function mountRogSunshinePass(): void {
-  const mount = document.querySelector<HTMLElement>("#rog-sunshine-pass-mount");
+function currentEditionIsPro(): boolean {
+  return document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
+}
+
+/** (Re)mount the shared StreamingSettings for the ROG (Sunshine host + creds +
+ *  Moonlight + the "also set it up on this PC" host toggles). */
+function mountRogStreaming(): void {
+  const mount = document.querySelector<HTMLElement>("#rog-streaming-mount");
   if (!mount) return;
   mount.replaceChildren(
-    PasswordField({
-      value: rogSunshinePass,
-      placeholder: "Sunshine password",
-      deferred: rogSunshinePromptPass,
-      deferLabel: "Set the Sunshine password on the device instead (kept off the USB)",
-      onChange: (v) => {
-        rogSunshinePass = v;
+    StreamingSettings({
+      showHost: true,
+      value: {
+        sunshineEnabled: rogSunshineEnabled,
+        sunshineUser: rogSunshineUser || undefined,
+        sunshinePass: rogSunshinePromptPass ? undefined : rogSunshinePass || undefined,
+        sunshinePromptPass: rogSunshinePromptPass,
+        sunshineHost: rogSunshineHost,
+        moonlight: rogMoonlight,
+        moonlightHost: rogMoonlightHost,
       },
-      onDeferChange: (d) => {
-        rogSunshinePromptPass = d;
-        if (d) rogSunshinePass = "";
-        mountRogSunshinePass();
+      onChange: (next) => {
+        // Re-mount only when a toggle changes which fields show, so typing in
+        // user/password keeps focus (matches the Deck's mountDeckStreaming).
+        const toggled =
+          rogSunshineEnabled !== next.sunshineEnabled ||
+          rogMoonlight !== next.moonlight ||
+          Boolean(rogSunshinePromptPass) !== Boolean(next.sunshinePromptPass);
+        rogSunshineEnabled = next.sunshineEnabled;
+        rogSunshineUser = next.sunshineUser ?? "";
+        rogSunshinePromptPass = Boolean(next.sunshinePromptPass);
+        rogSunshinePass = next.sunshinePromptPass ? "" : (next.sunshinePass ?? "");
+        rogSunshineHost = Boolean(next.sunshineHost);
+        rogMoonlight = next.moonlight;
+        rogMoonlightHost = Boolean(next.moonlightHost);
+        if (toggled) mountRogStreaming();
+      },
+    }),
+  );
+}
+
+/** (Re)mount the shared RemoteAccessSettings for the ROG (just RDP; disabled — and
+ *  cleared — unless the edition is Pro, since Home can't host Remote Desktop). */
+function mountRogRemoteAccess(): void {
+  const mount = document.querySelector<HTMLElement>("#rog-remote-access-mount");
+  if (!mount) return;
+  const pro = currentEditionIsPro();
+  mount.replaceChildren(
+    RemoteAccessSettings({
+      options: [
+        {
+          id: "rdp",
+          label: "Windows Remote Desktop",
+          desc: "The full Windows desktop via mstsc, from another machine.",
+          enabled: rogRdp && pro,
+          disabled: !pro,
+          note: pro ? undefined : "needs Windows Pro — switch the edition above",
+        },
+      ],
+      onToggle: (_id, on) => {
+        rogRdp = on;
       },
     }),
   );
@@ -1152,16 +1205,11 @@ async function fetchRogGithub(user: string): Promise<void> {
   mountRogSsh();
 }
 
-/** The Windows RDP checkbox is only usable on Pro (Home can't host RDP), so grey
- *  it out on Home and clear it. */
+/** RDP is only usable on Pro (Home can't host Remote Desktop), so clear it on Home
+ *  and re-mount the remote-access component (which greys the toggle out). */
 function updateEditionState(): void {
-  const pro = document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
-  const rdp = document.querySelector<HTMLInputElement>("#ra-rdp");
-  if (rdp) {
-    rdp.disabled = !pro;
-    if (!pro) rdp.checked = false;
-  }
-  document.querySelector("#ra-rdp-row")?.classList.toggle("is-disabled", !pro);
+  if (!currentEditionIsPro()) rogRdp = false;
+  mountRogRemoteAccess();
 }
 
 /** Fetch the host's SSH public keys and pre-select them all the first time. */
@@ -1828,13 +1876,13 @@ function gatherUsbRequest(): UsbBuildRequest {
   const checked = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.checked ?? false;
   const edition = checked("#edition-pro") ? "pro" : "home";
   const remoteAccess = {
-    sunshine: checked("#ra-sunshine"),
-    moonlight: checked("#ra-moonlight"),
-    rdp: checked("#ra-rdp"),
+    sunshine: rogSunshineEnabled,
+    moonlight: rogMoonlight,
+    rdp: rogRdp,
   };
   const remoteAccessHost = {
-    sunshine: checked("#ra-sunshine-host"),
-    moonlight: checked("#ra-moonlight-host"),
+    sunshine: rogSunshineHost,
+    moonlight: rogMoonlightHost,
   };
   return {
     modules,
@@ -1845,7 +1893,7 @@ function gatherUsbRequest(): UsbBuildRequest {
     edition,
     remoteAccess,
     remoteAccessHost,
-    sunshineUser: val("#sunshine-user") || undefined,
+    sunshineUser: rogSunshineUser || undefined,
     // Deferred → kept off the USB (the device's sunshine-creds step skips, so the
     // user sets it via the Sunshine web UI on first run).
     sunshinePass: rogSunshinePromptPass ? undefined : rogSunshinePass || undefined,
@@ -1891,11 +1939,11 @@ function captureProfile(name: string): Profile {
       edition: fck("#edition-pro") ? "pro" : "home",
       accountMode: document.body.dataset.account ?? "local",
       acctUser: fv("#acct-user"),
-      sunshineUser: fv("#sunshine-user"),
+      sunshineUser: rogSunshineUser,
       sunshinePromptPass: rogSunshinePromptPass,
       wifiSsid: fv("#wifi-ssid"),
-      ra: { sunshine: fck("#ra-sunshine"), moonlight: fck("#ra-moonlight"), rdp: fck("#ra-rdp") },
-      raHost: { sunshine: fck("#ra-sunshine-host"), moonlight: fck("#ra-moonlight-host") },
+      ra: { sunshine: rogSunshineEnabled, moonlight: rogMoonlight, rdp: rogRdp },
+      raHost: { sunshine: rogSunshineHost, moonlight: rogMoonlightHost },
       wallpaperPath,
       lockscreenPath,
     },
@@ -1952,18 +2000,21 @@ function applyProfile(p: Profile): void {
   setCk("#edition-pro", ui.edition === "pro");
   setCk("#edition-home", ui.edition !== "pro");
   setV("#acct-user", ui.acctUser);
-  setV("#sunshine-user", ui.sunshineUser);
   setV("#wifi-ssid", ui.wifiSsid);
+  rogSunshineUser = typeof ui.sunshineUser === "string" ? ui.sunshineUser : "";
   const ra = (ui.ra ?? {}) as Record<string, unknown>;
-  setCk("#ra-sunshine", ra.sunshine);
-  setCk("#ra-moonlight", ra.moonlight);
-  setCk("#ra-rdp", ra.rdp);
+  rogSunshineEnabled = Boolean(ra.sunshine);
+  rogMoonlight = Boolean(ra.moonlight);
+  rogRdp = Boolean(ra.rdp);
   const raHost = (ui.raHost ?? {}) as Record<string, unknown>;
-  setCk("#ra-sunshine-host", raHost.sunshine);
-  setCk("#ra-moonlight-host", raHost.moonlight);
+  rogSunshineHost = Boolean(raHost.sunshine);
+  rogMoonlightHost = Boolean(raHost.moonlight);
   rogSunshinePromptPass = Boolean(ui.sunshinePromptPass);
   rogSunshinePass = rogSunshinePromptPass ? "" : (p.secrets?.sunshinePass ?? "");
-  mountRogSunshinePass();
+  // Edition was restored just above; clamp RDP to Pro and (re)mount both the
+  // streaming + remote-access components from the restored JS state.
+  updateEditionState();
+  mountRogStreaming();
   setV("#acct-pass", p.secrets?.acctPass);
   setV("#wifi-pass", p.secrets?.wifiPass);
   wallpaperPath = (ui.wallpaperPath as string) ?? "";
@@ -3341,16 +3392,6 @@ document.addEventListener("change", (event) => {
     else selectedKeyIds.delete(target.dataset.keyId);
   }
   if (target.id === "edition-home" || target.id === "edition-pro") updateEditionState();
-  // Reveal the "also on this PC" host option (and Sunshine login fields) when a
-  // streaming app is ticked.
-  if (target.id === "ra-sunshine" || target.id === "ra-moonlight") {
-    const app = target.id === "ra-sunshine" ? "sunshine" : "moonlight";
-    const on = (target as HTMLInputElement).checked;
-    document.querySelector(`.ra-host[data-host="${app}"]`)?.toggleAttribute("hidden", !on);
-    if (app === "sunshine") {
-      document.querySelector('.ra-creds[data-host="sunshine"]')?.toggleAttribute("hidden", !on);
-    }
-  }
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
   // Customise screen: a module toggle (floor/base = untick to disable; extra = tick to add).
   if (target instanceof HTMLInputElement && target.dataset.moduleId) {
