@@ -39,6 +39,7 @@ import type {
 } from "@bootible/core";
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
+import { DiskPicker } from "./components/DiskPicker";
 import { GroupedPicker, type PickerItem } from "./components/GroupedPicker";
 import { NetworkSettings } from "./components/NetworkSettings";
 import { ProfileBar } from "./components/ProfileBar";
@@ -2164,38 +2165,25 @@ async function hydrateUsbWrite(): Promise<void> {
   updateWriteButton();
 }
 
+// The three "choose a USB drive" steps share one DiskPicker (ROG install + Deck
+// reimage flash by whole-disk NUMBER; Deck provision copies to a drive LETTER).
+let usbDiskPicker: ReturnType<typeof DiskPicker> | null = null;
 async function refreshDisks(): Promise<void> {
-  const api = window.bootible;
   const list = document.querySelector<HTMLElement>("#disk-list");
-  if (!api?.getUsbDisks || !list) return;
-  let disks: UsbDisk[] = [];
-  try {
-    disks = await api.getUsbDisks();
-  } catch {}
-  if (disks.length === 0) {
-    list.replaceChildren(
-      el("p", "muted", "No removable USB drives found. Plug one in, then Refresh."),
-    );
-    return;
+  if (!list) return;
+  if (!usbDiskPicker) {
+    usbDiskPicker = DiskPicker({
+      fetch: async () => (await window.bootible?.getUsbDisks?.()) ?? [],
+      mode: "number",
+      selected: String(usbState.disk),
+      onSelect: (k) => {
+        usbState.disk = Number(k);
+        updateWriteButton();
+      },
+    });
+    list.replaceChildren(usbDiskPicker.root);
   }
-  list.replaceChildren(
-    ...disks.map((disk) => {
-      const btn = el("button", "uw-disk") as HTMLButtonElement;
-      btn.type = "button";
-      btn.dataset.disk = String(disk.number);
-      if (disk.number === usbState.disk) btn.classList.add("is-sel");
-      // Match how Explorer names it: "GK-Two (I:)". Fall back to letter, then model.
-      const title =
-        disk.label && disk.letters
-          ? `${disk.label} (${disk.letters})`
-          : disk.letters || disk.label || disk.name;
-      const detail = [disk.name, `${disk.sizeGb} GB`, `disk ${disk.number}`]
-        .filter(Boolean)
-        .join(" · ");
-      btn.append(el("span", "uw-disk-name", title), el("span", "uw-disk-size", detail));
-      return btn;
-    }),
-  );
+  await usbDiskPicker.refresh();
 }
 
 function updateWriteButton(): void {
@@ -3033,41 +3021,23 @@ async function hydrateDeckWrite(): Promise<void> {
   updateDeckWriteButton();
 }
 
+let deckDiskPicker: ReturnType<typeof DiskPicker> | null = null;
 async function refreshDeckDisks(): Promise<void> {
-  const api = window.bootible;
   const list = document.querySelector<HTMLElement>("#deck-disk-list");
-  if (!api?.getUsbDisks || !list) return;
-  let disks: UsbDisk[] = [];
-  try {
-    disks = await api.getUsbDisks();
-  } catch {}
-  if (disks.length === 0) {
-    list.replaceChildren(
-      el("p", "muted", "No removable USB drives found. Plug one in, then Refresh."),
-    );
-    return;
+  if (!list) return;
+  if (!deckDiskPicker) {
+    deckDiskPicker = DiskPicker({
+      fetch: async () => (await window.bootible?.getUsbDisks?.()) ?? [],
+      mode: "letter",
+      selected: deckDisk,
+      onSelect: (k) => {
+        deckDisk = k;
+        updateDeckWriteButton();
+      },
+    });
+    list.replaceChildren(deckDiskPicker.root);
   }
-  list.replaceChildren(
-    ...disks.map((disk) => {
-      const letter = (disk.letters.match(/[A-Za-z](?=:)/)?.[0] ?? "").toUpperCase();
-      const btn = el("button", "uw-disk deck-disk") as HTMLButtonElement;
-      btn.type = "button";
-      btn.dataset.letter = letter;
-      btn.disabled = !letter;
-      if (letter && letter === deckDisk) btn.classList.add("is-sel");
-      const title =
-        disk.label && disk.letters ? `${disk.label} (${disk.letters})` : disk.letters || disk.name;
-      const detail = [
-        disk.name,
-        `${disk.sizeGb} GB`,
-        letter ? "" : "no drive letter — format it in Explorer first",
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      btn.append(el("span", "uw-disk-name", title), el("span", "uw-disk-size", detail));
-      return btn;
-    }),
-  );
+  await deckDiskPicker.refresh();
 }
 
 function updateDeckWriteButton(): void {
@@ -3132,14 +3102,7 @@ document.addEventListener("click", (event) => {
     void refreshDeckDisks();
     return;
   }
-  const disk = target.closest<HTMLElement>(".deck-disk");
-  if (disk) {
-    deckDisk = disk.dataset.letter ?? "";
-    for (const d of document.querySelectorAll(".deck-disk"))
-      d.classList.toggle("is-sel", d === disk);
-    updateDeckWriteButton();
-    return;
-  }
+  // Disk selection is owned by the shared DiskPicker (refreshDeckDisks).
   if (target.closest("#deck-write-btn")) void startDeckWrite();
   // Hop to the Watch screen so the Deck can report "done" back to the host once
   // provision.sh finishes (the beacon carries this build's id → flagged "mine").
@@ -3176,35 +3139,23 @@ async function hydrateDeckReimage(): Promise<void> {
   updateDeckReimageButton();
 }
 
+let deckReDiskPicker: ReturnType<typeof DiskPicker> | null = null;
 async function refreshDeckReimageDisks(): Promise<void> {
-  const api = window.bootible;
   const list = document.querySelector<HTMLElement>("#deckre-disk-list");
-  if (!api?.getUsbDisks || !list) return;
-  let disks: UsbDisk[] = [];
-  try {
-    disks = await api.getUsbDisks();
-  } catch {}
-  if (disks.length === 0) {
-    list.replaceChildren(
-      el("p", "muted", "No removable USB drives found. Plug one in, then Refresh."),
-    );
-    return;
+  if (!list) return;
+  if (!deckReDiskPicker) {
+    deckReDiskPicker = DiskPicker({
+      fetch: async () => (await window.bootible?.getUsbDisks?.()) ?? [],
+      mode: "number",
+      selected: deckReDisk >= 0 ? String(deckReDisk) : "",
+      onSelect: (k) => {
+        deckReDisk = Number(k);
+        updateDeckReimageButton();
+      },
+    });
+    list.replaceChildren(deckReDiskPicker.root);
   }
-  list.replaceChildren(
-    ...disks.map((disk) => {
-      const btn = el("button", "uw-disk deckre-disk") as HTMLButtonElement;
-      btn.type = "button";
-      btn.dataset.number = String(disk.number);
-      if (disk.number === deckReDisk) btn.classList.add("is-sel");
-      const title =
-        disk.label && disk.letters ? `${disk.label} (${disk.letters})` : disk.letters || disk.name;
-      const detail = [disk.name, `${disk.sizeGb} GB`, `disk ${disk.number}`]
-        .filter(Boolean)
-        .join(" · ");
-      btn.append(el("span", "uw-disk-name", title), el("span", "uw-disk-size", detail));
-      return btn;
-    }),
-  );
+  await deckReDiskPicker.refresh();
 }
 
 function updateDeckReimageButton(): void {
@@ -3236,14 +3187,7 @@ document.addEventListener("click", (event) => {
     void refreshDeckReimageDisks();
     return;
   }
-  const disk = target.closest<HTMLElement>(".deckre-disk");
-  if (disk) {
-    deckReDisk = Number(disk.dataset.number);
-    for (const d of document.querySelectorAll(".deckre-disk"))
-      d.classList.toggle("is-sel", d === disk);
-    updateDeckReimageButton();
-    return;
-  }
+  // Disk selection is owned by the shared DiskPicker (refreshDeckReimageDisks).
   if (target.closest("#deckre-write-btn")) void startDeckReimage();
 });
 
@@ -3471,15 +3415,7 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const disk = target.closest<HTMLElement>(".uw-disk:not(.deck-disk):not(.deckre-disk)");
-  if (disk) {
-    usbState.disk = Number(disk.dataset.disk);
-    for (const d of document.querySelectorAll(".uw-disk:not(.deck-disk):not(.deckre-disk)"))
-      d.classList.toggle("is-sel", d === disk);
-    updateWriteButton();
-    return;
-  }
-
+  // Disk selection is owned by the shared DiskPicker (refreshDisks).
   if (target.closest("#usb-write-btn")) void startUsbWrite();
 });
 
