@@ -762,7 +762,7 @@ function formatUsbDrive(driveLetter: string): { ok: boolean } {
       [
         "-NoProfile",
         "-Command",
-        `Start-Process powershell -Verb RunAs -Wait -ArgumentList @('-NoProfile','-Command',${innerQuoted})`,
+        `Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-NoProfile','-Command',${innerQuoted})`,
       ],
       { timeout: 180000 },
     );
