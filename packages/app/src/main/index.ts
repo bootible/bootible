@@ -754,7 +754,10 @@ function writeStripKit(folder: string, req: UsbBuildRequest): void {
 
 /** Quick-format a removable drive to exFAT (elevated — one UAC prompt). */
 function formatUsbDrive(driveLetter: string): { ok: boolean } {
-  const d = driveLetter.replace(/[:\\]/g, "");
+  // Reduce to a single A–Z letter — stripping only ':'/'\' would let "C; <cmd>"
+  // through, and ';' starts a second statement in the elevated inner -Command.
+  const d = (driveLetter.replace(/[^A-Za-z]/g, "")[0] ?? "").toUpperCase();
+  if (!d) return { ok: false };
   const inner = `Format-Volume -DriveLetter ${d} -FileSystem exFAT -NewFileSystemLabel BOOTIBLE -Confirm:$false`;
   const innerQuoted = `'${inner.replace(/'/g, "''")}'`;
   try {
@@ -937,7 +940,18 @@ function psQuote(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+/** A real disk index, or null. `diskNumber` is interpolated RAW (unquoted) into
+ *  the elevated writer, and IPC payloads aren't runtime-typed — so a non-integer
+ *  must be rejected at the boundary, not trusted from the TS signature. */
+function validDiskNumber(n: unknown): number | null {
+  return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 99 ? n : null;
+}
+
 function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean } {
+  if (validDiskNumber(req.diskNumber) === null) {
+    sender.send("usb:progress", { pct: 0, status: "error", message: "Invalid disk selection." });
+    return { started: false };
+  }
   const stagingPath = stageUsbBundle(req);
   if (!stagingPath) {
     sender.send("usb:progress", { pct: 0, status: "error", message: "No device to build for." });
@@ -1106,6 +1120,11 @@ async function writeDeckReimageUsb(
   const emit = (pct: number, message: string, status = "running"): void => {
     if (!sender.isDestroyed()) sender.send("usb:progress", { pct, message, status });
   };
+
+  if (validDiskNumber(req.diskNumber) === null) {
+    emit(0, "Invalid disk selection.", "error");
+    return { started: false };
+  }
 
   emit(0, "Finding the latest SteamOS image…");
   const img = await resolveDeckImageUrl();
