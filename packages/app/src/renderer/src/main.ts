@@ -38,6 +38,7 @@ import type {
 } from "@bootible/core";
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
+import { GroupedPicker, type PickerItem } from "./components/GroupedPicker";
 import { NetworkSettings } from "./components/NetworkSettings";
 import { ProfileBar } from "./components/ProfileBar";
 import { RemoteAccessSettings } from "./components/RemoteAccessSettings";
@@ -798,58 +799,69 @@ function pickerGroups(): AppGroup[] {
     : appGroups.filter((g) => g.id !== EMU_GROUP);
 }
 
-function appGroupNode(group: AppGroup): HTMLElement {
-  const onCount = group.apps.filter(entryOn).length;
-  const details = el("details", "app-group") as HTMLDetailsElement;
-  details.dataset.group = group.id;
-  // Respect the user's expand/collapse (tracked in openGroups) — don't force a
-  // group back open just because it has a selection on every re-render.
-  details.open = openGroups.has(group.id);
-  const summary = el("summary", "app-group-sum");
-  const gcb = el("input", "app-group-check") as HTMLInputElement;
-  gcb.type = "checkbox";
-  gcb.dataset.group = group.id;
-  gcb.checked = onCount === group.apps.length;
-  gcb.indeterminate = onCount > 0 && onCount < group.apps.length;
-  summary.append(
-    gcb,
-    el("span", "app-group-name", group.label),
-    el("span", `app-group-count${onCount > 0 ? " on" : ""}`, `${onCount} / ${group.apps.length}`),
-  );
-  const items = el("div", "app-items");
-  for (const a of group.apps) {
-    const row = el("label", "app-row");
-    const cb = el("input", "app-check") as HTMLInputElement;
-    cb.type = "checkbox";
-    if (a.module) cb.dataset.module = a.module;
-    else cb.dataset.app = a.id;
-    cb.checked = entryOn(a);
-    let logoCls = "app-logo";
-    if (FORCE_WHITE.has(a.id)) logoCls += " force-white";
-    if (LOGO_SCALE.has(a.id)) logoCls += " scaled";
-    const logo = logoEl(APP_LOGOS[a.id], logoCls);
-    const meta = el("span", "app-meta");
-    meta.append(el("span", "app-name", a.name));
-    meta.append(el("span", "app-id", a.desc ?? a.wingetId ?? ""));
-    row.append(cb, logo, meta);
-    items.append(row);
-  }
-  if (group.note) items.append(el("p", "app-note", group.note));
-  details.append(summary, items);
-  return details;
+/** Map an AppEntry to a shared-picker item, with the ROG app logo. */
+function rogAppItem(a: AppEntry): PickerItem {
+  let logoCls = "app-logo";
+  if (FORCE_WHITE.has(a.id)) logoCls += " force-white";
+  if (LOGO_SCALE.has(a.id)) logoCls += " scaled";
+  return {
+    id: a.id,
+    label: a.name,
+    sublabel: a.desc ?? a.wingetId ?? "",
+    checked: entryOn(a),
+    icon: logoEl(APP_LOGOS[a.id], logoCls),
+  };
+}
+
+/** The "N apps/emulators selected" line under the picker (the GroupedPicker keeps
+ *  the per-group heads in sync itself; this is the only thing a toggle must update). */
+function refreshAppsCount(): void {
+  const count = document.querySelector("#apps-count");
+  if (!count) return;
+  const n = pickerMode === "emulators" ? pickCounts().emulators : pickCounts().apps;
+  const word = pickerMode === "emulators" ? "emulator" : "app";
+  count.textContent = `${n} ${word}${n === 1 ? "" : "s"} selected`;
+}
+
+/** Apply an AppEntry toggle to the right set (winget app → selectedApps, module
+ *  entry like EmuDeck → enabledExtras). */
+function applyAppToggle(a: AppEntry, on: boolean): void {
+  const set = a.module ? enabledExtras : selectedApps;
+  const key = a.module ?? a.id;
+  if (on) set.add(key);
+  else set.delete(key);
 }
 
 function renderApps(): void {
   const host = document.querySelector<HTMLElement>("#apps-body");
   if (!host) return;
-  host.replaceChildren(...pickerGroups().map(appGroupNode));
+  host.replaceChildren(
+    GroupedPicker({
+      groups: pickerGroups().map((g) => ({
+        id: g.id,
+        label: g.label,
+        note: g.note,
+        open: openGroups.has(g.id),
+        items: g.apps.map(rogAppItem),
+      })),
+      onToggleItem: (groupId, itemId, on) => {
+        const a = appGroups.find((x) => x.id === groupId)?.apps.find((x) => x.id === itemId);
+        if (a) applyAppToggle(a, on);
+        refreshAppsCount();
+      },
+      onToggleGroup: (groupId, on) => {
+        const g = appGroups.find((x) => x.id === groupId);
+        if (g) for (const a of g.apps) applyAppToggle(a, on);
+        refreshAppsCount();
+      },
+      onToggleOpen: (groupId, open) => {
+        if (open) openGroups.add(groupId);
+        else openGroups.delete(groupId);
+      },
+    }),
+  );
   fill("apps-title", pickerMode === "emulators" ? "Choose emulators" : "Choose apps");
-  const n = pickerMode === "emulators" ? pickCounts().emulators : pickCounts().apps;
-  const count = document.querySelector("#apps-count");
-  if (count) {
-    const word = pickerMode === "emulators" ? "emulator" : "app";
-    count.textContent = `${n} ${word}${n === 1 ? "" : "s"} selected`;
-  }
+  refreshAppsCount();
 }
 
 async function hydrateApps(): Promise<void> {
@@ -871,21 +883,6 @@ async function hydrateApps(): Promise<void> {
   }
   renderApps();
 }
-
-// Keep openGroups in sync with the user's expand/collapse. `toggle` doesn't
-// bubble, so listen in the capture phase.
-document.addEventListener(
-  "toggle",
-  (event) => {
-    const d = event.target;
-    if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("app-group")) return;
-    const id = d.dataset.group;
-    if (!id) return;
-    if (d.open) openGroups.add(id);
-    else openGroups.delete(id);
-  },
-  true,
-);
 
 // ── strip kit (Full ROG): save to disk / USB, format, eject ─────────────────
 let skMode: "disk" | "usb" = "disk";
@@ -2834,49 +2831,36 @@ function renderDeckApps(box: HTMLElement, apps: FlatpakApp[]): void {
     if (l) l.push(app);
     else byCat.set(app.category, [app]);
   }
-  const groups = [...byCat].map(([cat, list]) => {
-    const details = el("details", "app-group") as HTMLDetailsElement;
-    const countEl = el("span", "app-group-count", "");
-    const gcb = el("input", "app-group-check") as HTMLInputElement;
-    gcb.type = "checkbox";
-    const items = el("div", "app-items");
-    const refreshHead = (): void => {
-      const n = list.filter((a) => deckState.flatpakApps.includes(a.id)).length;
-      gcb.checked = n === list.length;
-      gcb.indeterminate = n > 0 && n < list.length;
-      countEl.textContent = `${n} / ${list.length}`;
-      countEl.classList.toggle("on", n > 0);
-      setDeckPickCount("deckapps", countSelectedInView(apps, deckState.flatpakApps), "app");
-    };
-    for (const a of list) {
-      items.append(
-        deckItemRow(a.name, "", deckState.flatpakApps.includes(a.id), (v) => {
-          const set = new Set(deckState.flatpakApps);
-          if (v) set.add(a.id);
-          else set.delete(a.id);
-          deckState.flatpakApps = [...set];
-          refreshHead();
-        }),
-      );
-    }
-    gcb.addEventListener("change", () => {
-      const set = new Set(deckState.flatpakApps);
-      for (const a of list) {
-        if (gcb.checked) set.add(a.id);
-        else set.delete(a.id);
-      }
-      deckState.flatpakApps = [...set];
-      for (const r of items.querySelectorAll<HTMLInputElement>(".app-check"))
-        r.checked = gcb.checked;
-      refreshHead();
-    });
-    const summary = el("summary", "app-group-sum");
-    summary.append(gcb, el("span", "app-group-name", cat), countEl);
-    details.append(summary, items);
-    refreshHead();
-    return details;
-  });
-  box.replaceChildren(...groups);
+  const refreshCount = (): void =>
+    setDeckPickCount("deckapps", countSelectedInView(apps, deckState.flatpakApps), "app");
+  const applyToggle = (id: string, on: boolean): void => {
+    const set = new Set(deckState.flatpakApps);
+    if (on) set.add(id);
+    else set.delete(id);
+    deckState.flatpakApps = [...set];
+  };
+  box.replaceChildren(
+    GroupedPicker({
+      groups: [...byCat].map(([cat, list]) => ({
+        id: cat,
+        label: cat,
+        items: list.map((a) => ({
+          id: a.id,
+          label: a.name,
+          checked: deckState.flatpakApps.includes(a.id),
+        })),
+      })),
+      onToggleItem: (_groupId, id, on) => {
+        applyToggle(id, on);
+        refreshCount();
+      },
+      onToggleGroup: (groupId, on) => {
+        for (const a of byCat.get(groupId) ?? []) applyToggle(a.id, on);
+        refreshCount();
+      },
+    }),
+  );
+  refreshCount();
 }
 
 // ── Decky plugins picker screen (flat list, most-installed first) ──
@@ -3412,39 +3396,9 @@ document.addEventListener("change", (event) => {
     else selectedRemovals.delete(target.dataset.removal);
     renderCustomise();
   }
-  // App-picker: a single app, or a whole group.
-  // A single app pick (winget) or a module-driven entry (e.g. EmuDeck).
-  if (target instanceof HTMLInputElement && target.dataset.app) {
-    if (target.checked) selectedApps.add(target.dataset.app);
-    else selectedApps.delete(target.dataset.app);
-    renderApps();
-  }
-  if (target instanceof HTMLInputElement && target.dataset.module) {
-    if (target.checked) enabledExtras.add(target.dataset.module);
-    else enabledExtras.delete(target.dataset.module);
-    renderApps();
-  }
-  // Whole-group tick: select/clear every entry (winget -> selectedApps, module
-  // entries -> enabledExtras).
-  if (target instanceof HTMLInputElement && target.dataset.group) {
-    const g = appGroups.find((x) => x.id === target.dataset.group);
-    if (g) {
-      for (const a of g.apps) {
-        const set = a.module ? enabledExtras : selectedApps;
-        const key = a.module ?? a.id;
-        if (target.checked) set.add(key);
-        else set.delete(key);
-      }
-    }
-    renderApps();
-  }
-});
-
-// Stop the group checkbox (inside <summary>) from also collapsing the group.
-document.addEventListener("click", (event) => {
-  if ((event.target as HTMLElement).classList?.contains("app-group-check")) {
-    event.stopPropagation();
-  }
+  // The app picker (ROG apps/emulators) is the shared GroupedPicker — it owns its
+  // own item/group/expand handling via callbacks (see renderApps), so there's no
+  // delegated app-check/app-group-check wiring here any more.
 });
 
 // A Review picker row (Apps / Emulators) opens the picker in the right mode.
