@@ -41,6 +41,7 @@ import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
 import { ProfileBar } from "./components/ProfileBar";
 import { SshAccessEditor } from "./components/SshAccessEditor";
+import { StreamingSettings } from "./components/StreamingSettings";
 import { countSelectedInView } from "./lib/app-selection";
 import { needsDevicePick } from "./lib/nav";
 import { groupProfilesForDevice } from "./lib/profiles";
@@ -2508,69 +2509,11 @@ async function hydrateDeckSetup(): Promise<void> {
   deckNet.classList.add("cz-span");
   body.append(deckSection("Network", [deckNet], deckState.staticIp ? 1 : 0));
 
-  // Game streaming — Sunshine (host, with creds) + Moonlight (client), the pair.
-  const sunshineCreds = el("div", "cz-span deck-field");
-  sunshineCreds.id = "deck-sunshine-creds";
-  if (!deckState.sunshine.enabled) sunshineCreds.hidden = true;
-  sunshineCreds.append(
-    el(
-      "div",
-      "cz-desc",
-      "Optional Sunshine login — set it here and it's pre-configured (no typing on the Deck).",
-    ),
-  );
-  const suser = el("input", "uw-select") as HTMLInputElement;
-  suser.type = "text";
-  suser.placeholder = "Sunshine username";
-  suser.value = deckState.sunshine.user ?? "";
-  suser.addEventListener("input", () => {
-    deckState.sunshine.user = suser.value.trim() || undefined;
-  });
-  const spass = el("input", "uw-select") as HTMLInputElement;
-  spass.type = "password";
-  spass.placeholder = "Sunshine password";
-  spass.value = deckState.sunshine.pass ?? "";
-  spass.addEventListener("input", () => {
-    deckState.sunshine.pass = spass.value || undefined;
-  });
-  sunshineCreds.append(suser, spass);
-  const moonlight = (await window.bootible?.getDeckApps?.())?.find((a) => a.id === "moonlight");
-  const streamRows: HTMLElement[] = [
-    deckCheck(
-      "Sunshine (host)",
-      deckState.sunshine.enabled,
-      (v) => {
-        deckState.sunshine.enabled = v;
-        document.querySelector("#deck-sunshine-creds")?.toggleAttribute("hidden", !v);
-      },
-      "Stream games FROM this Deck to a Moonlight client on another screen.",
-      "installs dev.lizardbyte.app.Sunshine",
-    ),
-    sunshineCreds,
-  ];
-  if (moonlight) {
-    streamRows.push(
-      deckCheck(
-        "Moonlight (client)",
-        deckState.flatpakApps.includes("moonlight"),
-        (v) => {
-          const set = new Set(deckState.flatpakApps);
-          if (v) set.add("moonlight");
-          else set.delete("moonlight");
-          deckState.flatpakApps = [...set];
-        },
-        "Play games streamed FROM another PC (running Sunshine/GeForce Experience).",
-        `installs ${moonlight.ref}`,
-      ),
-    );
-  }
-  body.append(
-    deckSection(
-      "Game streaming",
-      streamRows,
-      countOn(deckState.sunshine.enabled, deckState.flatpakApps.includes("moonlight")),
-    ),
-  );
+  // Game streaming — shared StreamingSettings (Sunshine host + creds + Moonlight).
+  const streamMount = el("div", "cz-span");
+  streamMount.id = "deck-streaming-mount";
+  body.append(deckSection("Game streaming", [streamMount]));
+  mountDeckStreaming();
 
   // Remote access — VNC + Tailscale.
   body.append(
@@ -2605,6 +2548,42 @@ async function hydrateDeckSetup(): Promise<void> {
   sshMount.id = "deck-ssh-mount";
   body.append(deckSection("SSH access", [sshMount]));
   mountDeckSsh();
+}
+
+/** (Re)mount the Deck's shared StreamingSettings (re-mounts only when a toggle
+ *  changes which fields show, so typing in user/password keeps focus). */
+function mountDeckStreaming(): void {
+  const mount = document.querySelector<HTMLElement>("#deck-streaming-mount");
+  if (!mount) return;
+  const s = deckState.sunshine;
+  mount.replaceChildren(
+    StreamingSettings({
+      value: {
+        sunshineEnabled: s.enabled,
+        sunshineUser: s.user,
+        sunshinePass: s.pass,
+        sunshinePromptPass: s.promptPass,
+        moonlight: deckState.flatpakApps.includes("moonlight"),
+      },
+      onChange: (next) => {
+        const toggled =
+          s.enabled !== next.sunshineEnabled ||
+          Boolean(s.promptPass) !== Boolean(next.sunshinePromptPass) ||
+          deckState.flatpakApps.includes("moonlight") !== next.moonlight;
+        deckState.sunshine = {
+          enabled: next.sunshineEnabled,
+          user: next.sunshineUser,
+          pass: next.sunshinePass,
+          promptPass: next.sunshinePromptPass,
+        };
+        const set = new Set(deckState.flatpakApps);
+        if (next.moonlight) set.add("moonlight");
+        else set.delete("moonlight");
+        deckState.flatpakApps = [...set];
+        if (toggled) mountDeckStreaming(); // show/hide creds without stealing input focus
+      },
+    }),
+  );
 }
 
 /** (Re)mount the Deck's shared SshAccessEditor. Re-mounts on GitHub blur to show a

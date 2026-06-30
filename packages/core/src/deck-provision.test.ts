@@ -63,6 +63,23 @@ describe("generateDeckProvision", () => {
     expect(s).toContain('>> "$HOME/.ssh/authorized_keys"');
   });
 
+  it("bakes the Sunshine password when provided", () => {
+    const s = generateDeckProvision({
+      sunshine: { enabled: true, user: "me", pass: "s3cret" },
+    });
+    expect(s).toContain("--creds 'me' 's3cret'");
+    expect(s).not.toContain("read -rs");
+  });
+
+  it("prompts for the Sunshine password on-device when deferred (keeps it off the USB)", () => {
+    const s = generateDeckProvision({
+      sunshine: { enabled: true, user: "me", pass: "s3cret", promptPass: true },
+    });
+    expect(s).not.toContain("s3cret"); // never written to the USB
+    expect(s).toContain("read -rs _sunpass");
+    expect(s).toContain('--creds \'me\' "$_sunpass"');
+  });
+
   it("sets the hostname only when given", () => {
     expect(generateDeckProvision({ hostname: "vengeance" })).toContain("hostnamectl set-hostname");
     expect(generateDeckProvision({})).not.toContain("hostnamectl");

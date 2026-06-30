@@ -51,8 +51,10 @@ export interface DeckConfig {
   /** Where the Emulation tree lives. */
   emulationStorage: "auto" | "internal" | "sdcard";
   /** Sunshine game-streaming server (Moonlight client is a Flatpak app). */
-  /** Sunshine game-streaming server; web-UI credentials pre-set when provided. */
-  sunshine: { enabled: boolean; user?: string; pass?: string };
+  /** Sunshine game-streaming server; web-UI credentials pre-set when provided.
+   *  promptPass: ask for the password on-device during provision.sh (keeps it off
+   *  the USB) instead of baking it in. */
+  sunshine: { enabled: boolean; user?: string; pass?: string; promptPass?: boolean };
   vnc: boolean;
   tailscale: boolean;
   /** Stage the Waydroid installer (Android; the installer itself is interactive). */
@@ -120,6 +122,7 @@ export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): D
       enabled: p.sunshine?.enabled ?? false,
       user: p.sunshine?.user?.trim() || undefined,
       pass: p.sunshine?.pass || undefined,
+      promptPass: p.sunshine?.promptPass || undefined,
     },
     vnc: p.vnc ?? d.vnc,
     tailscale: p.tailscale ?? d.tailscale,

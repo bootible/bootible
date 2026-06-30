@@ -213,9 +213,16 @@ function streamingBlock(cfg: DeckConfig): string {
   if (cfg.sunshine.enabled || cfg.vnc) lines.push(`say "Streaming / remote"`);
   if (cfg.sunshine.enabled) {
     lines.push(fpInstall("dev.lizardbyte.app.Sunshine"));
-    // Pre-set the web-UI credentials (same mechanism as the Windows side:
-    // `sunshine --creds <user> <pass>`), so there's nothing to type on-device.
-    if (cfg.sunshine.user && cfg.sunshine.pass) {
+    // Pre-set the web-UI credentials (`sunshine --creds <user> <pass>`).
+    if (cfg.sunshine.user && cfg.sunshine.promptPass) {
+      // Password kept OFF the USB — prompt for it here, on-device, instead.
+      lines.push(`printf '\\nSunshine password for %s: ' ${shq(cfg.sunshine.user)}`);
+      lines.push("read -rs _sunpass || true; echo");
+      lines.push(
+        `flatpak run dev.lizardbyte.app.Sunshine --creds ${shq(cfg.sunshine.user)} "$_sunpass" 2>/dev/null && ok "Sunshine credentials set" || warn "set Sunshine creds at https://localhost:47990"`,
+      );
+      lines.push("unset _sunpass");
+    } else if (cfg.sunshine.user && cfg.sunshine.pass) {
       lines.push(
         `flatpak run dev.lizardbyte.app.Sunshine --creds ${shq(cfg.sunshine.user)} ${shq(cfg.sunshine.pass)} 2>/dev/null && ok "Sunshine credentials set" || warn "set Sunshine creds at https://localhost:47990"`,
       );
