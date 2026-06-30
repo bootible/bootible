@@ -1,10 +1,15 @@
 // RECORDED REASON for >400 lines (coding-standard §4): the renderer god-file,
-// mid-decomposition. The Deck flow is already carved out to features/deck.ts
-// (−987 lines). The remaining bulk (welcome/sync-key/2FA auth, the ROG
-// account/customise/apps flow, the strip kit) all couple to the shared router
-// (syncFromHash) and request-builder (gatherUsbRequest), so the next step is to
-// extract THOSE into shared modules first, before the rest can move without
-// circular imports. See docs/v2/standards/remediation-plan.md P3.
+// well into decomposition — 4022 → ~2480 lines. Already carved out: the Deck flow
+// (features/deck/*), the auth flow (features/auth.ts), the hash router
+// (lib/router.ts), shared device context (lib/session.ts), logoMap (lib/logos.ts).
+// What remains is the tightly-coupled ROG core: device-pick → customise → apps →
+// ssh → bundles → method → provisioning → profiles → USB-writer → watch, all of
+// which read/write ~19 shared module-level state vars (usbState, selectedBaseId,
+// enabled/disabled modules, selected apps/removals/keys, the rog* family, …) and
+// funnel through gatherUsbRequest. Extracting it cleanly first needs those 19 vars
+// moved into a shared rog-state module (a large, cross-cutting migration), then the
+// screens split into features/rog/*. That's the next step — bigger than the
+// self-contained extractions done so far. See docs/v2/standards/remediation-plan.md P3.
 import "./styles.css";
 import type {
   AppEntry,
