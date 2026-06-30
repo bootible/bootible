@@ -39,6 +39,7 @@ import type {
 import QRCode from "qrcode";
 import brandMark from "./assets/bootible-mark.png";
 import { NetworkSettings } from "./components/NetworkSettings";
+import { PasswordField } from "./components/PasswordField";
 import { ProfileBar } from "./components/ProfileBar";
 import { SshAccessEditor } from "./components/SshAccessEditor";
 import { StreamingSettings } from "./components/StreamingSettings";
@@ -317,6 +318,7 @@ function syncFromHash(): void {
   if (view === "stripkit") void hydrateStripkit();
   if (view === "account") {
     void hydrateSshKeys();
+    mountRogSunshinePass();
     void mountRogProfileBar("save"); // save on the last config page (full config)
     // Full ROG restores the factory image — it doesn't create an account, so
     // re-word the screen away from "pick how it signs in".
@@ -1077,6 +1079,30 @@ document.addEventListener("change", (event) => {
 let sshHydrated = false;
 let githubKeys: string[] = []; // keys fetched from the chosen GitHub user (baked at build)
 let githubFetchedFor = ""; // the username githubKeys was fetched for (so we don't show a stale count)
+let rogSunshinePass = ""; // Sunshine password (held in JS; the shared PasswordField owns the input)
+let rogSunshinePromptPass = false; // defer — set on the device instead of baking it onto the USB
+
+/** (Re)mount the shared PasswordField for the ROG Sunshine password. */
+function mountRogSunshinePass(): void {
+  const mount = document.querySelector<HTMLElement>("#rog-sunshine-pass-mount");
+  if (!mount) return;
+  mount.replaceChildren(
+    PasswordField({
+      value: rogSunshinePass,
+      placeholder: "Sunshine password",
+      deferred: rogSunshinePromptPass,
+      deferLabel: "Set the Sunshine password on the device instead (kept off the USB)",
+      onChange: (v) => {
+        rogSunshinePass = v;
+      },
+      onDeferChange: (d) => {
+        rogSunshinePromptPass = d;
+        if (d) rogSunshinePass = "";
+        mountRogSunshinePass();
+      },
+    }),
+  );
+}
 let rogPastedKeys: string[] = [];
 let rogGithubUser = "";
 
@@ -1819,7 +1845,9 @@ function gatherUsbRequest(): UsbBuildRequest {
     remoteAccess,
     remoteAccessHost,
     sunshineUser: val("#sunshine-user") || undefined,
-    sunshinePass: val("#sunshine-pass") || undefined,
+    // Deferred → kept off the USB (the device's sunshine-creds step skips, so the
+    // user sets it via the Sunshine web UI on first run).
+    sunshinePass: rogSunshinePromptPass ? undefined : rogSunshinePass || undefined,
     wallpaperPath: wallpaperPath || undefined,
     lockscreenPath: lockscreenPath || undefined,
     disabledModules: disabledModules.size ? [...disabledModules] : undefined,
@@ -1863,6 +1891,7 @@ function captureProfile(name: string): Profile {
       accountMode: document.body.dataset.account ?? "local",
       acctUser: fv("#acct-user"),
       sunshineUser: fv("#sunshine-user"),
+      sunshinePromptPass: rogSunshinePromptPass,
       wifiSsid: fv("#wifi-ssid"),
       ra: { sunshine: fck("#ra-sunshine"), moonlight: fck("#ra-moonlight"), rdp: fck("#ra-rdp") },
       raHost: { sunshine: fck("#ra-sunshine-host"), moonlight: fck("#ra-moonlight-host") },
@@ -1870,7 +1899,7 @@ function captureProfile(name: string): Profile {
       lockscreenPath,
     },
     secrets: {
-      sunshinePass: fv("#sunshine-pass"),
+      sunshinePass: rogSunshinePromptPass ? "" : rogSunshinePass,
       acctPass: fv("#acct-pass"),
       wifiPass: fv("#wifi-pass"),
     },
@@ -1931,7 +1960,9 @@ function applyProfile(p: Profile): void {
   const raHost = (ui.raHost ?? {}) as Record<string, unknown>;
   setCk("#ra-sunshine-host", raHost.sunshine);
   setCk("#ra-moonlight-host", raHost.moonlight);
-  setV("#sunshine-pass", p.secrets?.sunshinePass);
+  rogSunshinePromptPass = Boolean(ui.sunshinePromptPass);
+  rogSunshinePass = rogSunshinePromptPass ? "" : (p.secrets?.sunshinePass ?? "");
+  mountRogSunshinePass();
   setV("#acct-pass", p.secrets?.acctPass);
   setV("#wifi-pass", p.secrets?.wifiPass);
   wallpaperPath = (ui.wallpaperPath as string) ?? "";

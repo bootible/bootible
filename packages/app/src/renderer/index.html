@@ -635,7 +635,7 @@
                 <div class="ra-creds" data-host="sunshine" hidden>
                   <div class="cfg-row">
                     <div class="field"><label class="field-label" for="sunshine-user">Sunshine username</label><input class="field-input" id="sunshine-user" type="text" placeholder="e.g. admin" autocomplete="off" spellcheck="false" /></div>
-                    <div class="field"><label class="field-label" for="sunshine-pass">Sunshine password</label><div class="pw-wrap"><input class="field-input" id="sunshine-pass" type="password" autocomplete="off" spellcheck="false" /><button class="pw-eye" type="button" data-reveal="sunshine-pass" title="Show / hide" aria-label="Show or hide password">👁</button></div></div>
+                    <div class="field"><label class="field-label">Sunshine password</label><!-- shared PasswordField (warning + defer) mounted here --><div id="rog-sunshine-pass-mount"></div></div>
                   </div>
                   <p class="ra-warn">⚠ Save these somewhere safe (your password manager). They're baked into the build and can't be recovered from bootible.</p>
                 </div>
