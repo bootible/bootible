@@ -48,6 +48,10 @@ export interface CatalogApp {
    *  Greenlight). Resolves the latest release, downloads the matching asset, and
    *  installs it silently in the user session. */
   githubRelease?: GithubReleaseInstall;
+  /** Configured on the device-setup screen (e.g. Sunshine, set up with credentials
+   *  there), so it's hidden from the app picker to avoid a duplicate entry. Still
+   *  installed — by the setup/streaming flow, not an app selection. */
+  setupOnly?: boolean;
 }
 
 export interface GithubReleaseInstall {
@@ -265,6 +269,7 @@ export const CATALOG: readonly CatalogApp[] = [
     category: "Streaming",
     winget: { id: "LizardByte.Sunshine" },
     flatpak: "dev.lizardbyte.app.Sunshine",
+    setupOnly: true, // configured (with creds) on the device-setup streaming section
   },
   { id: "parsec", name: "Parsec", category: "Streaming", winget: { id: "Parsec.Parsec" } },
   { id: "steamlink", name: "Steam Link", category: "Streaming", winget: { id: "Valve.SteamLink" } },
@@ -529,12 +534,12 @@ export function onSteamOS(app: CatalogApp): boolean {
 
 /** The Windows-installable apps. */
 export function windowsCatalog(): CatalogApp[] {
-  return CATALOG.filter(onWindows);
+  return CATALOG.filter((a) => onWindows(a) && !a.setupOnly);
 }
 
 /** The SteamOS-installable apps. */
 export function deckCatalog(): CatalogApp[] {
-  return CATALOG.filter(onSteamOS);
+  return CATALOG.filter((a) => onSteamOS(a) && !a.setupOnly);
 }
 
 /** Look up a catalog entry by id. */
