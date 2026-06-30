@@ -38,6 +38,8 @@ Credited by the Opus reviewer against the original cohesion backlog; verified pr
 
 ## P0 — security & correctness (ship independently, now)
 
+> **Status:** the three security P0s are **shipped** — Deck script injection (`46b4187`), cloud plaintext fail-closed (`f3e5588`), elevated-PS drive/disk guards (`2f45158`). The silent-catch sweep is **deferred to P1** (it wants the shared `StatusMessage`/`ProgressPanel` — do it once, properly). Outstanding here: the `locale`/`uiLanguage` xmlEscape consistency fix (low-risk, catalog-sourced) and the ssh-port/IPC validation moving into core (P2 #5).
+
 ### Shell injection in the generated Deck `provision.sh` — `core/src/deck-provision.ts`
 A `shq()` escaper exists and is used for sunshine/network/beacon args, but **three** user-controlled values bypass it into expansion-active `bash` that runs under `sudo`. Values arrive from free-text UI **and from imported / cloud-synced profiles**, so "the UI validates it" is not a defence. Violates coding-standard #14.
 
