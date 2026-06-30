@@ -43,8 +43,13 @@ function toggleRow(
  * provision.sh; ROG sets it on first run).
  */
 export function StreamingSettings(o: StreamingSettingsOptions): HTMLElement {
-  const v = o.value;
-  const emit = (patch: Partial<StreamingValue>): void => o.onChange({ ...v, ...patch });
+  // Track the live value in a mutable object so one control's change doesn't clobber
+  // another's (e.g. ticking "defer" must not wipe the username typed moments earlier).
+  const v = { ...o.value };
+  const emit = (patch: Partial<StreamingValue>): void => {
+    Object.assign(v, patch);
+    o.onChange({ ...v });
+  };
   const root = el("div", "streaming-settings");
 
   root.append(

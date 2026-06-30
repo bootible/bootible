@@ -93,16 +93,20 @@ export function ProfileBar(o: ProfileBarOptions): HTMLElement {
   const showLoad = mode === "load" || mode === "full";
   const showSave = mode === "save" || mode === "full";
   const row = el("div", "profile-bar-row");
-  if (showLoad) row.append(sel, loadBtn, delBtn);
-  if (showSave) row.append(nameInput, saveBtn);
-
-  // Update appears only when saving with a profile loaded — overwrites that one.
-  if (showSave && o.loadedName) {
-    const updateBtn = btn("update", `Update "${o.loadedName}"`);
+  // The dropdown is the profile selector for both loading and picking which existing
+  // profile to overwrite when saving.
+  if (showLoad || showSave) row.append(sel);
+  if (showLoad) row.append(loadBtn, delBtn);
+  if (showSave) {
+    row.append(nameInput, saveBtn);
+    // Update — overwrite the selected (or loaded) profile with the current config.
+    const updateBtn = btn("update", "Update selected");
     updateBtn.classList.remove("btn-ghost");
     updateBtn.classList.add("btn-primary");
-    const loaded = o.loadedName;
-    updateBtn.addEventListener("click", () => o.onUpdate(loaded));
+    updateBtn.addEventListener("click", () => {
+      const target = sel.value || o.loadedName;
+      if (target) o.onUpdate(target);
+    });
     row.append(updateBtn);
   }
 

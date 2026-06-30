@@ -42,9 +42,8 @@ describe("ProfileBar", () => {
     expect(h.onSaveNew).toHaveBeenCalledWith("Gamma");
   });
 
-  it("shows Update only when a profile is loaded, and updates that one", () => {
+  it("Update overwrites the loaded profile when nothing else is picked", () => {
     const h = handlers();
-    expect(ProfileBar({ profiles, ...h }).querySelector("[data-action=update]")).toBeNull();
     const loaded = ProfileBar({ profiles, loadedName: "Alpha", ...h });
     get<HTMLButtonElement>(loaded, "[data-action=update]").click();
     expect(h.onUpdate).toHaveBeenCalledWith("Alpha");
@@ -75,14 +74,23 @@ describe("ProfileBar", () => {
     expect(bar.querySelector("[data-action=update]")).toBeNull();
   });
 
-  it("save mode shows save controls (incl. Update when loaded) but no picker", () => {
+  it("save mode shows the picker + save + update, but no Load", () => {
     const h = handlers();
     const bar = ProfileBar({ profiles, mode: "save", loadedName: "Alpha", ...h });
-    expect(bar.querySelector("[data-field=select]")).toBeNull();
-    expect(bar.querySelector("[data-action=load]")).toBeNull();
+    expect(bar.querySelector("[data-field=select]")).not.toBeNull(); // pick which to overwrite
+    expect(bar.querySelector("[data-action=load]")).toBeNull(); // no loading at the save step
     expect(bar.querySelector("[data-field=name]")).not.toBeNull();
     expect(bar.querySelector("[data-action=save-new]")).not.toBeNull();
     expect(bar.querySelector("[data-action=update]")).not.toBeNull();
+  });
+
+  it("update overwrites the profile selected in the picker", () => {
+    const h = handlers();
+    const bar = ProfileBar({ profiles, mode: "save", ...h });
+    const sel = get<HTMLSelectElement>(bar, "[data-field=select]");
+    sel.value = "Beta";
+    get<HTMLButtonElement>(bar, "[data-action=update]").click();
+    expect(h.onUpdate).toHaveBeenCalledWith("Beta");
   });
 
   it("renders model and family profiles in separate labelled optgroups", () => {

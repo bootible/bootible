@@ -3055,6 +3055,12 @@ function onDeckProgress(event: UsbProgress): void {
           ? doneText
           : `${event.pct}% — keep the app open.`;
   }
+  // Offer Eject once the provision-only write finishes (reimage USBs are booted, not ejected).
+  if (pfx === "deck") {
+    document
+      .querySelector("#deck-done-actions")
+      ?.toggleAttribute("hidden", event.status !== "done");
+  }
 }
 
 window.bootible?.onUsbProgress?.(onDeckProgress);
@@ -3074,6 +3080,17 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (target.closest("#deck-write-btn")) void startDeckWrite();
+  if (target.closest("#deck-usb-eject")) {
+    void (async () => {
+      const pct = document.querySelector("#deck-pct");
+      if (pct) pct.textContent = "Ejecting…";
+      const r = await window.bootible?.ejectUsb?.(deckDisk);
+      if (pct)
+        pct.textContent = r?.ok
+          ? "✓ Ejected — safe to remove."
+          : "Couldn't eject — close any windows on the drive and try again.";
+    })();
+  }
 });
 
 document.addEventListener("change", (event) => {
