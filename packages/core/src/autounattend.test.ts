@@ -68,6 +68,15 @@ describe("generateAutounattend", () => {
     expect(xml).toContain("<SetupUILanguage><UILanguage>en-US</UILanguage></SetupUILanguage>");
   });
 
+  it("XML-escapes locale/uiLanguage so a malformed (or profile-supplied) value can't break the document", () => {
+    const xml = generateAutounattend({ ...base, locale: 'en-NZ<&"', uiLanguage: "en-GB>&" });
+    // The raw angle brackets / ampersands never reach the document unescaped.
+    expect(xml).not.toContain("en-NZ<");
+    expect(xml).not.toContain("en-GB>");
+    expect(xml).toContain("en-NZ&lt;&amp;&quot;");
+    expect(xml).toContain("en-GB&gt;&amp;");
+  });
+
   it("runs the bootible bootstrap as the first logon command", () => {
     const xml = generateAutounattend(base);
     expect(xml).toContain("<FirstLogonCommands>");

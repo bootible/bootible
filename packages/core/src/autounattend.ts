@@ -156,8 +156,11 @@ function specializePass(config: AutounattendConfig): string {
 
 function oobeSystemPass(config: AutounattendConfig): string {
   const isLocal = config.account.mode === "local";
-  const locale = config.locale ?? "en-NZ";
-  const uiLanguage = config.uiLanguage ?? "en-GB";
+  // Escaped like every other interpolated value — catalog-sourced today, but a
+  // profile/cloud-synced config could carry anything, and a stray < or & would
+  // otherwise produce invalid XML that fails Setup silently.
+  const locale = xmlEscape(config.locale ?? "en-NZ");
+  const uiLanguage = xmlEscape(config.uiLanguage ?? "en-GB");
   const accountBlock = isLocal ? localAccountBlock(config.account as LocalAccountMode) : "";
   return `  <settings pass="oobeSystem">
     <component name="Microsoft-Windows-International-Core" ${COMPONENT_ATTRS}>
@@ -194,9 +197,11 @@ function oobeSystemPass(config: AutounattendConfig): string {
 
 /** Build the full autounattend.xml for a hands-off Ally install. */
 export function generateAutounattend(config: AutounattendConfig): string {
-  const locale = config.locale ?? "en-NZ";
+  // xmlEscape here so windowsPePass (which interpolates these raw) can't emit
+  // invalid XML; edition is escaped inside windowsPePass, so leave it plain.
+  const locale = xmlEscape(config.locale ?? "en-NZ");
   const edition = config.edition ?? "Windows 11 Home";
-  const uiLanguage = config.uiLanguage ?? "en-GB";
+  const uiLanguage = xmlEscape(config.uiLanguage ?? "en-GB");
   return `<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
 ${windowsPePass(locale, edition, uiLanguage)}
