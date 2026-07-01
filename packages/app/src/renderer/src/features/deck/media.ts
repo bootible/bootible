@@ -1,5 +1,6 @@
 import type { UsbProgress } from "@bootible/core";
 import { DiskPicker } from "../../components/DiskPicker";
+import { renderProgress } from "../../components/ProgressPanel";
 import { deckState } from "./config";
 
 export async function hydrateDeckWrite(): Promise<void> {
@@ -56,23 +57,11 @@ function onDeckProgress(event: UsbProgress): void {
   const view = document.body.dataset.view;
   const pfx = view === "deckreimage" ? "deckre" : view === "deckwrite" ? "deck" : null;
   if (!pfx) return;
-  const msg = document.querySelector(`#${pfx}-msg`);
-  const fill = document.querySelector<HTMLElement>(`#${pfx}-fill`);
-  const pct = document.querySelector(`#${pfx}-pct`);
-  if (msg) msg.textContent = event.message;
-  if (fill) fill.style.width = `${event.pct}%`;
-  if (pct) {
-    const doneText =
-      pfx === "deckre"
-        ? "Done — boot the Deck from this USB and choose Reimage."
-        : "Done — eject it and run bootible/provision.sh on your Deck.";
-    pct.textContent =
-      event.status === "error"
-        ? "Failed — see the message above."
-        : event.status === "done"
-          ? doneText
-          : `${event.pct}% — keep the app open.`;
-  }
+  const doneText =
+    pfx === "deckre"
+      ? "Done — boot the Deck from this USB and choose Reimage."
+      : "Done — eject it and run bootible/provision.sh on your Deck.";
+  renderProgress(pfx, event, doneText);
   // Offer Eject once the provision-only write finishes (reimage USBs are booted, not ejected).
   if (pfx === "deck") {
     document

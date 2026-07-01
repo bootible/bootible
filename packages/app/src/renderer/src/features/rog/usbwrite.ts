@@ -6,6 +6,7 @@ import type {
   UsbProgress,
 } from "@bootible/core";
 import { DiskPicker } from "../../components/DiskPicker";
+import { renderProgress } from "../../components/ProgressPanel";
 import { el, fill } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 import { session } from "../../lib/session";
@@ -130,17 +131,28 @@ export async function hydrateUsbWrite(): Promise<void> {
     try {
       langs = await api.getLanguages();
     } catch {}
-    lang.replaceChildren(
-      ...langs.map((option) => {
-        const opt = document.createElement("option");
-        opt.value = option.isoId;
-        opt.textContent = option.label;
-        return opt;
-      }),
-    );
-    if (langs[0]) {
-      rog.usbState.isoId = langs[0].isoId;
-      rog.usbState.isoPath = "";
+    if (langs.length === 0) {
+      // A silently-empty dropdown blocks the write with no explanation — the isoId
+      // it should set drives the write button. Show the failure in the select.
+      const opt = document.createElement("option");
+      opt.textContent = "Couldn't load languages — reopen this screen";
+      opt.disabled = true;
+      opt.selected = true;
+      lang.replaceChildren(opt);
+    } else {
+      lang.replaceChildren(
+        ...langs.map((option) => {
+          const opt = document.createElement("option");
+          opt.value = option.isoId;
+          opt.textContent = option.label;
+          return opt;
+        }),
+      );
+      const first = langs[0];
+      if (first) {
+        rog.usbState.isoId = first.isoId;
+        rog.usbState.isoPath = "";
+      }
     }
   }
 
@@ -229,19 +241,7 @@ function onUsbProgress(event: UsbProgress): void {
   // + finish behaviour (onDeckProgress) — don't double-handle them here.
   const dv = document.body.dataset.view;
   if (dv === "deckwrite" || dv === "deckreimage") return;
-  const msg = document.querySelector("#uw-msg");
-  const fill = document.querySelector<HTMLElement>("#uw-fill");
-  const pct = document.querySelector("#uw-pct");
-  if (msg) msg.textContent = event.message;
-  if (fill) fill.style.width = `${event.pct}%`;
-  if (pct) {
-    pct.textContent =
-      event.status === "error"
-        ? "Failed — see the message above."
-        : event.status === "done"
-          ? "Done — boot the Ally from the stick."
-          : `${event.pct}% — keep the app open.`;
-  }
+  renderProgress("uw", event, "Done — boot the Ally from the stick.");
   // Once the stick is written, move to watching the network for the device.
   if (event.status === "done") setTimeout(() => (location.hash = "watch"), 1200);
 }
