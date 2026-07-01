@@ -36,3 +36,13 @@ describe("devicesWithCapabilities", () => {
     expect(ids).toContain("steamdeck");
   });
 });
+
+describe("media capability → setup flow", () => {
+  // The renderer (selectDeviceAndGo) routes a device to the Windows clean-install
+  // wizard when it offers a direct usb-install, else to the carrier (Deck) config
+  // flow. Pin that rule's inputs so a media-mode change can't silently reroute.
+  it("marks usb-install devices as clean-install and carrier devices otherwise", () => {
+    expect(capabilitiesFor("rog-ally")?.media.includes("usb-install")).toBe(true);
+    expect(capabilitiesFor("steamdeck")?.media.includes("usb-install")).toBe(false);
+  });
+});

@@ -1,4 +1,5 @@
 import type { BaseOption, DeviceOption, PlatformOption } from "@bootible/core";
+import { capabilitiesFor } from "@bootible/core/browser";
 import { StatusMessage } from "../../components/StatusMessage";
 import { el, fill } from "../../lib/dom";
 import { APP_LOGOS, DEVICE_BRAND, DEVICE_LOGOS, logoEl, OS_LOGOS } from "../../lib/logos";
@@ -99,7 +100,12 @@ export async function selectDeviceAndGo(id: string): Promise<void> {
   fill("base-eyebrow", `Your ${device.name}`);
   // The Deck (SteamOS) uses the host-carrier flow, not the Windows base/customise
   // wizard — point the home "Set up" button at the Deck config screen.
-  const isDeck = usesDeckCarrierOs(device.os);
+  // Capability-driven: a device whose media outcomes DON'T include a direct
+  // usb-install (i.e. the Deck's provision/reimage carrier flow) routes to the
+  // Deck config screen; a clean-install device goes to the Windows base wizard.
+  // Falls back to the OS carrier check for roadmap devices with no capability entry.
+  const cap = capabilitiesFor(id);
+  const isDeck = cap ? !cap.media.includes("usb-install") : usesDeckCarrierOs(device.os);
   const setupBtn = document.querySelector<HTMLElement>(
     '.view[data-view="home"] .actions [data-go]',
   );
