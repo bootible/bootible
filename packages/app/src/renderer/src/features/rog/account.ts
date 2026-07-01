@@ -12,8 +12,41 @@ import { hydrateDevices, hydratePlatforms, selectDeviceAndGo } from "./device";
 // read it), the same pattern the Sunshine password already used.
 
 function currentEditionIsPro(): boolean {
-  return document.querySelector<HTMLInputElement>("#edition-pro")?.checked ?? false;
+  return rog.edition === "pro";
 }
+
+// The account-screen text/radio inputs mirror the typed rog.* fields (hostname,
+// edition, account mode, local-admin user/pass, WiFi ssid/pass). rog is the source
+// of truth — these two functions keep the DOM and state in sync so profile capture
+// + gatherUsbRequest read state, never the DOM (matches the Deck's deckState model).
+const ACCT_INPUTS: { id: string; get: () => string; set: (v: string) => void }[] = [
+  { id: "device-hostname", get: () => rog.hostname, set: (v) => (rog.hostname = v) },
+  { id: "acct-user", get: () => rog.acctUser, set: (v) => (rog.acctUser = v) },
+  { id: "acct-pass", get: () => rog.acctPass, set: (v) => (rog.acctPass = v) },
+  { id: "wifi-ssid", get: () => rog.wifiSsid, set: (v) => (rog.wifiSsid = v) },
+  { id: "wifi-pass", get: () => rog.wifiPass, set: (v) => (rog.wifiPass = v) },
+];
+
+/** Push the typed rog.* account fields into the screen's inputs. Call on entering
+ *  the account screen (and after a profile load) so the DOM reflects the state. */
+export function syncAccountInputsFromState(): void {
+  for (const f of ACCT_INPUTS) {
+    const input = document.getElementById(f.id) as HTMLInputElement | null;
+    if (input) input.value = f.get();
+  }
+  const pro = document.getElementById("edition-pro") as HTMLInputElement | null;
+  const home = document.getElementById("edition-home") as HTMLInputElement | null;
+  if (pro) pro.checked = rog.edition === "pro";
+  if (home) home.checked = rog.edition !== "pro";
+  document.body.dataset.account = rog.accountMode;
+}
+
+// Mirror keystrokes/edits in those inputs straight back into rog (the source of truth).
+document.addEventListener("input", (event) => {
+  const t = event.target as HTMLElement;
+  const field = ACCT_INPUTS.find((f) => f.id === t.id);
+  if (field) field.set((t as HTMLInputElement).value);
+});
 
 /** (Re)mount the shared StreamingSettings for the ROG (Sunshine host + creds +
  *  Moonlight + the "also set it up on this PC" host toggles). */

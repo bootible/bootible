@@ -53,25 +53,26 @@ export async function runExport(): Promise<void> {
   location.hash = "done";
 }
 
-/** Gather the USB build inputs from the wizard's base, account, SSH + WiFi. */
+/** Gather the USB build inputs from the wizard's typed state (rog.*). The account
+ *  screen's inputs mirror rog, so there are no DOM reads here — one typed source. */
 export function gatherUsbRequest(): UsbBuildRequest {
-  const val = (sel: string) =>
-    document.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel)?.value.trim() ?? "";
-  const mode: "local" | "microsoft" =
-    document.body.dataset.account === "microsoft" ? "microsoft" : "local";
   const account =
-    mode === "local"
-      ? { mode, username: val("#acct-user") || "ally", password: val("#acct-pass") || undefined }
-      : { mode };
-  const ssid = val("#wifi-ssid");
-  const wifi = ssid ? { ssid, password: val("#wifi-pass") } : undefined;
+    rog.accountMode === "local"
+      ? {
+          mode: "local" as const,
+          username: rog.acctUser.trim() || "ally",
+          password: rog.acctPass.trim() || undefined,
+        }
+      : { mode: "microsoft" as const };
+  const ssid = rog.wifiSsid.trim();
+  const wifi = ssid ? { ssid, password: rog.wifiPass.trim() } : undefined;
   // SSH keys = every source the SshAccessEditor collected (keys enable SSH): the
   // selected host keys, pasted keys, and the fetched GitHub keys.
   const picked = rog.hostSshKeys
     .filter((k) => rog.selectedKeyIds.has(k.id))
     .map((k) => k.publicKey);
   const sshPublicKeys = [...new Set([...picked, ...rog.pastedKeys, ...rog.githubKeys])];
-  const hostname = val("#device-hostname") || undefined;
+  const hostname = rog.hostname.trim() || undefined;
   // Static IP comes from the shared NetworkSettings component (held in rog.staticIp),
   // which already folded in the inferred prefix/gateway/dns. Drop it if no address.
   const staticIp: StaticIp | undefined = rog.staticIp?.ip ? rog.staticIp : undefined;
@@ -81,8 +82,7 @@ export function gatherUsbRequest(): UsbBuildRequest {
   // With a base chosen, the customise screen drives the extras (incl. "apps");
   // the floor/base come from baseId minus rog.disabledModules (resolved in main).
   const modules = rog.selectedBaseId ? [...rog.enabledExtras] : selectedModuleIds();
-  const checked = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.checked ?? false;
-  const edition = checked("#edition-pro") ? "pro" : "home";
+  const edition = rog.edition;
   const remoteAccess = {
     sunshine: rog.sunshineEnabled,
     moonlight: rog.moonlight,

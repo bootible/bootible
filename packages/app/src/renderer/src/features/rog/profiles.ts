@@ -12,16 +12,9 @@ import {
 import { hydrateCustomise } from "./customise";
 
 // ── config profiles: capture / apply the whole UI state ─────────────────────
-const fv = (s: string) => document.querySelector<HTMLInputElement>(s)?.value ?? "";
-const fck = (s: string) => document.querySelector<HTMLInputElement>(s)?.checked ?? false;
-const setV = (s: string, v: unknown) => {
-  const e = document.querySelector<HTMLInputElement>(s);
-  if (e) e.value = typeof v === "string" ? v : "";
-};
-const setCk = (s: string, v: unknown) => {
-  const e = document.querySelector<HTMLInputElement>(s);
-  if (e) e.checked = Boolean(v);
-};
+// A pure typed round-trip: capture/apply read + write rog.* only (the account
+// inputs mirror rog via account.ts), so a Profile is a snapshot of the typed state
+// — never the DOM. Matches the Deck's deckState clone.
 
 /** Snapshot every UI selection into a Profile (passwords go in `secrets`, which
  *  main encrypts with DPAPI). */
@@ -38,14 +31,14 @@ function captureProfile(name: string): Profile {
       selectedKeyIds: [...rog.selectedKeyIds],
       githubUser: rog.githubUser,
       sshPaste: rog.pastedKeys.join("\n"),
-      hostname: fv("#device-hostname"),
+      hostname: rog.hostname,
       staticIp: rog.staticIp, // the whole {iface,ip,prefix,gateway,dns}, not just the address
-      edition: fck("#edition-pro") ? "pro" : "home",
-      accountMode: document.body.dataset.account ?? "local",
-      acctUser: fv("#acct-user"),
+      edition: rog.edition,
+      accountMode: rog.accountMode,
+      acctUser: rog.acctUser,
       sunshineUser: rog.sunshineUser,
       sunshinePromptPass: rog.sunshinePromptPass,
-      wifiSsid: fv("#wifi-ssid"),
+      wifiSsid: rog.wifiSsid,
       ra: { sunshine: rog.sunshineEnabled, moonlight: rog.moonlight, rdp: rog.rdp },
       raHost: { sunshine: rog.sunshineHost, moonlight: rog.moonlightHost },
       wallpaperPath: rog.wallpaperPath,
@@ -53,8 +46,8 @@ function captureProfile(name: string): Profile {
     },
     secrets: {
       sunshinePass: rog.sunshinePromptPass ? "" : rog.sunshinePass,
-      acctPass: fv("#acct-pass"),
-      wifiPass: fv("#wifi-pass"),
+      acctPass: rog.acctPass,
+      wifiPass: rog.wifiPass,
     },
   };
 }
@@ -85,7 +78,7 @@ function applyProfile(p: Profile): void {
           .map((k) => k.trim())
           .filter(Boolean)
       : [];
-  setV("#device-hostname", ui.hostname);
+  rog.hostname = typeof ui.hostname === "string" ? ui.hostname : "";
   // Restore static IP into the held config + re-mount the editor. Handles legacy
   // profiles where staticIp was just the address string + a separate staticIpIface.
   const savedIp = ui.staticIp;
@@ -104,10 +97,10 @@ function applyProfile(p: Profile): void {
   }
   rog.intendedStaticIp = rog.staticIp?.ip ?? "";
   mountRogNetwork();
-  setCk("#edition-pro", ui.edition === "pro");
-  setCk("#edition-home", ui.edition !== "pro");
-  setV("#acct-user", ui.acctUser);
-  setV("#wifi-ssid", ui.wifiSsid);
+  rog.edition = ui.edition === "pro" ? "pro" : "home";
+  rog.accountMode = ui.accountMode === "microsoft" ? "microsoft" : "local";
+  rog.acctUser = typeof ui.acctUser === "string" ? ui.acctUser : "";
+  rog.wifiSsid = typeof ui.wifiSsid === "string" ? ui.wifiSsid : "";
   rog.sunshineUser = typeof ui.sunshineUser === "string" ? ui.sunshineUser : "";
   const ra = (ui.ra ?? {}) as Record<string, unknown>;
   rog.sunshineEnabled = Boolean(ra.sunshine);
@@ -122,8 +115,8 @@ function applyProfile(p: Profile): void {
   // streaming + remote-access components from the restored JS state.
   updateEditionState();
   mountRogStreaming();
-  setV("#acct-pass", p.secrets?.acctPass);
-  setV("#wifi-pass", p.secrets?.wifiPass);
+  rog.acctPass = p.secrets?.acctPass ?? "";
+  rog.wifiPass = p.secrets?.wifiPass ?? "";
   rog.wallpaperPath = (ui.wallpaperPath as string) ?? "";
   rog.lockscreenPath = (ui.lockscreenPath as string) ?? "";
   // Show the remembered image filenames on the picker buttons (the paths are saved

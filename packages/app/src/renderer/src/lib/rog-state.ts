@@ -26,6 +26,16 @@ export const rog = {
   moonlight: false,
   moonlightHost: false, // also install the Moonlight client on this PC
   rdp: false, // Windows Remote Desktop (Pro only)
+  // ── account / clean-install (the typed source of truth — the account-screen
+  //    inputs mirror these, so profile capture + gatherUsbRequest read state, not
+  //    the DOM; matches the Deck's deckState round-trip) ──
+  hostname: "",
+  edition: "home" as "home" | "pro",
+  accountMode: "local" as "local" | "microsoft",
+  acctUser: "ally", // clean-install local admin (the input defaults to "ally" too)
+  acctPass: "", // held in JS like sunshinePass; the DOM input mirrors it
+  wifiSsid: "",
+  wifiPass: "",
   // ── base / catalog / customise ──
   baseOptions: [] as BaseOption[], // cached base list (device summary + customise label)
   catalog: [] as GroupSummary[],

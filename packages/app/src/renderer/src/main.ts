@@ -24,6 +24,7 @@ import {
   mountRogRemoteAccess,
   mountRogSsh,
   mountRogStreaming,
+  syncAccountInputsFromState,
   updateEditionState,
 } from "./features/rog/account";
 import { hydrateApps } from "./features/rog/apps";
@@ -132,7 +133,10 @@ document.addEventListener("click", (event) => {
     sibling.setAttribute("aria-pressed", String(selected));
   }
   // Account cards drive which install-time fields show (local vs Microsoft).
-  if (snap.dataset.account) document.body.dataset.account = snap.dataset.account;
+  if (snap.dataset.account) {
+    rog.accountMode = snap.dataset.account === "microsoft" ? "microsoft" : "local";
+    document.body.dataset.account = rog.accountMode;
+  }
 });
 
 /** Write a value into every [data-field="<field>"] element. */
@@ -195,7 +199,10 @@ document.addEventListener("change", (event) => {
   if (target.id === "region-select") {
     rog.usbState.regionId = (target as HTMLSelectElement).value;
   }
-  if (target.id === "edition-home" || target.id === "edition-pro") updateEditionState();
+  if (target.id === "edition-home" || target.id === "edition-pro") {
+    rog.edition = target.id === "edition-pro" ? "pro" : "home";
+    updateEditionState();
+  }
   if (target.id === "lang-select" || target.id === "erase-confirm") updateWriteButton();
   // Customise screen: a module toggle (floor/base = untick to disable; extra = tick to add).
   if (target instanceof HTMLInputElement && target.dataset.moduleId) {
@@ -306,6 +313,7 @@ registerRoute("customise", () => void hydrateCustomise());
 registerRoute("apps", () => void hydrateApps());
 registerRoute("stripkit", () => void hydrateStripkit());
 registerRoute("account", () => {
+  syncAccountInputsFromState(); // reflect the typed rog.* fields (or a loaded profile)
   void hydrateSshKeys();
   mountRogStreaming();
   mountRogRemoteAccess();
