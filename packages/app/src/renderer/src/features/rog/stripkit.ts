@@ -142,7 +142,9 @@ async function skVerify(): Promise<void> {
   const ip = document.querySelector<HTMLInputElement>("#sk-verify-ip")?.value.trim();
   const user = document.querySelector<HTMLInputElement>("#sk-verify-user")?.value.trim();
   if (!ip) {
-    if (out) out.textContent = "Enter the device's IP, hostname, or Tailscale IP first.";
+    if (out)
+      out.textContent =
+        "Enter the device's IP, hostname, Tailscale IP or NordVPN Meshnet IP first.";
     return;
   }
   if (!user) {
