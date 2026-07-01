@@ -1,10 +1,121 @@
 import { NetworkSettings } from "../../components/NetworkSettings";
 import { RemoteAccessSettings } from "../../components/RemoteAccessSettings";
+import { Section } from "../../components/Section";
 import { SshAccessEditor } from "../../components/SshAccessEditor";
 import { StreamingSettings } from "../../components/StreamingSettings";
+import { ACCESS_LABELS } from "../../lib/access-labels";
 import { el, fill } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 import { hydrateDevices, hydratePlatforms, selectDeviceAndGo } from "./device";
+
+// ── Account screen scaffolding ──────────────────────────────────────────────
+// hydrateAccount() builds the config as shared Section cards — the same treatment
+// (and the same ACCESS_LABELS) the Deck's device-setup screen uses, so the two
+// "Account & access" pages match. Every element id the mount fns + delegated
+// handlers rely on is preserved, so the write/gather logic is untouched.
+
+/** A Deck-style labelled input field (cz-name/cz-desc + uw-select), full width. */
+function accountField(
+  id: string,
+  type: string,
+  label: string,
+  desc: string | undefined,
+  placeholder?: string,
+): HTMLElement {
+  const wrap = el("div", "cz-span deck-field");
+  wrap.append(el("div", "cz-name", label));
+  if (desc) wrap.append(el("div", "cz-desc", desc));
+  const input = el("input", "uw-select") as HTMLInputElement;
+  input.id = id;
+  input.type = type;
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  if (placeholder) input.placeholder = placeholder;
+  wrap.append(input);
+  return wrap;
+}
+
+/** A Section whose single row is an empty mount div (filled by a mountRog* fn). */
+function mountSection(label: string, mountId: string, count?: number): HTMLElement {
+  const mount = el("div", "cz-span");
+  mount.id = mountId;
+  return Section(label, [mount], count);
+}
+
+/** Windows-edition radios (Home/Pro) — clean-install only (hidden in strip mode). */
+function editionSection(): HTMLElement {
+  const pick = el("div", "edition-pick cz-span");
+  const opt = (id: string, text: string, checked: boolean): HTMLElement => {
+    const lab = el("label", "edition-opt");
+    const radio = el("input") as HTMLInputElement;
+    radio.type = "radio";
+    radio.name = "edition";
+    radio.id = id;
+    radio.checked = checked;
+    lab.append(radio, el("span", "", text));
+    return lab;
+  };
+  pick.append(
+    opt("edition-home", "Home", rog.edition !== "pro"),
+    opt("edition-pro", "Pro", rog.edition === "pro"),
+  );
+  const sec = Section("Windows edition", [pick]);
+  sec.dataset.clean = "";
+  return sec;
+}
+
+/** Wallpaper + lock-screen pickers (name spans re-hydrated from rog state). */
+function personalizeSection(): HTMLElement {
+  const pick = (btnId: string, nameId: string, text: string, path: string): HTMLElement => {
+    const row = el("div", "img-pick");
+    const btn = el("button", "img-btn", text) as HTMLButtonElement;
+    btn.type = "button";
+    btn.id = btnId;
+    const name = el("span", "img-name");
+    name.id = nameId;
+    if (path) name.textContent = path.split(/[\\/]/).pop() ?? "";
+    row.append(btn, name);
+    return row;
+  };
+  const wrap = el("div", "cz-span");
+  wrap.append(
+    pick("pick-wallpaper", "wallpaper-name", "Choose wallpaper…", rog.wallpaperPath),
+    pick("pick-lockscreen", "lockscreen-name", "Choose lock screen…", rog.lockscreenPath),
+  );
+  return Section("Personalize", [wrap]);
+}
+
+/** Build the account-screen config as Section cards. Must run before the mountRog*
+ *  fns and syncAccountInputsFromState (they query the ids created here). */
+export function hydrateAccount(): void {
+  const host = document.getElementById("account-sections");
+  if (!host) return;
+
+  const user = accountField("acct-user", "text", "Username", undefined);
+  const pass = accountField(
+    "acct-pass",
+    "password",
+    "Password (optional)",
+    undefined,
+    "leave blank for none",
+  );
+  const localAccount = Section("Local account", [user, pass]);
+  localAccount.dataset.when = "local";
+  localAccount.dataset.clean = "";
+
+  host.replaceChildren(
+    Section(ACCESS_LABELS.deviceName, [
+      accountField("device-hostname", "text", "Device name (for SSH)", undefined, "my-handheld"),
+    ]),
+    mountSection(ACCESS_LABELS.network, "static-ip-mount", rog.staticIp ? 1 : 0),
+    editionSection(),
+    localAccount,
+    mountSection(ACCESS_LABELS.streaming, "rog-streaming-mount"),
+    mountSection(ACCESS_LABELS.remote, "rog-remote-access-mount"),
+    mountSection(ACCESS_LABELS.ssh, "ssh-mount"),
+    personalizeSection(),
+  );
+}
 
 // ── SSH source: BYO key / GitHub / Both ─────────────────────────────────────
 // ROG game-streaming + remote-access state — the single source of truth (the

@@ -1296,8 +1296,8 @@ body[data-view="connect"] .view[data-view="connect"] {
   border-color: var(--signal);
 }
 
-/* hide local-only account fields when Microsoft is chosen */
-body[data-account="microsoft"] .field[data-when="local"] {
+/* hide the local-only account section (username + password) when Microsoft is chosen */
+body[data-account="microsoft"] [data-when="local"] {
   display: none;
 }
 
@@ -1556,29 +1556,6 @@ body[data-view="account"] .summary::before {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-}
-
-.config-panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 24px 28px;
-}
-
-.cfg-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 22px;
-}
-
-/* Fields side-by-side in a row must NOT get the stacked-field top margin —
-   that's what dropped the second column (e.g. Sunshine password) by 14px. */
-.cfg-row .field + .field {
-  margin-top: 0;
-}
-
-.config-panel .field {
-  margin-bottom: 18px;
 }
 
 .img-pick {

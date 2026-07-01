@@ -609,75 +609,20 @@
               </button>
             </div>
 
-            <div class="config-panel">
-              <div class="cfg-row">
-                <div class="field">
-                  <label class="field-label" for="device-hostname">Device name <span class="muted">(for SSH)</span></label>
-                  <input class="field-input" id="device-hostname" type="text" placeholder="my-handheld" autocomplete="off" spellcheck="false" />
-                </div>
-                <div class="field">
-                  <label class="field-label">Network <span class="muted">(optional static IP)</span></label>
-                  <!-- Shared NetworkSettings component is mounted here (see main.ts mountRogNetwork). -->
-                  <div id="static-ip-mount"></div>
-                </div>
-              </div>
-              <div class="cfg-row">
-                <div class="field" data-clean>
-                  <label class="field-label">Windows edition</label>
-                  <div class="edition-pick">
-                    <label class="edition-opt"><input type="radio" name="edition" id="edition-home" checked /><span>Home</span></label>
-                    <label class="edition-opt"><input type="radio" name="edition" id="edition-pro" /><span>Pro</span></label>
-                  </div>
-                </div>
-                <div class="field" data-when="local" data-clean>
-                  <label class="field-label" for="acct-user">Username</label>
-                  <input class="field-input" id="acct-user" type="text" value="ally" autocomplete="off" spellcheck="false" />
-                </div>
-              </div>
+            <!-- Config sections are built as shared Section cards by hydrateAccount()
+                 (features/rog/account.ts) — the same card treatment + section labels
+                 the Deck's device-setup screen uses, so the two pages match. IDs are
+                 preserved so the mount fns (mountRogNetwork/Streaming/RemoteAccess/Ssh)
+                 and the delegated handlers in main.ts keep working unchanged. -->
+            <div id="account-sections"></div>
 
-              <div class="field">
-                <label class="field-label">Game streaming <span class="muted">— install on the device</span></label>
-                <!-- Shared StreamingSettings (Sunshine host + creds + Moonlight + "also on this PC"). -->
-                <div id="rog-streaming-mount"></div>
-              </div>
-
-              <div class="field">
-                <label class="field-label">Remote access <span class="muted">(optional)</span></label>
-                <!-- Shared RemoteAccessSettings (RDP; disabled unless the edition is Pro). -->
-                <div id="rog-remote-access-mount"></div>
-              </div>
-
-              <div class="field">
-                <label class="field-label">SSH access <span class="muted">(optional)</span></label>
-                <!-- Shared SshAccessEditor mounted here (see main.ts mountRogSsh). -->
-                <div id="ssh-mount"></div>
-              </div>
-
-              <div class="field">
-                <label class="field-label">Personalize <span class="muted">(optional — images for this device)</span></label>
-                <div class="img-pick">
-                  <button class="img-btn" type="button" id="pick-wallpaper">Choose wallpaper…</button>
-                  <span class="img-name" id="wallpaper-name"></span>
-                </div>
-                <div class="img-pick">
-                  <button class="img-btn" type="button" id="pick-lockscreen">Choose lock screen…</button>
-                  <span class="img-name" id="lockscreen-name"></span>
-                </div>
-              </div>
-
-              <div class="field" data-when="local" data-clean>
-                <label class="field-label" for="acct-pass">Password <span class="muted">(optional)</span></label>
-                <input class="field-input" id="acct-pass" type="password" placeholder="leave blank for none" autocomplete="off" />
-              </div>
-
-              <div class="summary-actions">
-                <button class="btn-primary" type="button" data-go="wifi">
-                  Continue <span class="arrow" aria-hidden="true">→</span>
-                </button>
-                <button class="btn-ghost" type="button" data-back>Back</button>
-              </div>
-              <p class="readout-foot">Stored only in the answer file on your USB.</p>
+            <div class="summary-actions">
+              <button class="btn-primary" type="button" data-go="wifi">
+                Continue <span class="arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="btn-ghost" type="button" data-back>Back</button>
             </div>
+            <p class="readout-foot">Stored only in the answer file on your USB.</p>
           </div>
         </main>
 

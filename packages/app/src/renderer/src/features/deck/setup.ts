@@ -3,6 +3,7 @@ import { PickerRow } from "../../components/PickerRow";
 import { RemoteAccessSettings } from "../../components/RemoteAccessSettings";
 import { SshAccessEditor } from "../../components/SshAccessEditor";
 import { StreamingSettings } from "../../components/StreamingSettings";
+import { ACCESS_LABELS } from "../../lib/access-labels";
 import { el } from "../../lib/dom";
 import {
   countOn,
@@ -204,7 +205,7 @@ export async function hydrateDeckSetup(): Promise<void> {
     deckState.hostname = host.value.trim() || undefined;
   });
   hostField.append(host);
-  body.append(deckSection("Device name", [hostField]));
+  body.append(deckSection(ACCESS_LABELS.deviceName, [hostField]));
 
   // Network — shared NetworkSettings (no host inference on-device).
   const deckNet = NetworkSettings({
@@ -215,17 +216,17 @@ export async function hydrateDeckSetup(): Promise<void> {
     },
   });
   deckNet.classList.add("cz-span");
-  body.append(deckSection("Network", [deckNet], deckState.staticIp ? 1 : 0));
+  body.append(deckSection(ACCESS_LABELS.network, [deckNet], deckState.staticIp ? 1 : 0));
 
   // Game streaming — shared StreamingSettings (Sunshine host + creds + Moonlight).
   const streamMount = el("div", "cz-span");
   streamMount.id = "deck-streaming-mount";
-  body.append(deckSection("Game streaming", [streamMount]));
+  body.append(deckSection(ACCESS_LABELS.streaming, [streamMount]));
   mountDeckStreaming();
 
   // Remote access — shared RemoteAccessSettings (VNC + Tailscale on the Deck).
   body.append(
-    deckSection("Remote access", [
+    deckSection(ACCESS_LABELS.remote, [
       RemoteAccessSettings({
         options: [
           {
@@ -252,7 +253,7 @@ export async function hydrateDeckSetup(): Promise<void> {
   // SSH access — shared SshAccessEditor (keys enable SSH; GitHub + paste + port).
   const sshMount = el("div", "cz-span");
   sshMount.id = "deck-ssh-mount";
-  body.append(deckSection("SSH access", [sshMount]));
+  body.append(deckSection(ACCESS_LABELS.ssh, [sshMount]));
   mountDeckSsh();
 }
 

@@ -19,6 +19,7 @@ import {
   hydrateDeckSetup,
 } from "./features/deck";
 import {
+  hydrateAccount,
   hydrateSshKeys,
   mountRogRemoteAccess,
   mountRogSsh,
@@ -301,6 +302,7 @@ registerRoute("customise", () => void hydrateCustomise());
 registerRoute("apps", () => void hydrateApps());
 registerRoute("build", () => hydrateBuild());
 registerRoute("account", () => {
+  hydrateAccount(); // build the Section-card scaffold (ids the mounts/sync rely on)
   syncAccountInputsFromState(); // reflect the typed rog.* fields (or a loaded profile)
   void hydrateSshKeys();
   mountRogStreaming();
