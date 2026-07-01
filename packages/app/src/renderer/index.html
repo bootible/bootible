@@ -769,7 +769,7 @@
           <div class="deck-config" id="decksetup-body"><p class="muted">Loading…</p></div>
           <div class="customise-foot">
             <div class="summary-actions">
-              <button class="btn-primary" type="button" data-go="deckmethod">Build USB <span class="arrow" aria-hidden="true">→</span></button>
+              <button class="btn-primary" type="button" data-go="deckbuild">Build USB <span class="arrow" aria-hidden="true">→</span></button>
               <button class="btn-ghost" type="button" data-back>Back</button>
             </div>
           </div>
@@ -835,120 +835,79 @@
           </div>
         </main>
 
-        <!-- ───────────────────── DECK METHOD (provision-only vs full reimage) ───────────────────── -->
-        <main class="view setup" data-view="deckmethod">
+        <!-- ───────────── DECK BUILD (unified: Provision USB / Full reimage / Export) ───────────── -->
+        <main class="view setup" data-view="deckbuild">
           <div class="setup-head">
             <p class="eyebrow">Steam Deck</p>
-            <h1 class="setup-title">How do you want to build it?</h1>
-            <p class="setup-sub">Both make a USB that carries your setup — pick how SteamOS gets there.</p>
+            <h1 class="setup-title" data-field="deckbuild-title">Set up your Steam Deck</h1>
+            <p class="setup-sub">Build a USB that carries your setup — or export it to run yourself.</p>
           </div>
-          <div class="method-list">
-            <button class="method-card" type="button" data-go="deckwrite">
-              <span class="method-icon" aria-hidden="true">▤</span>
-              <span class="method-main">
-                <span class="method-name">Provision only</span>
-                <span class="method-desc">Format a stick + carry your setup. You install or keep SteamOS yourself, then run it. No download, lowest risk — also works on an already-set-up Deck.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">quick</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
-            <button class="method-card" type="button" data-go="deckreimage">
-              <span class="method-icon" aria-hidden="true">⟳</span>
-              <span class="method-main">
-                <span class="method-name">Full reimage</span>
-                <span class="method-desc">Download the latest SteamOS, flash it, and add your setup — one USB that wipes, reinstalls and provisions. Erases the whole stick.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">clean install</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
-            <button class="method-card" type="button" data-deck-export>
-              <span class="method-icon" aria-hidden="true">▦</span>
-              <span class="method-main">
-                <span class="method-name">Export config</span>
-                <span class="method-desc">Save your Deck setup (provision.sh + config + README) to a folder — copy it to any Deck and run it, or re-import later. No USB needed.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">save</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
+          <div class="sk-body">
+            <div class="sk-toggle" id="deckbuild-tabs"></div>
+
+            <!-- Provision USB (you install/keep SteamOS, then run the payload) -->
+            <div class="sk-pane" data-deckbuild-pane="provision">
+              <p class="setup-sub">Format a stick + carry your setup — no download, lowest risk. On the Deck in Desktop Mode, open it and run bootible/provision.sh.</p>
+              <section class="uw-section">
+                <p class="uw-label">USB drive <button class="linkbtn" type="button" id="deck-disk-refresh">refresh</button></p>
+                <div class="uw-disks" id="deck-disk-list"><p class="muted">Scanning for removable drives…</p></div>
+              </section>
+              <section class="uw-section uw-go">
+                <label class="uw-confirm">
+                  <input type="checkbox" id="deck-erase-confirm" />
+                  <span>I understand this <strong>erases</strong> the selected drive</span>
+                </label>
+                <div class="done-actions">
+                  <button class="btn-primary" type="button" id="deck-write-btn" disabled>Write USB <span class="arrow" aria-hidden="true">→</span></button>
+                </div>
+              </section>
+              <section class="uw-section uw-progress" id="deck-progress" hidden>
+                <p class="provision-now" id="deck-msg">Starting…</p>
+                <div class="progress"><div class="progress-fill" id="deck-fill" style="width: 0%"></div></div>
+                <p class="progress-meta" id="deck-pct">Working… keep the app open.</p>
+                <div class="done-actions" id="deck-done-actions" hidden>
+                  <button class="btn-primary" type="button" id="deck-watch-btn">Watch for my Deck <span class="arrow" aria-hidden="true">→</span></button>
+                  <button class="btn-ghost" type="button" id="deck-usb-eject">Eject ⏏</button>
+                </div>
+              </section>
+            </div>
+
+            <!-- Full reimage (download SteamOS + flash + provision) -->
+            <div class="sk-pane" data-deckbuild-pane="reimage" hidden>
+              <p class="setup-sub">Downloads the latest SteamOS, writes it to the USB, and adds your config. Boot the Deck from it and choose Reimage, then follow bootible/README.txt.</p>
+              <section class="uw-section">
+                <p class="uw-label">SteamOS image</p>
+                <p class="uw-iso-path muted" id="deckre-image">Finding the latest image…</p>
+              </section>
+              <section class="uw-section">
+                <p class="uw-label">USB drive <button class="linkbtn" type="button" id="deckre-disk-refresh">refresh</button></p>
+                <div class="uw-disks" id="deckre-disk-list"><p class="muted">Scanning for removable drives…</p></div>
+              </section>
+              <section class="uw-section uw-go">
+                <label class="uw-confirm">
+                  <input type="checkbox" id="deckre-erase-confirm" />
+                  <span>I understand this <strong>erases the entire drive</strong></span>
+                </label>
+                <div class="done-actions">
+                  <button class="btn-primary" type="button" id="deckre-write-btn" disabled>Write USB <span class="arrow" aria-hidden="true">→</span></button>
+                </div>
+              </section>
+              <section class="uw-section uw-progress" id="deckre-progress" hidden>
+                <p class="provision-now" id="deckre-msg">Starting…</p>
+                <div class="progress"><div class="progress-fill" id="deckre-fill" style="width: 0%"></div></div>
+                <p class="progress-meta" id="deckre-pct">Working… keep the app open.</p>
+              </section>
+            </div>
+
+            <!-- Export config (save the payload to a folder) -->
+            <div class="sk-pane" data-deckbuild-pane="export" hidden>
+              <p class="setup-sub">Save your Deck setup (provision.sh + config + README) to a folder — copy it to any Deck and run it, or re-import later. No USB needed.</p>
+              <div class="summary-actions">
+                <button class="btn-primary" type="button" data-deck-export>Export the config <span class="arrow" aria-hidden="true">→</span></button>
+              </div>
+            </div>
           </div>
           <div class="bundle-back"><button class="btn-ghost" type="button" data-back>Back</button></div>
-        </main>
-
-        <!-- ───────────────────── DECK USB WRITE (provision-only) ───────────────────── -->
-        <main class="view setup" data-view="deckwrite">
-          <div class="setup-head">
-            <p class="eyebrow">Build a USB</p>
-            <h1 class="setup-title">Write the bootible stick</h1>
-            <p class="setup-sub">
-              Pick the USB to erase — bootible formats it (exFAT, labelled BOOTIBLE) and copies your
-              setup onto it. On the Deck in Desktop Mode, open it and run bootible/provision.sh.
-            </p>
-          </div>
-          <div class="usbwrite-body">
-            <section class="uw-section">
-              <p class="uw-label">USB drive <button class="linkbtn" type="button" id="deck-disk-refresh">refresh</button></p>
-              <div class="uw-disks" id="deck-disk-list"><p class="muted">Scanning for removable drives…</p></div>
-            </section>
-            <section class="uw-section uw-go">
-              <label class="uw-confirm">
-                <input type="checkbox" id="deck-erase-confirm" />
-                <span>I understand this <strong>erases</strong> the selected drive</span>
-              </label>
-              <div class="done-actions">
-                <button class="btn-primary" type="button" id="deck-write-btn" disabled>
-                  Write USB <span class="arrow" aria-hidden="true">→</span>
-                </button>
-                <button class="btn-ghost" type="button" data-back>Back</button>
-              </div>
-            </section>
-            <section class="uw-section uw-progress" id="deck-progress" hidden>
-              <p class="provision-now" id="deck-msg">Starting…</p>
-              <div class="progress"><div class="progress-fill" id="deck-fill" style="width: 0%"></div></div>
-              <p class="progress-meta" id="deck-pct">Working… keep the app open.</p>
-              <div class="done-actions" id="deck-done-actions" hidden>
-                <button class="btn-primary" type="button" id="deck-watch-btn">
-                  Watch for my Deck <span class="arrow" aria-hidden="true">→</span>
-                </button>
-                <button class="btn-ghost" type="button" id="deck-usb-eject">Eject ⏏</button>
-              </div>
-            </section>
-          </div>
-        </main>
-
-        <!-- ───────────────────── DECK FULL REIMAGE (flash SteamOS + payload) ───────────────────── -->
-        <main class="view setup" data-view="deckreimage">
-          <div class="setup-head">
-            <p class="eyebrow">Full reimage</p>
-            <h1 class="setup-title">Flash SteamOS + your setup</h1>
-            <p class="setup-sub">
-              Downloads the latest SteamOS, writes it to the USB, and adds your config. Boot the Deck
-              from it and choose Reimage, then follow bootible/README.txt.
-            </p>
-          </div>
-          <div class="usbwrite-body">
-            <section class="uw-section">
-              <p class="uw-label">SteamOS image</p>
-              <p class="uw-iso-path muted" id="deckre-image">Finding the latest image…</p>
-            </section>
-            <section class="uw-section">
-              <p class="uw-label">USB drive <button class="linkbtn" type="button" id="deckre-disk-refresh">refresh</button></p>
-              <div class="uw-disks" id="deckre-disk-list"><p class="muted">Scanning for removable drives…</p></div>
-            </section>
-            <section class="uw-section uw-go">
-              <label class="uw-confirm">
-                <input type="checkbox" id="deckre-erase-confirm" />
-                <span>I understand this <strong>erases the entire drive</strong></span>
-              </label>
-              <div class="done-actions">
-                <button class="btn-primary" type="button" id="deckre-write-btn" disabled>
-                  Write USB <span class="arrow" aria-hidden="true">→</span>
-                </button>
-                <button class="btn-ghost" type="button" data-back>Back</button>
-              </div>
-            </section>
-            <section class="uw-section uw-progress" id="deckre-progress" hidden>
-              <p class="provision-now" id="deckre-msg">Starting…</p>
-              <div class="progress"><div class="progress-fill" id="deckre-fill" style="width: 0%"></div></div>
-              <p class="progress-meta" id="deckre-pct">Working… keep the app open.</p>
-            </section>
-          </div>
         </main>
 
         <!-- ───────────────────── WATCH (the device announces itself) ───────────────────── -->

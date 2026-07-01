@@ -1,3 +1,4 @@
+export { hydrateDeckBuild } from "./build";
 export { hydrateDeckReimage, hydrateDeckWrite } from "./media";
 export {
   hydrateDeckApps,

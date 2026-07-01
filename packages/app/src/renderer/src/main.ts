@@ -12,12 +12,11 @@ import { afterSignIn, cloud, refreshAccount } from "./features/auth";
 import {
   hydrateDeck,
   hydrateDeckApps,
+  hydrateDeckBuild,
   hydrateDeckEmulators,
   hydrateDeckPlugins,
   hydrateDeckPm,
-  hydrateDeckReimage,
   hydrateDeckSetup,
-  hydrateDeckWrite,
 } from "./features/deck";
 import {
   hydrateSshKeys,
@@ -328,8 +327,7 @@ registerRoute("deckapps", () => void hydrateDeckApps());
 registerRoute("deckemu", () => void hydrateDeckEmulators());
 registerRoute("deckplugins", () => void hydrateDeckPlugins());
 registerRoute("deckpm", () => void hydrateDeckPm());
-registerRoute("deckwrite", () => void hydrateDeckWrite());
-registerRoute("deckreimage", () => void hydrateDeckReimage());
+registerRoute("deckbuild", () => hydrateDeckBuild());
 registerRoute("watch", () => {
   void window.bootible?.startDiscovery?.();
   renderDiscovered();
