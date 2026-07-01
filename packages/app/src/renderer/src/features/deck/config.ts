@@ -1,7 +1,8 @@
 import type { DeckConfig, Profile } from "@bootible/core";
 import { DEFAULT_DECK_CONFIG } from "@bootible/core/browser";
 import { ProfileBar } from "../../components/ProfileBar";
-import { el } from "../../lib/dom";
+import { Section } from "../../components/Section";
+import { ToggleRow } from "../../components/ToggleRow";
 import { session } from "../../lib/session";
 // applyDeckProfile re-hydrates the setup screen after a load (function-level
 // import — safe with the setup→config dependency; neither runs at module top).
@@ -23,34 +24,23 @@ export function deckCheck(
   desc?: string,
   changes?: string,
 ): HTMLElement {
-  const row = el("label", `cz-row${checked ? "" : " is-off"}`);
-  const cb = el("input", "cz-check") as HTMLInputElement;
-  cb.type = "checkbox";
-  cb.checked = checked;
-  cb.addEventListener("change", () => {
-    row.classList.toggle("is-off", !cb.checked);
-    onChange(cb.checked);
-    updateDeckSummary();
+  // The shared ToggleRow with the Deck's inline-onChange style; it also refreshes
+  // the Deck's item-count summary after each toggle.
+  return ToggleRow({
+    label,
+    checked,
+    desc,
+    changes,
+    onChange: (v) => {
+      onChange(v);
+      updateDeckSummary();
+    },
   });
-  const text = el("div", "cz-text");
-  text.append(el("div", "cz-name", label));
-  if (desc) text.append(el("div", "cz-desc", desc));
-  if (changes) text.append(el("div", "cz-chg", changes));
-  row.append(cb, text);
-  return row;
 }
 
-/** A full-width config section: a header (with an optional "· N" count) over a
- *  2-column grid of rows. Picker rows and `.cz-span` fields span both columns. */
-export function deckSection(title: string, rows: HTMLElement[], count?: number): HTMLElement {
-  const sec = el("div", "cz-sec");
-  const head = el("div", "cz-sec-h", title);
-  if (count !== undefined) head.append(el("span", "cz-sec-count", ` · ${count}`));
-  const grid = el("div", "cz-sec-rows");
-  grid.append(...rows);
-  sec.append(head, grid);
-  return sec;
-}
+// The Deck sections use the shared Section component (same signature); the alias
+// keeps the deck call sites reading `deckSection(...)`.
+export const deckSection = Section;
 
 /** Count the truthy flags — for a section's "· N" header. */
 export function countOn(...flags: boolean[]): number {

@@ -1,4 +1,5 @@
 import { NetworkSettings } from "../../components/NetworkSettings";
+import { PickerRow } from "../../components/PickerRow";
 import { RemoteAccessSettings } from "../../components/RemoteAccessSettings";
 import { SshAccessEditor } from "../../components/SshAccessEditor";
 import { StreamingSettings } from "../../components/StreamingSettings";
@@ -335,19 +336,7 @@ async function fetchDeckGithub(user: string): Promise<void> {
 /** A picker row (ROG style): name + description + a "Choose … (N) →" button that
  *  navigates to a dedicated picker screen. */
 function deckPickerRow(label: string, desc: string, count: number, target: string): HTMLElement {
-  const row = el("div", "cz-row cz-picker");
-  const text = el("div", "cz-text");
-  text.append(el("div", "cz-name", label), el("div", "cz-desc", desc));
-  const pick = el(
-    "button",
-    "cz-applink",
-    `Choose ${label.toLowerCase()} (${count}) →`,
-  ) as HTMLButtonElement;
-  pick.type = "button";
-  pick.dataset.go = target;
-  text.append(pick);
-  row.append(text);
-  return row;
+  return PickerRow(label, desc, count, { go: target });
 }
 
 /** Update a picker screen's "N selected" eyebrow. */

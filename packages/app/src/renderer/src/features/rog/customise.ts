@@ -1,5 +1,8 @@
 import type { BasePlan, PlanModule, RemovalEntry } from "@bootible/core";
+import { PickerRow } from "../../components/PickerRow";
+import { Section } from "../../components/Section";
 import { StatusMessage } from "../../components/StatusMessage";
+import { ToggleRow } from "../../components/ToggleRow";
 import { el, fill } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 import { pickCounts } from "./catalog";
@@ -19,17 +22,9 @@ export let removalsCatalog: RemovalEntry[] = [];
 function customiseRow(m: PlanModule, kind: "floor" | "base" | "extra"): HTMLElement {
   const isApps = m.id === "apps";
   const checked = kind === "extra" ? rog.enabledExtras.has(m.id) : !rog.disabledModules.has(m.id);
-  const row = el("div", `cz-row${checked ? "" : " is-off"}`);
-  const cb = el("input", "cz-check") as HTMLInputElement;
-  cb.type = "checkbox";
-  cb.checked = checked;
-  cb.dataset.moduleId = m.id;
-  cb.dataset.kind = kind;
-  const text = el("div", "cz-text");
-  text.append(el("div", "cz-name", m.name));
-  if (m.description) text.append(el("div", "cz-desc", m.description));
-  if (m.changes) text.append(el("div", "cz-chg", m.changes));
-  if (kind === "floor" && !checked) text.append(el("div", "cz-warn", `⚠ ${FLOOR_WARNING}`));
+  // Extras in the text column: a floor untick warning, or the "choose apps" link.
+  const extra: HTMLElement[] = [];
+  if (kind === "floor" && !checked) extra.push(el("div", "cz-warn", `⚠ ${FLOOR_WARNING}`));
   if (isApps && checked) {
     const pick = el(
       "button",
@@ -38,22 +33,17 @@ function customiseRow(m: PlanModule, kind: "floor" | "base" | "extra"): HTMLElem
     ) as HTMLButtonElement;
     pick.type = "button";
     pick.dataset.go = "apps";
-    text.append(pick);
+    extra.push(pick);
   }
-  row.append(cb, text);
-  return row;
-}
-
-function section(title: string, count: number, rows: HTMLElement[]): HTMLElement {
-  const sec = el("div", "cz-sec");
-  const head = el("div", "cz-sec-h", title);
-  head.append(el("span", "cz-sec-count", ` · ${count}`));
-  // Cards lay out 2-up inside a full-width section (the shared .cz-sec-rows grid,
-  // same as the Deck) so the page shape is identical across bases.
-  const grid = el("div", "cz-sec-rows");
-  grid.append(...rows);
-  sec.append(head, grid);
-  return sec;
+  // A delegated change handler (main.ts) reads data-module-id / data-kind.
+  return ToggleRow({
+    label: m.name,
+    checked,
+    desc: m.description,
+    changes: m.changes,
+    data: { moduleId: m.id, kind },
+    extra,
+  });
 }
 
 export function renderCustomise(): void {
@@ -65,18 +55,18 @@ export function renderCustomise(): void {
   fill("customise-base", baseLabel ? ` · ${baseLabel}` : "");
   const secs: HTMLElement[] = [];
   secs.push(
-    section(
+    Section(
       "Always — the floor",
-      basePlan.floor.length,
       basePlan.floor.map((m) => customiseRow(m, "floor")),
+      basePlan.floor.length,
     ),
   );
   if (basePlan.base.length) {
     secs.push(
-      section(
+      Section(
         "From your base",
-        basePlan.base.length,
         basePlan.base.map((m) => customiseRow(m, "base")),
+        basePlan.base.length,
       ),
     );
   }
@@ -91,7 +81,7 @@ export function renderCustomise(): void {
       "emulators",
     ),
   );
-  secs.push(section("Add extras", basePlan.extras.length + 2, extraRows));
+  secs.push(Section("Add extras", extraRows, basePlan.extras.length + 2));
   // Opt-in "Remove apps" checklist (generic Windows bloat/trialware) — offered on
   // every Windows base, not just Full ROG.
   if (removalsCatalog.length) {
@@ -159,19 +149,7 @@ function pickerRow(
   count: number,
   mode: "apps" | "emulators",
 ): HTMLElement {
-  const row = el("div", "cz-row cz-picker");
-  const text = el("div", "cz-text");
-  text.append(el("div", "cz-name", label), el("div", "cz-desc", desc));
-  const pick = el(
-    "button",
-    "cz-applink",
-    `Choose ${label.toLowerCase()} (${count}) →`,
-  ) as HTMLButtonElement;
-  pick.type = "button";
-  pick.dataset.picker = mode;
-  text.append(pick);
-  row.append(text);
-  return row;
+  return PickerRow(label, desc, count, { picker: mode });
 }
 
 /** Fetch the base's plan once per base, then render the customise screen. */
