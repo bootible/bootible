@@ -70,9 +70,29 @@ export function ProfileBar(o: ProfileBarOptions): HTMLElement {
   loadBtn.addEventListener("click", () => {
     if (sel.value) o.onLoad(sel.value);
   });
+  // Delete asks for confirmation inline (click → "Delete — sure?" → click again),
+  // auto-disarming after a few seconds so it can't fire by accident.
   const delBtn = btn("delete", "Delete");
+  let delArmed = false;
+  let delTimer: ReturnType<typeof setTimeout> | undefined;
+  const disarmDelete = (): void => {
+    delArmed = false;
+    delBtn.textContent = "Delete";
+    delBtn.classList.remove("is-danger");
+  };
   delBtn.addEventListener("click", () => {
-    if (sel.value) o.onDelete(sel.value);
+    if (!sel.value) return;
+    if (!delArmed) {
+      delArmed = true;
+      delBtn.textContent = "Delete — sure?";
+      delBtn.classList.add("is-danger");
+      clearTimeout(delTimer);
+      delTimer = setTimeout(disarmDelete, 3500);
+      return;
+    }
+    clearTimeout(delTimer);
+    disarmDelete();
+    o.onDelete(sel.value);
   });
 
   const nameInput = el("input", "uw-select") as HTMLInputElement;

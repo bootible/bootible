@@ -150,6 +150,14 @@ document.addEventListener("click", (event) => {
   if (input) input.type = input.type === "password" ? "text" : "password";
 });
 
+// External links open in the system browser (not a new Electron window).
+document.addEventListener("click", (event) => {
+  const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="http"]');
+  if (!link) return;
+  event.preventDefault();
+  void window.bootible?.openPath?.(link.href);
+});
+
 // Pick a wallpaper / lock-screen image from this PC.
 document.addEventListener("click", (event) => {
   const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(

@@ -1428,7 +1428,10 @@ app.whenReady().then(() => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win ? browseIso(win) : null;
   });
-  ipcMain.handle(CHANNELS.shellOpen, (_event, path: string) => shell.openPath(path));
+  ipcMain.handle(CHANNELS.shellOpen, (_event, path: string) =>
+    // A URL opens in the system browser; a filesystem path in the file manager.
+    /^https?:\/\//.test(path) ? shell.openExternal(path).then(() => "") : shell.openPath(path),
+  );
   ipcMain.handle(CHANNELS.deviceApply, (event, req: UsbBuildRequest) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win ? applyDevice(win, req) : { status: "blocked" };

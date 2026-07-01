@@ -49,10 +49,14 @@ describe("ProfileBar", () => {
     expect(h.onUpdate).toHaveBeenCalledWith("Alpha");
   });
 
-  it("deletes the selected/loaded profile", () => {
+  it("deletes the selected/loaded profile only after an inline confirm (two clicks)", () => {
     const h = handlers();
     const bar = ProfileBar({ profiles, loadedName: "Alpha", ...h });
-    get<HTMLButtonElement>(bar, "[data-action=delete]").click();
+    const del = get<HTMLButtonElement>(bar, "[data-action=delete]");
+    del.click(); // arms the confirm — does not delete yet
+    expect(h.onDelete).not.toHaveBeenCalled();
+    expect(del.textContent).toContain("sure");
+    del.click(); // confirm
     expect(h.onDelete).toHaveBeenCalledWith("Alpha");
   });
 

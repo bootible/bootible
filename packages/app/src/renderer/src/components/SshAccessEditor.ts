@@ -98,9 +98,13 @@ export function SshAccessEditor(o: SshAccessOptions): HTMLElement {
   });
   gh.append(ghInput);
   if (o.githubKeyCount != null && v.githubUser) {
-    gh.append(
-      el("p", "ssh-ghcount", `✓ ${o.githubKeyCount} key(s) from github.com/${v.githubUser}.keys`),
-    );
+    const note = el("p", "ssh-ghcount");
+    note.append(document.createTextNode(`✓ ${o.githubKeyCount} key(s) from `));
+    const link = el("a", "ssh-ghlink", `github.com/${v.githubUser}.keys`) as HTMLAnchorElement;
+    link.href = `https://github.com/${v.githubUser}.keys`;
+    link.rel = "noopener";
+    note.append(link);
+    gh.append(note);
   }
   root.append(gh);
 

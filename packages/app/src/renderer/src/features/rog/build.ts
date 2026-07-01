@@ -40,9 +40,10 @@ export function hydrateBuild(): void {
       ? "Restore the factory image, then save the strip kit to run on it."
       : "Pick how to apply your setup — build a USB, export the config, or run it here.",
   );
-  // The restore guide + post-run verify are Full-ROG only.
+  // The restore guide is Full-ROG only; the Find-my-device / verify section shows
+  // for every base (both beacon on the network once they boot/finish).
   document.getElementById("build-restore")?.toggleAttribute("hidden", !strip);
-  document.getElementById("build-verify")?.toggleAttribute("hidden", !strip);
+  document.getElementById("build-verify")?.removeAttribute("hidden");
   // Show the tabs for this base and select the first.
   const tabs = strip ? STRIP_TABS : CLEAN_TABS;
   const bar = document.getElementById("build-tabs");

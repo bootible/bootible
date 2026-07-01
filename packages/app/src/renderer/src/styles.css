@@ -1404,6 +1404,18 @@ body[data-view="account"] .summary::before {
   font-size: 12px;
 }
 
+.ssh-ghlink {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* An armed "Delete — sure?" confirm button. */
+.is-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* ───────────────────── watch / discovery ───────────────────── */
 .watch-list {
   display: flex;
