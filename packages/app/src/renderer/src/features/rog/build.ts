@@ -18,6 +18,7 @@ const CLEAN_TABS = [
 const STRIP_TABS = [
   { id: "skdisk", label: "Save to Disk" },
   { id: "skusb", label: "Save to USB" },
+  { id: "device", label: "Run on device" },
 ];
 
 function setBuildTab(mode: string): void {

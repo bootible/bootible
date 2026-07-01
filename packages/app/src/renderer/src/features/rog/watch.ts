@@ -2,8 +2,7 @@ import type { DiscoveredDevice } from "@bootible/core";
 import { el, fill } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 import { session } from "../../lib/session";
-import { selectedModuleIds } from "./catalog";
-import { receiptRow } from "./usbwrite";
+import { gatherUsbRequest, receiptRow } from "./usbwrite";
 
 // ── device discovery (watch screen) ─────────────────────────────────────────
 const discovered = new Map<string, DiscoveredDevice>();
@@ -104,10 +103,11 @@ export async function runApplyDevice(): Promise<void> {
     location.hash = "provision"; // browser/no-preload: fall back to the dry-run preview
     return;
   }
-  const result = await api.applyDevice({
-    modules: selectedModuleIds(),
-    account: { mode: "local" },
-  });
+  // Apply the FULL chosen config (base + modifiers + removals), not just the tinker
+  // module ids — so Full ROG "run on device" strips the current Windows in place,
+  // and a clean-install run-on-device applies its removals/settings too. main
+  // resolves modules from the request (resolveModules) + does restore points.
+  const result = await api.applyDevice(gatherUsbRequest());
   if (result.status === "cancelled") return;
 
   const receipt = document.querySelector<HTMLElement>('.view[data-view="done"] .receipt');
