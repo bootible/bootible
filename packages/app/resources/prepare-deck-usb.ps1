@@ -117,11 +117,23 @@ if (-not $Force -and -not $PSCmdlet.ShouldProcess("Disk $DiskNumber ($($disk.Fri
 
 # --- 2. Flash the recovery image (raw, block-level) ----------------------------
 Send-Progress 47 "Preparing disk $DiskNumber ($($disk.FriendlyName), $sizeGb GB)"
-# Clear any existing layout, then take the disk offline so no volume locks the
-# raw handle while we write the image's own partition table over it.
+# Clear any existing layout so no volume locks the raw handle while we write the
+# image's own partition table over it. Clear-Disk removes the partitions (and thus
+# the mounted volumes), which is what actually frees the physical-drive handle.
 Clear-Disk -Number $DiskNumber -RemoveData -RemoveOEM -Confirm:$false -ErrorAction SilentlyContinue
-Set-Disk -Number $DiskNumber -IsOffline $true
+# Taking the disk offline is belt-and-suspenders for fixed / USB-HDD disks, but
+# REMOVABLE flash media rejects it ("Not Supported -- Removable media cannot be set
+# to offline"). Clear-Disk already dropped its volumes, so tolerate the failure and
+# flash anyway rather than aborting the whole reimage.
+Set-Disk -Number $DiskNumber -IsOffline $true -ErrorAction SilentlyContinue
 Set-Disk -Number $DiskNumber -IsReadOnly $false -ErrorAction SilentlyContinue
+# Belt-and-suspenders for removable media: dismount any volume Windows re-mounted
+# between Clear-Disk and here, so the exclusive physical-drive handle can't be
+# blocked by a lingering volume lock.
+Get-Partition -DiskNumber $DiskNumber -ErrorAction SilentlyContinue |
+    Get-Volume -ErrorAction SilentlyContinue |
+    Where-Object { $_.DriveLetter } |
+    ForEach-Object { & cmd /c "mountvol $($_.DriveLetter): /p" 2>$null }
 
 $imgLen = (Get-Item $ImagePath).Length
 Send-Progress 48 ("Flashing recovery image ({0} GB) -- this takes a while" -f [math]::Round($imgLen / 1GB, 1))
@@ -150,7 +162,9 @@ finally {
 
 # --- 3. Bring the disk back + append the BOOTIBLE payload partition -------------
 Send-Progress 82 "Re-reading the new partition table"
-Set-Disk -Number $DiskNumber -IsOffline $false
+# Only matters if the offline toggle above actually took (fixed / USB-HDD); on
+# removable media it was a no-op, so tolerate the "Not Supported" here too.
+Set-Disk -Number $DiskNumber -IsOffline $false -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 3   # let Windows mount the flashed partitions
 
 # The recovery image is small; create an exFAT partition in the free space for the

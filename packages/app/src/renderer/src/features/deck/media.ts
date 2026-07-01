@@ -4,6 +4,11 @@ import { renderProgress } from "../../components/ProgressPanel";
 import { fill } from "../../lib/dom";
 import { deckState } from "./config";
 
+// Which Deck write is in flight, so usb:progress routes to the right pane. Both
+// writers now live in the ONE tabbed #deckbuild view, so we can't derive the
+// target from document.body.dataset.view any more — a started write claims it.
+let activeDeckWrite: "deck" | "deckre" | null = null;
+
 /** Export the Deck setup (provision.sh + config + README) to a folder — the ROG
  *  "Export config" equivalent. Reuses the shared done screen for the receipt. */
 async function deckExport(): Promise<void> {
@@ -59,7 +64,8 @@ function updateDeckWriteButton(): void {
 async function startDeckWrite(): Promise<void> {
   const api = window.bootible;
   if (!api?.writeDeckProvisionUsb || !deckDisk) return;
-  document.querySelector('[data-view="deckwrite"] .uw-go')?.setAttribute("hidden", "");
+  activeDeckWrite = "deck";
+  document.querySelector('[data-deckbuild-pane="provision"] .uw-go')?.setAttribute("hidden", "");
   document.querySelector("#deck-progress")?.removeAttribute("hidden");
   onDeckProgress({
     pct: 1,
@@ -75,8 +81,7 @@ async function startDeckWrite(): Promise<void> {
 // Both Deck writers (provision-only + reimage) stream on usb:progress; route to
 // whichever screen is active by its element prefix.
 function onDeckProgress(event: UsbProgress): void {
-  const view = document.body.dataset.view;
-  const pfx = view === "deckreimage" ? "deckre" : view === "deckwrite" ? "deck" : null;
+  const pfx = activeDeckWrite;
   if (!pfx) return;
   const doneText =
     pfx === "deckre"
@@ -89,6 +94,9 @@ function onDeckProgress(event: UsbProgress): void {
       .querySelector("#deck-done-actions")
       ?.toggleAttribute("hidden", event.status !== "done");
   }
+  // Release the routing claim once the write settles, so a later write on the
+  // other tab can't inherit a stale target.
+  if (event.status === "done" || event.status === "error") activeDeckWrite = null;
 }
 
 window.bootible?.onUsbProgress?.(onDeckProgress);
@@ -165,7 +173,8 @@ function updateDeckReimageButton(): void {
 async function startDeckReimage(): Promise<void> {
   const api = window.bootible;
   if (!api?.writeDeckReimageUsb || deckReDisk < 0) return;
-  document.querySelector('[data-view="deckreimage"] .uw-go')?.setAttribute("hidden", "");
+  activeDeckWrite = "deckre";
+  document.querySelector('[data-deckbuild-pane="reimage"] .uw-go')?.setAttribute("hidden", "");
   document.querySelector("#deckre-progress")?.removeAttribute("hidden");
   onDeckProgress({
     pct: 1,
