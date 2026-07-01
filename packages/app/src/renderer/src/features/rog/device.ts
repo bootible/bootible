@@ -1,4 +1,5 @@
 import type { BaseOption, DeviceOption, PlatformOption } from "@bootible/core";
+import { StatusMessage } from "../../components/StatusMessage";
 import { el, fill } from "../../lib/dom";
 import { APP_LOGOS, DEVICE_BRAND, DEVICE_LOGOS, logoEl, OS_LOGOS } from "../../lib/logos";
 import { session } from "../../lib/session";
@@ -43,10 +44,18 @@ export async function hydratePlatforms(): Promise<void> {
   const api = window.bootible;
   const list = document.querySelector<HTMLElement>(".platform-list");
   if (!api?.getPlatforms || !list) return;
+  list.replaceChildren(StatusMessage({ kind: "loading", message: "Loading platforms…" }));
   let platforms: PlatformOption[] = [];
   try {
     platforms = await api.getPlatforms();
   } catch {
+    list.replaceChildren(
+      StatusMessage({
+        kind: "error",
+        message: "Couldn't load the device list.",
+        onRetry: () => void hydratePlatforms(),
+      }),
+    );
     return;
   }
   list.replaceChildren(
@@ -59,10 +68,18 @@ export async function hydrateDevices(platformId: string): Promise<void> {
   const api = window.bootible;
   const list = document.querySelector<HTMLElement>(".device-list");
   if (!api?.getDevices || !list) return;
+  list.replaceChildren(StatusMessage({ kind: "loading", message: "Loading devices…" }));
   let devices: DeviceOption[] = [];
   try {
     devices = await api.getDevices(platformId);
   } catch {
+    list.replaceChildren(
+      StatusMessage({
+        kind: "error",
+        message: "Couldn't load the devices for this platform.",
+        onRetry: () => void hydrateDevices(platformId),
+      }),
+    );
     return;
   }
   list.replaceChildren(...devices.map((d) => pickCard("device", d.id, d.name, "", d.status)));

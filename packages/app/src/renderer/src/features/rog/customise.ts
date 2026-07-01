@@ -1,4 +1,5 @@
 import type { BasePlan, PlanModule, RemovalEntry } from "@bootible/core";
+import { StatusMessage } from "../../components/StatusMessage";
 import { el, fill } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 import { pickCounts } from "./catalog";
@@ -184,6 +185,18 @@ export async function hydrateCustomise(): Promise<void> {
       basePlan = await api.getBasePlan(rog.selectedBaseId);
     } catch {
       basePlan = null;
+    }
+    // No plan → the customise body would render blank. Surface it with a retry and
+    // leave customiseHydrated false so retrying re-fetches.
+    if (!basePlan) {
+      document.querySelector<HTMLElement>("#customise-body")?.replaceChildren(
+        StatusMessage({
+          kind: "error",
+          message: "Couldn't load the plan for this base.",
+          onRetry: () => void hydrateCustomise(),
+        }),
+      );
+      return;
     }
     // Fresh base entry resets toggles; a just-loaded profile keeps its restored ones.
     if (!rog.keepRestoredCustomise) {

@@ -1,4 +1,5 @@
 import type { AppEntry, Bundle, ModuleStateReport, ModuleSummary } from "@bootible/core";
+import { StatusMessage } from "../../components/StatusMessage";
 import { el, fill, steps } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 
@@ -173,6 +174,17 @@ export async function hydrateCatalog(): Promise<void> {
   try {
     rog.catalog = await api.getCatalog();
   } catch {
+    // The catalog drives the whole setup/review plan — a silent return left the
+    // groups empty with no explanation. Surface it with a retry.
+    document
+      .querySelector<HTMLElement>(".groups")
+      ?.replaceChildren(
+        StatusMessage({
+          kind: "error",
+          message: "Couldn't load the setup catalog.",
+          onRetry: () => void hydrateCatalog(),
+        }),
+      );
     return;
   }
   if (rog.catalog.length === 0) return;
