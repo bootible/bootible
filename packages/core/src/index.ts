@@ -39,6 +39,14 @@ export { generateBootstrapScript } from "./bootstrap";
 export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
+export type { BuildChoice } from "./provisioning-plan";
+export {
+  buildProvisioningPlan,
+  buildSettings,
+  chosenKeys,
+  RECOMMENDED_SETTINGS,
+  resolveModules,
+} from "./provisioning-plan";
 export { bundleModules } from "./bundles";
 export type {
   AppCategory,

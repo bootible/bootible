@@ -19,14 +19,17 @@ import {
   BASES,
   type Base,
   BEACON_PORT,
+  type BuildChoice,
   type Bundle,
   type BundleFile,
   baseById,
   baseModuleIds,
   buildConfig,
   buildDeckBundle,
+  buildSettings,
   buildUsbBundle,
   checkModules,
+  chosenKeys,
   DECK_IMAGE_INDEX,
   type DeckConfig,
   type DeckImage,
@@ -51,7 +54,6 @@ import {
   groupProfilesForDevice,
   type HostSshKey,
   type IsoOption,
-  imageDevicePath,
   KEYBOARD_REGIONS,
   keyboardRegionById,
   loadRegistry,
@@ -62,10 +64,11 @@ import {
   type ProvisioningMethod,
   platformForOs,
   provisioningMethods,
+  RECOMMENDED_SETTINGS,
   REMOVAL_CATALOG,
   ROADMAP_DEVICES,
   resolveDeckImage,
-  type StaticIp,
+  resolveModules,
   type StepEvent,
   type SystemInfo,
   selectDevice,
@@ -627,77 +630,6 @@ function suggestNetwork(): { prefix: number; gateway: string; subnet: string } |
     }
   }
   return null;
-}
-
-/** The base + modifier choices that resolve to a final module set. */
-type BuildChoice = {
-  modules: string[];
-  baseId?: string;
-  sshPublicKeys?: string[];
-  staticIp?: StaticIp;
-  edition?: "home" | "pro";
-  remoteAccess?: { sunshine?: boolean; moonlight?: boolean; rdp?: boolean };
-  sunshineUser?: string;
-  sunshinePass?: string;
-  wallpaperPath?: string;
-  lockscreenPath?: string;
-  /** Floor/base modules the user unticked on the review/customise screen. */
-  disabledModules?: string[];
-  /** App slugs picked in the app-picker (settings.selected_apps). */
-  selectedApps?: string[];
-  /** Removal-catalog ids the user opted into stripping (settings.strip_removals). */
-  selectedRemovals?: string[];
-};
-
-/** The non-empty, trimmed SSH public keys from a build choice. */
-function chosenKeys(req: BuildChoice): string[] {
-  return (req.sshPublicKeys ?? []).map((k) => k.trim()).filter((k) => k.length > 0);
-}
-
-/** The final module-id set for a build: the base's resolved floor (shell +
- *  software + universal tuning) unioned with the user's modifier picks, plus the
- *  ssh-key module when at least one key is supplied. */
-function resolveModules(req: BuildChoice): string[] {
-  const base = baseById(req.baseId);
-  const ids = new Set<string>(base ? baseModuleIds(base) : []);
-  for (const id of req.modules) ids.add(id);
-  // The review/customise screen can untick floor + base modules.
-  for (const id of req.disabledModules ?? []) ids.delete(id);
-  if (chosenKeys(req).length > 0) ids.add("ssh-key");
-  if (req.staticIp?.ip) ids.add("static-ip");
-  if (req.remoteAccess?.sunshine) ids.add("sunshine");
-  if (req.remoteAccess?.moonlight) ids.add("moonlight");
-  // RDP host only works on Pro, so only enable it when both are chosen.
-  if (req.edition === "pro" && req.remoteAccess?.rdp) ids.add("remote-desktop");
-  // Sunshine login only makes sense once Sunshine is installed.
-  if (req.remoteAccess?.sunshine && req.sunshineUser && req.sunshinePass) {
-    ids.add("sunshine-creds");
-  }
-  if (req.wallpaperPath) ids.add("wallpaper");
-  if (req.lockscreenPath) ids.add("lockscreen");
-  // Apps + emulators picked in the pickers install via the `apps` module.
-  if (req.selectedApps?.length) ids.add("apps");
-  return [...ids];
-}
-
-/** The settings bag, with the SSH keys and static IP folded in when provided. */
-function buildSettings(req: BuildChoice): Record<string, unknown> {
-  const settings: Record<string, unknown> = { ...RECOMMENDED_SETTINGS };
-  const keys = chosenKeys(req);
-  if (keys.length > 0) settings.ssh_public_keys = keys;
-  if (req.selectedApps?.length) settings.selected_apps = req.selectedApps;
-  if (req.selectedRemovals?.length) settings.strip_removals = req.selectedRemovals;
-  if (req.staticIp?.ip) settings.static_ip = req.staticIp;
-  if (req.remoteAccess?.sunshine && req.sunshineUser && req.sunshinePass) {
-    settings.sunshine_user = req.sunshineUser;
-    settings.sunshine_pass = req.sunshinePass;
-  }
-  // The modules read the ON-DEVICE path; the image itself is staged by bundle.ts.
-  if (req.wallpaperPath) settings.wallpaper_path = imageDevicePath("wallpaper", req.wallpaperPath);
-  if (req.lockscreenPath) {
-    settings.lockscreen_path = imageDevicePath("lockscreen", req.lockscreenPath);
-  }
-  return settings;
 }
 
 // Config profiles (save/load the whole setup, DPAPI-encrypted secrets) + the
@@ -1300,14 +1232,6 @@ async function applyDevice(
 
   return { status: "launched" };
 }
-
-// bootible's recommended Ally settings — what a default setup would apply.
-const RECOMMENDED_SETTINGS = {
-  sleep_mode: "hibernate",
-  hibernate_after_minutes: 30,
-  power_button_action: "sleep",
-  disable_cpu_boost_on_battery: true,
-};
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
