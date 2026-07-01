@@ -85,6 +85,7 @@ export interface BootibleApi {
   getDeckPasswordManagers(): Promise<PasswordManager[]>;
   getDeckyPlugins(): Promise<DeckyStorePlugin[]>;
   resolveDeckImage(): Promise<DeckImage | null>;
+  exportDeck(config: DeckConfig): Promise<{ path: string } | null>;
   writeDeckProvisionUsb(req: DeckProvisionUsbReq): Promise<{ started: boolean }>;
   writeDeckReimageUsb(req: DeckReimageUsbReq): Promise<{ started: boolean }>;
   getIsoCatalog(): Promise<IsoOption[]>;

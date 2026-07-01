@@ -3,6 +3,7 @@ import type {
   BaseOption,
   BasePlan,
   Bundle,
+  DeckConfig,
   DeckImage,
   DeckProvisionUsbRequest,
   DeckReimageUsbRequest,
@@ -88,6 +89,8 @@ const api = {
     ipcRenderer.invoke(CHANNELS.deckPasswordManagers),
   getDeckyPlugins: (): Promise<DeckyStorePlugin[]> => ipcRenderer.invoke(CHANNELS.deckPlugins),
   resolveDeckImage: (): Promise<DeckImage | null> => ipcRenderer.invoke(CHANNELS.deckResolveImage),
+  exportDeck: (config: DeckConfig): Promise<{ path: string } | null> =>
+    ipcRenderer.invoke(CHANNELS.deckExport, config),
   writeDeckProvisionUsb: (req: DeckProvisionUsbRequest): Promise<{ started: boolean }> =>
     ipcRenderer.invoke(CHANNELS.deckWriteProvisionUsb, req),
   writeDeckReimageUsb: (req: DeckReimageUsbRequest): Promise<{ started: boolean }> =>

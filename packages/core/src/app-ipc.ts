@@ -44,6 +44,7 @@ export const CHANNELS = {
   cloudVerifyTotp: "cloud:verifyTotp",
   configExport: "config:export",
   deckApps: "deck:apps",
+  deckExport: "deck:export",
   deckPasswordManagers: "deck:passwordManagers",
   deckPlugins: "deck:plugins",
   deckResolveImage: "deck:resolveImage",

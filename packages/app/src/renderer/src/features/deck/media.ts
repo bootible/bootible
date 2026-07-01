@@ -1,7 +1,28 @@
 import type { UsbProgress } from "@bootible/core";
 import { DiskPicker } from "../../components/DiskPicker";
 import { renderProgress } from "../../components/ProgressPanel";
+import { fill } from "../../lib/dom";
 import { deckState } from "./config";
+
+/** Export the Deck setup (provision.sh + config + README) to a folder — the ROG
+ *  "Export config" equivalent. Reuses the shared done screen for the receipt. */
+async function deckExport(): Promise<void> {
+  const api = window.bootible;
+  if (!api?.exportDeck) return;
+  const result = await api.exportDeck(deckState);
+  if (!result) return; // cancelled
+  fill("done-eyebrow", "Exported");
+  fill("done-title", "Deck setup exported");
+  fill(
+    "done-sub",
+    `Saved to ${result.path}. Copy the bootible-deck folder onto a Deck and run bootible/provision.sh — or re-import it any time.`,
+  );
+  location.hash = "done";
+}
+
+document.addEventListener("click", (event) => {
+  if ((event.target as HTMLElement).closest("[data-deck-export]")) void deckExport();
+});
 
 export async function hydrateDeckWrite(): Promise<void> {
   await refreshDeckDisks();

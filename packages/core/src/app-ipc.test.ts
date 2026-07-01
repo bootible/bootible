@@ -4,8 +4,8 @@ import { CHANNELS } from "./app-ipc";
 describe("CHANNELS", () => {
   const values = Object.values(CHANNELS);
 
-  it("declares 68 IPC channels", () => {
-    expect(values).toHaveLength(68);
+  it("declares 69 IPC channels", () => {
+    expect(values).toHaveLength(69);
   });
 
   it("has no duplicate channel strings", () => {

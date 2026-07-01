@@ -1374,6 +1374,25 @@ app.whenReady().then(() => {
       return { path: dest };
     },
   );
+  // Export the Deck setup (buildDeckBundle: provision.sh + config + README) to a
+  // folder — the ROG "Export config" equivalent for the SteamOS carrier flow.
+  ipcMain.handle(CHANNELS.deckExport, async (event, config: Partial<DeckConfig>) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return null;
+    const r = await dialog.showOpenDialog(win, {
+      title: "Choose where to save the bootible Deck setup",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (r.canceled || !r.filePaths[0]) return null;
+    const dest = join(r.filePaths[0], "bootible-deck");
+    rmSync(dest, { recursive: true, force: true });
+    for (const file of buildDeckBundle(config)) {
+      const target = join(dest, file.path);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, file.content, "utf8"); // LF, bash-safe
+    }
+    return { path: dest };
+  });
   ipcMain.handle(CHANNELS.profilesList, () => listProfiles());
   // Grouping runs here (main can value-import core's deviceFamilyOf), so the
   // renderer needn't re-implement the family mapping — it just gets {model, family}.
