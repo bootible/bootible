@@ -1,13 +1,5 @@
+import type { StaticIp } from "@bootible/core";
 import { el } from "../lib/dom";
-
-/** Local mirror of @bootible/core's StaticIp (the renderer keeps types local). */
-export interface StaticIp {
-  iface: "wifi" | "ethernet";
-  ip: string;
-  prefix: number;
-  gateway?: string;
-  dns?: string;
-}
 
 export interface NetworkSettingsOptions {
   /** Current config; `undefined` = DHCP (the default). */
