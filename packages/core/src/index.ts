@@ -19,6 +19,7 @@ export type {
   UsbProgress,
   UsbWriteRequest,
 } from "./app-ipc";
+export { CHANNELS } from "./app-ipc";
 export type { DeviceSummary, SystemInfo } from "./app-view";
 export { deviceSummary, prettyOs, selectDevice } from "./app-view";
 export type { AppEntry, AppGroup } from "./apps";
@@ -39,14 +40,6 @@ export { generateBootstrapScript } from "./bootstrap";
 export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
-export type { BuildChoice } from "./provisioning-plan";
-export {
-  buildProvisioningPlan,
-  buildSettings,
-  chosenKeys,
-  RECOMMENDED_SETTINGS,
-  resolveModules,
-} from "./provisioning-plan";
 export { bundleModules } from "./bundles";
 export type {
   AppCategory,
@@ -180,6 +173,14 @@ export type { DeviceProfile } from "./profiles";
 export { deviceProfile, usesDeckCarrier } from "./profiles";
 export type { ProvisioningMethod, ProvisioningMethodId } from "./provisioning";
 export { provisioningMethods } from "./provisioning";
+export type { BuildChoice } from "./provisioning-plan";
+export {
+  buildProvisioningPlan,
+  buildSettings,
+  chosenKeys,
+  RECOMMENDED_SETTINGS,
+  resolveModules,
+} from "./provisioning-plan";
 export type { Capabilities, DeviceEntry, ProvisioningModel } from "./registry";
 export { loadRegistry, parseDeviceEntry } from "./registry";
 export { getCheckpointCommand, getEnableRestoreCommands } from "./restore-points";

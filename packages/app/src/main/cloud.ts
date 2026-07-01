@@ -10,6 +10,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import {
+  CHANNELS,
   CloudApi,
   createKeyMaterial,
   type KeyMaterial,
@@ -251,7 +252,7 @@ export function registerCloudIpc(): void {
   token = loadToken();
   dek = loadDek();
 
-  ipcMain.handle("cloud:status", async () => {
+  ipcMain.handle(CHANNELS.cloudStatus, async () => {
     if (!token) return { signedIn: false };
     try {
       const res = await fetch(`${API_BASE}/api/auth/get-session`, {
@@ -283,18 +284,18 @@ export function registerCloudIpc(): void {
   });
 
   ipcMain.handle(
-    "cloud:signUpEmail",
+    CHANNELS.cloudSignUpEmail,
     (_e, b: { email: string; password: string; name?: string }): Promise<AuthResult> =>
       emailAuth("sign-up/email", { email: b.email, password: b.password, name: b.name || b.email }),
   );
 
   ipcMain.handle(
-    "cloud:signInEmail",
+    CHANNELS.cloudSignInEmail,
     (_e, b: { email: string; password: string }): Promise<AuthResult> =>
       emailAuth("sign-in/email", b),
   );
 
-  ipcMain.handle("cloud:signOut", async (): Promise<AuthResult> => {
+  ipcMain.handle(CHANNELS.cloudSignOut, async (): Promise<AuthResult> => {
     token = null;
     clearToken();
     clearDek();
@@ -303,7 +304,7 @@ export function registerCloudIpc(): void {
 
   // ── Sync key (E2E) ─────────────────────────────────────────────────────────
   // Where the user is in the key lifecycle: needs setup, needs unlock, or ready.
-  ipcMain.handle("cloud:keyStatus", async () => {
+  ipcMain.handle(CHANNELS.cloudKeyStatus, async () => {
     if (!token) return { signedIn: false, hasServerKey: false, unlocked: false };
     // Default to the NON-destructive path (unlock): only treat a key as absent on
     // a clean "no key" — never offer Setup just because a check failed, or "Generate
@@ -319,7 +320,7 @@ export function registerCloudIpc(): void {
 
   // First-ever: mint the DEK, wrap it by the passphrase + a recovery code, upload wrapped.
   ipcMain.handle(
-    "cloud:setupKey",
+    CHANNELS.cloudSetupKey,
     async (_e, passphrase: string): Promise<AuthResult & { recoveryCode?: string }> => {
       if (!token) return { ok: false, error: "Not signed in" };
       if (!passphrase || passphrase.length < 8)
@@ -345,7 +346,7 @@ export function registerCloudIpc(): void {
   );
 
   // New device: unwrap the DEK with the sync passphrase.
-  ipcMain.handle("cloud:unlock", async (_e, passphrase: string): Promise<AuthResult> => {
+  ipcMain.handle(CHANNELS.cloudUnlock, async (_e, passphrase: string): Promise<AuthResult> => {
     try {
       const dto = await api().getKeys();
       if (!dto) return { ok: false, error: "No sync key set up yet." };
@@ -361,7 +362,7 @@ export function registerCloudIpc(): void {
   });
 
   // Forgot the passphrase: unwrap with the recovery code.
-  ipcMain.handle("cloud:unlockRecovery", async (_e, code: string): Promise<AuthResult> => {
+  ipcMain.handle(CHANNELS.cloudUnlockRecovery, async (_e, code: string): Promise<AuthResult> => {
     try {
       const dto = await api().getKeys();
       if (!dto) return { ok: false, error: "No sync key set up yet." };
@@ -378,24 +379,27 @@ export function registerCloudIpc(): void {
 
   // Set a NEW passphrase for the already-unlocked DEK (used after recovery).
   // Re-wraps the same DEK — secrets stay decryptable, recovery code unchanged.
-  ipcMain.handle("cloud:resetPassphrase", async (_e, newPass: string): Promise<AuthResult> => {
-    if (!token || !dek) return { ok: false, error: "Unlock first." };
-    if (!newPass || newPass.length < 8)
-      return { ok: false, error: "Use a passphrase of at least 8 characters." };
-    try {
-      const dto = await api().getKeys();
-      if (!dto) return { ok: false, error: "No sync key to update." };
-      const updated = await rewrapWithPassphrase(fromKeyDTO(dto), dek, newPass);
-      await api().putKeys(toKeyDTO(updated));
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: errMsg(e) };
-    }
-  });
+  ipcMain.handle(
+    CHANNELS.cloudResetPassphrase,
+    async (_e, newPass: string): Promise<AuthResult> => {
+      if (!token || !dek) return { ok: false, error: "Unlock first." };
+      if (!newPass || newPass.length < 8)
+        return { ok: false, error: "Use a passphrase of at least 8 characters." };
+      try {
+        const dto = await api().getKeys();
+        if (!dto) return { ok: false, error: "No sync key to update." };
+        const updated = await rewrapWithPassphrase(fromKeyDTO(dto), dek, newPass);
+        await api().putKeys(toKeyDTO(updated));
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: errMsg(e) };
+      }
+    },
+  );
 
   // ── Two-factor (TOTP) ──────────────────────────────────────────────────────
   // Complete a sign-in second factor: replay the pending cookie, get the token.
-  ipcMain.handle("cloud:verifyTotp", async (_e, code: string): Promise<AuthResult> => {
+  ipcMain.handle(CHANNELS.cloudVerifyTotp, async (_e, code: string): Promise<AuthResult> => {
     if (!pendingCookie) return { ok: false, error: "No sign-in in progress." };
     try {
       const res = await fetch(`${API_BASE}/api/auth/two-factor/verify-totp`, {
@@ -421,7 +425,7 @@ export function registerCloudIpc(): void {
 
   // Begin enrollment: returns the TOTP URI (for a QR) + one-time backup codes.
   ipcMain.handle(
-    "cloud:enable2FA",
+    CHANNELS.cloudEnable2FA,
     async (
       _e,
       password: string,
@@ -452,7 +456,7 @@ export function registerCloudIpc(): void {
   );
 
   // Confirm enrollment with a code from the authenticator app.
-  ipcMain.handle("cloud:verify2FASetup", async (_e, code: string): Promise<AuthResult> => {
+  ipcMain.handle(CHANNELS.cloudVerify2FASetup, async (_e, code: string): Promise<AuthResult> => {
     if (!token) return { ok: false, error: "Not signed in" };
     try {
       const res = await fetch(`${API_BASE}/api/auth/two-factor/verify-totp`, {
@@ -476,7 +480,7 @@ export function registerCloudIpc(): void {
   });
 
   // Turn 2FA off (requires the password).
-  ipcMain.handle("cloud:disable2FA", async (_e, password: string): Promise<AuthResult> => {
+  ipcMain.handle(CHANNELS.cloudDisable2FA, async (_e, password: string): Promise<AuthResult> => {
     if (!token) return { ok: false, error: "Not signed in" };
     try {
       const res = await fetch(`${API_BASE}/api/auth/two-factor/disable`, {
@@ -500,44 +504,50 @@ export function registerCloudIpc(): void {
   });
 
   // Manual / post-save sync trigger. Returns the report, or null if not ready.
-  ipcMain.handle("cloud:syncNow", () => doSync());
+  ipcMain.handle(CHANNELS.cloudSyncNow, () => doSync());
 
   // Social: run the provider OAuth in an in-app window, capture the session.
-  ipcMain.handle("cloud:signInSocial", (_e, provider: string) => runSocialSignIn(provider));
+  ipcMain.handle(CHANNELS.cloudSignInSocial, (_e, provider: string) => runSocialSignIn(provider));
 
   // Request a password-reset email (link lands on the Worker /reset-password page).
-  ipcMain.handle("cloud:requestPasswordReset", async (_e, email: string): Promise<AuthResult> => {
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/request-password-reset`, {
-        method: "POST",
-        headers: { "content-type": "application/json", Origin: ORIGIN },
-        body: JSON.stringify({ email, redirectTo: `${API_BASE}/reset-password` }),
-      });
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { message?: string };
-        return { ok: false, error: d.message ?? "Couldn't send the reset email." };
+  ipcMain.handle(
+    CHANNELS.cloudRequestPasswordReset,
+    async (_e, email: string): Promise<AuthResult> => {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/request-password-reset`, {
+          method: "POST",
+          headers: { "content-type": "application/json", Origin: ORIGIN },
+          body: JSON.stringify({ email, redirectTo: `${API_BASE}/reset-password` }),
+        });
+        if (!res.ok) {
+          const d = (await res.json().catch(() => ({}))) as { message?: string };
+          return { ok: false, error: d.message ?? "Couldn't send the reset email." };
+        }
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: errMsg(e) };
       }
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: errMsg(e) };
-    }
-  });
+    },
+  );
 
   // Resend the email-verification link.
-  ipcMain.handle("cloud:resendVerification", async (_e, email: string): Promise<AuthResult> => {
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/send-verification-email`, {
-        method: "POST",
-        headers: { "content-type": "application/json", Origin: ORIGIN },
-        body: JSON.stringify({ email, callbackURL: "/verified" }),
-      });
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { message?: string };
-        return { ok: false, error: d.message ?? "Couldn't resend the email." };
+  ipcMain.handle(
+    CHANNELS.cloudResendVerification,
+    async (_e, email: string): Promise<AuthResult> => {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/send-verification-email`, {
+          method: "POST",
+          headers: { "content-type": "application/json", Origin: ORIGIN },
+          body: JSON.stringify({ email, callbackURL: "/verified" }),
+        });
+        if (!res.ok) {
+          const d = (await res.json().catch(() => ({}))) as { message?: string };
+          return { ok: false, error: d.message ?? "Couldn't resend the email." };
+        }
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: errMsg(e) };
       }
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: errMsg(e) };
-    }
-  });
+    },
+  );
 }

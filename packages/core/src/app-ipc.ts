@@ -11,6 +11,84 @@
 import type { DeckConfig } from "./deck-config";
 import type { StaticIp } from "./static-ip";
 
+/**
+ * The IPC channel names, declared once so preload (ipcRenderer.invoke/on) and main
+ * (ipcMain.handle / webContents.send) reference the SAME string — a typo or drift
+ * in a hand-copied literal silently breaks a call with no compile error. Values are
+ * the exact wire strings; keys are readable aliases. (Electron app/webContents
+ * lifecycle events — activate, window-all-closed, … — are not IPC and stay inline.)
+ */
+export const CHANNELS = {
+  appsGroups: "apps:groups",
+  basePlan: "base:plan",
+  basesGet: "bases:get",
+  beaconDevice: "beacon:device",
+  bundlesGet: "bundles:get",
+  catalogGet: "catalog:get",
+  cloudDisable2FA: "cloud:disable2FA",
+  cloudEnable2FA: "cloud:enable2FA",
+  cloudKeyStatus: "cloud:keyStatus",
+  cloudRequestPasswordReset: "cloud:requestPasswordReset",
+  cloudResendVerification: "cloud:resendVerification",
+  cloudResetPassphrase: "cloud:resetPassphrase",
+  cloudSetupKey: "cloud:setupKey",
+  cloudSignInEmail: "cloud:signInEmail",
+  cloudSignInSocial: "cloud:signInSocial",
+  cloudSignOut: "cloud:signOut",
+  cloudSignUpEmail: "cloud:signUpEmail",
+  cloudStatus: "cloud:status",
+  cloudSyncNow: "cloud:syncNow",
+  cloudUnlock: "cloud:unlock",
+  cloudUnlockRecovery: "cloud:unlockRecovery",
+  cloudVerify2FASetup: "cloud:verify2FASetup",
+  cloudVerifyTotp: "cloud:verifyTotp",
+  configExport: "config:export",
+  deckApps: "deck:apps",
+  deckPasswordManagers: "deck:passwordManagers",
+  deckPlugins: "deck:plugins",
+  deckResolveImage: "deck:resolveImage",
+  deckWriteProvisionUsb: "deck:writeProvisionUsb",
+  deckWriteReimageUsb: "deck:writeReimageUsb",
+  deviceApply: "device:apply",
+  deviceGet: "device:get",
+  deviceSelect: "device:select",
+  deviceState: "device:state",
+  deviceVerify: "device:verify",
+  devicesList: "devices:list",
+  discoveryStart: "discovery:start",
+  discoveryStop: "discovery:stop",
+  hostInstallStreaming: "host:install-streaming",
+  imageBrowse: "image:browse",
+  isoBrowse: "iso:browse",
+  isoCatalog: "iso:catalog",
+  languagesGet: "languages:get",
+  methodsGet: "methods:get",
+  networkSuggest: "network:suggest",
+  platformsGet: "platforms:get",
+  profilesDelete: "profiles:delete",
+  profilesGrouped: "profiles:grouped",
+  profilesList: "profiles:list",
+  profilesLoad: "profiles:load",
+  profilesSave: "profiles:save",
+  provisionDone: "provision:done",
+  provisionRun: "provision:run",
+  provisionStep: "provision:step",
+  regionsGet: "regions:get",
+  removalsGet: "removals:get",
+  shellOpen: "shell:open",
+  sshGenerateKey: "ssh:generate-key",
+  sshGithubKeys: "ssh:github-keys",
+  sshHostKeys: "ssh:host-keys",
+  stripkitDisk: "stripkit:disk",
+  stripkitUsb: "stripkit:usb",
+  usbBuild: "usb:build",
+  usbDisks: "usb:disks",
+  usbEject: "usb:eject",
+  usbFormat: "usb:format",
+  usbProgress: "usb:progress",
+  usbWrite: "usb:write",
+} as const;
+
 export interface PlanModule {
   id: string;
   name: string;

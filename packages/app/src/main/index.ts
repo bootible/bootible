@@ -28,6 +28,7 @@ import {
   buildDeckBundle,
   buildSettings,
   buildUsbBundle,
+  CHANNELS,
   checkModules,
   chosenKeys,
   DECK_IMAGE_INDEX,
@@ -588,7 +589,7 @@ function startDiscovery(sender: WebContents): void {
           status: String(msg.status ?? ""),
           mine: lastBuildId !== "" && msg.buildId === lastBuildId,
         };
-        if (!sender.isDestroyed()) sender.send("beacon:device", device);
+        if (!sender.isDestroyed()) sender.send(CHANNELS.beaconDevice, device);
       } catch {
         // ignore non-JSON / unrelated UDP traffic
       }
@@ -852,7 +853,7 @@ function tailUsbProgress(sender: WebContents, file: string): void {
       if (!trimmed) continue;
       try {
         const event = JSON.parse(trimmed) as { pct: number; message: string; status: string };
-        if (!sender.isDestroyed()) sender.send("usb:progress", event);
+        if (!sender.isDestroyed()) sender.send(CHANNELS.usbProgress, event);
         if (event.status === "done" || event.status === "error") clearInterval(timer);
       } catch {
         // partial / non-JSON line; ignore
@@ -881,12 +882,20 @@ function validDiskNumber(n: unknown): number | null {
 
 function writeUsb(sender: WebContents, req: UsbWriteRequest): { started: boolean } {
   if (validDiskNumber(req.diskNumber) === null) {
-    sender.send("usb:progress", { pct: 0, status: "error", message: "Invalid disk selection." });
+    sender.send(CHANNELS.usbProgress, {
+      pct: 0,
+      status: "error",
+      message: "Invalid disk selection.",
+    });
     return { started: false };
   }
   const stagingPath = stageUsbBundle(req);
   if (!stagingPath) {
-    sender.send("usb:progress", { pct: 0, status: "error", message: "No device to build for." });
+    sender.send(CHANNELS.usbProgress, {
+      pct: 0,
+      status: "error",
+      message: "No device to build for.",
+    });
     return { started: false };
   }
 
@@ -961,7 +970,7 @@ function writeDeckProvisionUsb(
 ): { started: boolean } {
   const letter = (req.driveLetter.replace(/[:\\]/g, "")[0] ?? "").toUpperCase();
   const emit = (pct: number, message: string, status = "running"): void => {
-    if (!sender.isDestroyed()) sender.send("usb:progress", { pct, message, status });
+    if (!sender.isDestroyed()) sender.send(CHANNELS.usbProgress, { pct, message, status });
   };
   if (!/^[A-Z]$/.test(letter)) {
     emit(0, "Pick a USB drive first.", "error");
@@ -1050,7 +1059,7 @@ async function writeDeckReimageUsb(
   const progressFile = join(app.getPath("temp"), "bootible-deck-progress.ndjson");
   writeFileSync(progressFile, "");
   const emit = (pct: number, message: string, status = "running"): void => {
-    if (!sender.isDestroyed()) sender.send("usb:progress", { pct, message, status });
+    if (!sender.isDestroyed()) sender.send(CHANNELS.usbProgress, { pct, message, status });
   };
 
   if (validDiskNumber(req.diskNumber) === null) {
@@ -1245,7 +1254,7 @@ async function provision(sender: WebContents): Promise<{ applied: number; skippe
   const device = loadDeviceEntry();
   const profile = profileFor(device);
   if (!device || !profile) {
-    sender.send("provision:done", { applied: 0, skipped: 0 });
+    sender.send(CHANNELS.provisionDone, { applied: 0, skipped: 0 });
     return { applied: 0, skipped: 0 };
   }
 
@@ -1259,7 +1268,7 @@ async function provision(sender: WebContents): Promise<{ applied: number; skippe
   let skipped = 0;
   for (const event of queue) {
     if (sender.isDestroyed()) break;
-    sender.send("provision:step", event);
+    sender.send(CHANNELS.provisionStep, event);
     if (event.status === "running") {
       await delay(260);
     } else {
@@ -1269,7 +1278,7 @@ async function provision(sender: WebContents): Promise<{ applied: number; skippe
     }
   }
 
-  if (!sender.isDestroyed()) sender.send("provision:done", { applied, skipped });
+  if (!sender.isDestroyed()) sender.send(CHANNELS.provisionDone, { applied, skipped });
   return { applied, skipped };
 }
 
@@ -1302,27 +1311,27 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerCloudIpc();
-  ipcMain.handle("device:get", () => getDevice());
-  ipcMain.handle("device:state", () => getDeviceState());
-  ipcMain.handle("platforms:get", () => getPlatforms());
-  ipcMain.handle("devices:list", (_event, platformId: string) => getDevices(platformId));
-  ipcMain.handle("device:select", (_event, id: string) => selectDeviceById(id));
-  ipcMain.handle("catalog:get", () => getCatalog());
-  ipcMain.handle("bundles:get", () => getBundles());
-  ipcMain.handle("bases:get", () => getBases());
-  ipcMain.handle("ssh:host-keys", () => getHostSshKeys());
-  ipcMain.handle("ssh:generate-key", (_event, comment: string) => generateHostSshKey(comment));
-  ipcMain.handle("ssh:github-keys", (_event, user: string) => fetchGithubKeys(user));
-  ipcMain.handle("discovery:start", (event) => startDiscovery(event.sender));
-  ipcMain.handle("discovery:stop", () => stopDiscovery());
-  ipcMain.handle("device:verify", (_event, ip: string, username?: string) =>
+  ipcMain.handle(CHANNELS.deviceGet, () => getDevice());
+  ipcMain.handle(CHANNELS.deviceState, () => getDeviceState());
+  ipcMain.handle(CHANNELS.platformsGet, () => getPlatforms());
+  ipcMain.handle(CHANNELS.devicesList, (_event, platformId: string) => getDevices(platformId));
+  ipcMain.handle(CHANNELS.deviceSelect, (_event, id: string) => selectDeviceById(id));
+  ipcMain.handle(CHANNELS.catalogGet, () => getCatalog());
+  ipcMain.handle(CHANNELS.bundlesGet, () => getBundles());
+  ipcMain.handle(CHANNELS.basesGet, () => getBases());
+  ipcMain.handle(CHANNELS.sshHostKeys, () => getHostSshKeys());
+  ipcMain.handle(CHANNELS.sshGenerateKey, (_event, comment: string) => generateHostSshKey(comment));
+  ipcMain.handle(CHANNELS.sshGithubKeys, (_event, user: string) => fetchGithubKeys(user));
+  ipcMain.handle(CHANNELS.discoveryStart, (event) => startDiscovery(event.sender));
+  ipcMain.handle(CHANNELS.discoveryStop, () => stopDiscovery());
+  ipcMain.handle(CHANNELS.deviceVerify, (_event, ip: string, username?: string) =>
     verifyDevice(ip, username),
   );
-  ipcMain.handle("network:suggest", () => suggestNetwork());
-  ipcMain.handle("base:plan", (_event, baseId: string) => getBasePlan(baseId));
-  ipcMain.handle("apps:groups", (): AppGroup[] => APP_GROUPS);
-  ipcMain.handle("removals:get", () => REMOVAL_CATALOG);
-  ipcMain.handle("image:browse", async () => {
+  ipcMain.handle(CHANNELS.networkSuggest, () => suggestNetwork());
+  ipcMain.handle(CHANNELS.basePlan, (_event, baseId: string) => getBasePlan(baseId));
+  ipcMain.handle(CHANNELS.appsGroups, (): AppGroup[] => APP_GROUPS);
+  ipcMain.handle(CHANNELS.removalsGet, () => REMOVAL_CATALOG);
+  ipcMain.handle(CHANNELS.imageBrowse, async () => {
     const r = await dialog.showOpenDialog({
       title: "Choose an image",
       properties: ["openFile"],
@@ -1331,20 +1340,20 @@ app.whenReady().then(() => {
     return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
   });
   ipcMain.handle(
-    "host:install-streaming",
+    CHANNELS.hostInstallStreaming,
     (_event, which: { sunshine?: boolean; moonlight?: boolean }) =>
       installHostStreaming(which ?? {}),
   );
-  ipcMain.handle("methods:get", () => getMethods());
-  ipcMain.handle("provision:run", (event) => provision(event.sender));
-  ipcMain.handle("config:export", (event, req: BuildChoice) => {
+  ipcMain.handle(CHANNELS.methodsGet, () => getMethods());
+  ipcMain.handle(CHANNELS.provisionRun, (event) => provision(event.sender));
+  ipcMain.handle(CHANNELS.configExport, (event, req: BuildChoice) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win ? exportConfig(win, req ?? { modules: [] }) : null;
   });
-  ipcMain.handle("usb:build", (_event, req: UsbBuildRequest) => buildUsb(req));
-  ipcMain.handle("usb:write", (event, req: UsbWriteRequest) => writeUsb(event.sender, req));
+  ipcMain.handle(CHANNELS.usbBuild, (_event, req: UsbBuildRequest) => buildUsb(req));
+  ipcMain.handle(CHANNELS.usbWrite, (event, req: UsbWriteRequest) => writeUsb(event.sender, req));
   // Full ROG strip kit: save the 3 files to a folder, or to a USB drive root.
-  ipcMain.handle("stripkit:disk", async (event, req: UsbBuildRequest) => {
+  ipcMain.handle(CHANNELS.stripkitDisk, async (event, req: UsbBuildRequest) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
     const r = await dialog.showOpenDialog(win, {
@@ -1357,7 +1366,7 @@ app.whenReady().then(() => {
     return { path: dest };
   });
   ipcMain.handle(
-    "stripkit:usb",
+    CHANNELS.stripkitUsb,
     (_event, { req, drive }: { req: UsbBuildRequest; drive: string }) => {
       // A bootible-prep folder on the stick (not the root) — keeps the USB tidy.
       const dest = join(`${drive.replace(/[:\\]/g, "")}:\\`, "bootible-prep");
@@ -1365,41 +1374,43 @@ app.whenReady().then(() => {
       return { path: dest };
     },
   );
-  ipcMain.handle("profiles:list", () => listProfiles());
+  ipcMain.handle(CHANNELS.profilesList, () => listProfiles());
   // Grouping runs here (main can value-import core's deviceFamilyOf), so the
   // renderer needn't re-implement the family mapping — it just gets {model, family}.
-  ipcMain.handle("profiles:grouped", (_event, deviceModel: string | undefined) =>
+  ipcMain.handle(CHANNELS.profilesGrouped, (_event, deviceModel: string | undefined) =>
     groupProfilesForDevice(listProfiles(), deviceModel),
   );
-  ipcMain.handle("profiles:save", (_event, p: Profile) => saveProfile(p));
-  ipcMain.handle("profiles:load", (_event, name: string) => loadProfile(name));
-  ipcMain.handle("profiles:delete", (_event, name: string) => deleteProfile(name));
-  ipcMain.handle("usb:eject", (_event, drive: string) => ejectUsb(drive));
-  ipcMain.handle("usb:format", (_event, drive: string) => formatUsbDrive(drive));
-  ipcMain.handle("usb:disks", () => listUsbDisks());
-  ipcMain.handle("deck:apps", () => FLATPAK_APPS);
-  ipcMain.handle("deck:passwordManagers", () => PASSWORD_MANAGERS);
-  ipcMain.handle("deck:plugins", () => fetchDeckyPlugins());
-  ipcMain.handle("deck:resolveImage", () => resolveDeckImageUrl());
-  ipcMain.handle("deck:writeProvisionUsb", (event, req: DeckProvisionUsbRequest) =>
+  ipcMain.handle(CHANNELS.profilesSave, (_event, p: Profile) => saveProfile(p));
+  ipcMain.handle(CHANNELS.profilesLoad, (_event, name: string) => loadProfile(name));
+  ipcMain.handle(CHANNELS.profilesDelete, (_event, name: string) => deleteProfile(name));
+  ipcMain.handle(CHANNELS.usbEject, (_event, drive: string) => ejectUsb(drive));
+  ipcMain.handle(CHANNELS.usbFormat, (_event, drive: string) => formatUsbDrive(drive));
+  ipcMain.handle(CHANNELS.usbDisks, () => listUsbDisks());
+  ipcMain.handle(CHANNELS.deckApps, () => FLATPAK_APPS);
+  ipcMain.handle(CHANNELS.deckPasswordManagers, () => PASSWORD_MANAGERS);
+  ipcMain.handle(CHANNELS.deckPlugins, () => fetchDeckyPlugins());
+  ipcMain.handle(CHANNELS.deckResolveImage, () => resolveDeckImageUrl());
+  ipcMain.handle(CHANNELS.deckWriteProvisionUsb, (event, req: DeckProvisionUsbRequest) =>
     writeDeckProvisionUsb(event.sender, req),
   );
   ipcMain.handle(
-    "deck:writeReimageUsb",
+    CHANNELS.deckWriteReimageUsb,
     (event, req: { diskNumber: number; config: Partial<DeckConfig> }) =>
       writeDeckReimageUsb(event.sender, req),
   );
-  ipcMain.handle("iso:catalog", () => getIsoCatalog());
-  ipcMain.handle("languages:get", () =>
+  ipcMain.handle(CHANNELS.isoCatalog, () => getIsoCatalog());
+  ipcMain.handle(CHANNELS.languagesGet, () =>
     DISPLAY_LANGUAGES.map((l) => ({ id: l.id, label: l.label, isoId: `win11-latest-${l.id}` })),
   );
-  ipcMain.handle("regions:get", () => KEYBOARD_REGIONS.map((r) => ({ id: r.id, label: r.label })));
-  ipcMain.handle("iso:browse", (event) => {
+  ipcMain.handle(CHANNELS.regionsGet, () =>
+    KEYBOARD_REGIONS.map((r) => ({ id: r.id, label: r.label })),
+  );
+  ipcMain.handle(CHANNELS.isoBrowse, (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win ? browseIso(win) : null;
   });
-  ipcMain.handle("shell:open", (_event, path: string) => shell.openPath(path));
-  ipcMain.handle("device:apply", (event, req: UsbBuildRequest) => {
+  ipcMain.handle(CHANNELS.shellOpen, (_event, path: string) => shell.openPath(path));
+  ipcMain.handle(CHANNELS.deviceApply, (event, req: UsbBuildRequest) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win ? applyDevice(win, req) : { status: "blocked" };
   });
