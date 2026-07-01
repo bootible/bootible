@@ -28,14 +28,13 @@ import {
   updateEditionState,
 } from "./features/rog/account";
 import { hydrateApps } from "./features/rog/apps";
-import { hydrateCatalog, renderReviewPlan, updateSetupSummary } from "./features/rog/catalog";
+import { hydrateBuild } from "./features/rog/build";
+import { hydrateCatalog, updateSetupSummary } from "./features/rog/catalog";
 import { hydrateCustomise, removalsCatalog, renderCustomise } from "./features/rog/customise";
 import { baseCard, hydratePlatforms } from "./features/rog/device";
 import { mountRogProfileBar } from "./features/rog/profiles";
 import { startProvision } from "./features/rog/provision";
-import { hydrateStripkit } from "./features/rog/stripkit";
 import {
-  hydrateUsbWrite,
   lastArtifactPath,
   refreshDisks,
   runExport,
@@ -43,7 +42,6 @@ import {
   updateWriteButton,
 } from "./features/rog/usbwrite";
 import { renderDiscovered, runApplyDevice } from "./features/rog/watch";
-import { fill } from "./lib/dom";
 import { rog } from "./lib/rog-state";
 import { registerRoute, syncFromHash } from "./lib/router";
 import { session } from "./lib/session";
@@ -55,20 +53,6 @@ const favicon = document.querySelector<HTMLLinkElement>("#favicon");
 if (favicon) favicon.href = brandMark;
 const welcomeLogo = document.querySelector<HTMLImageElement>("#welcome-logo");
 if (welcomeLogo) welcomeLogo.src = brandMark;
-
-const APPLY_LABELS: Record<string, string> = {
-  usb: "Build USB",
-  export: "Export config",
-  device: "Apply now",
-};
-
-/** Set the review screen's primary-button label to match the chosen method. */
-function setApplyLabel(): void {
-  const method = document.body.dataset.method ?? "device";
-  fill("apply-label", APPLY_LABELS[method] ?? "Apply");
-}
-
-/** Drive the active view from the URL hash so screens are deep-linkable. */
 
 // Navigation: any [data-go] control sets the hash, which drives the view. A
 // [data-method] control also records which provisioning method was chosen.
@@ -87,12 +71,9 @@ document.addEventListener("click", (event) => {
     document.body.dataset.method = method;
   }
   let target = trigger.dataset.go;
-  // Full ROG isn't a clean-install: customise → account (for SSH/access, with the
-  // clean-only fields hidden) → strip-kit builder, not the USB writer.
-  if (rog.selectedBaseId === "full-rog") {
-    if (target === "method") target = "account";
-    else if (target === "wifi") target = "stripkit";
-  }
+  // Full ROG restores the factory image rather than clean-installing, so it skips
+  // the WiFi pre-seed step (account → build), where build shows the strip-kit tabs.
+  if (rog.selectedBaseId === "full-rog" && target === "wifi") target = "build";
   if (target) location.hash = target;
 });
 
@@ -311,7 +292,7 @@ registerRoute("platform", () => void hydratePlatforms());
 registerRoute("base", () => void hydrateBases());
 registerRoute("customise", () => void hydrateCustomise());
 registerRoute("apps", () => void hydrateApps());
-registerRoute("stripkit", () => void hydrateStripkit());
+registerRoute("build", () => hydrateBuild());
 registerRoute("account", () => {
   syncAccountInputsFromState(); // reflect the typed rog.* fields (or a loaded profile)
   void hydrateSshKeys();
@@ -333,11 +314,6 @@ registerRoute("account", () => {
       : "Pick how it signs in, then name it and choose how you'll reach it.";
   }
 });
-registerRoute("review", () => {
-  setApplyLabel();
-  renderReviewPlan();
-});
-registerRoute("usbwrite", () => void hydrateUsbWrite());
 registerRoute("deck", () => void hydrateDeck());
 registerRoute("decksetup", () => void hydrateDeckSetup());
 registerRoute("deckapps", () => void hydrateDeckApps());

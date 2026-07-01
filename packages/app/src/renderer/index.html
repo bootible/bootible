@@ -244,7 +244,7 @@
           <div class="customise-foot">
             <p class="customise-summary" id="customise-summary"></p>
             <div class="summary-actions">
-              <button class="btn-primary" type="button" data-go="method">Continue <span class="arrow" aria-hidden="true">→</span></button>
+              <button class="btn-primary" type="button" data-go="account">Continue <span class="arrow" aria-hidden="true">→</span></button>
               <button class="btn-ghost" type="button" data-back>Back</button>
             </div>
           </div>
@@ -265,16 +265,16 @@
           </div>
         </main>
 
-        <!-- ───────────────────── STRIP KIT (Full ROG) ───────────────────── -->
-        <main class="view setup" data-view="stripkit">
+        <!-- ───────────────── BUILD (unified: Build USB / Export / Run on device — or Full ROG strip) ───────────────── -->
+        <main class="view setup" data-view="build">
           <div class="setup-head">
-            <p class="eyebrow">Full ROG</p>
-            <h1 class="setup-title">Build your strip kit</h1>
-            <p class="setup-sub">Your factory ROG, debloated + your apps. Restore the factory image, then run this kit.</p>
+            <p class="eyebrow" data-field="build-eyebrow">Your Ally</p>
+            <h1 class="setup-title" data-field="build-title">Set up your Ally</h1>
+            <p class="setup-sub" data-field="build-sub">Pick how to apply your setup.</p>
           </div>
           <div class="sk-body">
-            <details class="sk-guide">
-              <summary>1 · Restore the factory image (ASUS Cloud Recovery)</summary>
+            <details class="sk-guide" id="build-restore" hidden>
+              <summary>Restore the factory image first (ASUS Cloud Recovery)</summary>
               <ol class="sk-steps">
                 <li>Enter the BIOS: tap <b>F12</b> at the ROG logo (or Settings → Recovery → Advanced startup → UEFI firmware settings).</li>
                 <li>Check the BIOS clock is correct — a wrong time blocks Cloud Recovery.</li>
@@ -285,18 +285,71 @@
             </details>
 
             <div class="sk-save">
-              <p class="sk-h">2 · Save the strip kit</p>
-              <div class="sk-toggle">
-                <button class="sk-tab is-active" type="button" data-sk="disk">Save to Disk</button>
-                <button class="sk-tab" type="button" data-sk="usb">Save to USB</button>
+              <!-- Tabs injected per base by hydrateBuild (clean: usb/export/device; Full ROG: skdisk/skusb). -->
+              <div class="sk-toggle" id="build-tabs"></div>
+
+              <!-- clean-install · Build USB -->
+              <div class="sk-pane" data-build-pane="usb">
+                <section class="uw-section">
+                  <p class="uw-label">Windows language</p>
+                  <select class="uw-select" id="lang-select" aria-label="Windows language"></select>
+                  <p class="uw-hint muted">Sets the download <em>and</em> the on-screen language — they always match, so Setup won't ask.</p>
+                </section>
+                <section class="uw-section">
+                  <p class="uw-label">Keyboard &amp; region</p>
+                  <select class="uw-select" id="region-select" aria-label="Keyboard and region"></select>
+                </section>
+                <section class="uw-section">
+                  <p class="uw-label">Windows image</p>
+                  <div class="uw-row">
+                    <button class="linkbtn" type="button" id="iso-browse">Use a local ISO instead…</button>
+                    <span class="uw-iso-path muted" id="iso-path"></span>
+                  </div>
+                </section>
+                <section class="uw-section">
+                  <p class="uw-label">USB drive <button class="linkbtn" type="button" id="disk-refresh">refresh</button></p>
+                  <div class="uw-disks" id="disk-list"><p class="muted">Scanning for removable drives…</p></div>
+                </section>
+                <section class="uw-section uw-go">
+                  <label class="uw-confirm">
+                    <input type="checkbox" id="erase-confirm" />
+                    <span>I understand this <strong>erases</strong> the selected drive</span>
+                  </label>
+                  <div class="done-actions">
+                    <button class="btn-primary" type="button" id="usb-write-btn" disabled>Write USB <span class="arrow" aria-hidden="true">→</span></button>
+                  </div>
+                </section>
+                <section class="uw-section uw-progress" hidden>
+                  <p class="provision-now" id="uw-msg">Starting…</p>
+                  <div class="progress"><div class="progress-fill" id="uw-fill" style="width: 0%"></div></div>
+                  <p class="progress-meta" id="uw-pct">Working… keep the app open.</p>
+                </section>
               </div>
 
-              <div class="sk-pane" data-sk-pane="disk">
+              <!-- clean-install · Export the config -->
+              <div class="sk-pane" data-build-pane="export" hidden>
+                <p class="setup-sub">Save this setup to your bootible account and a local file to reuse any time.</p>
+                <div class="summary-actions">
+                  <button class="btn-primary" type="button" id="build-export-btn">Export the config <span class="arrow" aria-hidden="true">→</span></button>
+                </div>
+              </div>
+
+              <!-- clean-install · Run on this device -->
+              <div class="sk-pane" data-build-pane="device" hidden>
+                <p class="setup-sub">Apply the config now, on a Windows that's already installed — with restore points.</p>
+                <div class="summary-actions">
+                  <button class="btn-primary" type="button" id="build-device-btn">Apply now <span class="arrow" aria-hidden="true">→</span></button>
+                </div>
+              </div>
+
+              <!-- Full ROG · Save to Disk -->
+              <div class="sk-pane" data-build-pane="skdisk" hidden>
                 <p class="setup-sub">Pick a folder — bootible drops the 3 files there.</p>
                 <button class="btn-primary" type="button" id="sk-disk-save">Choose folder…</button>
               </div>
 
-              <div class="sk-pane" data-sk-pane="usb" hidden>
+              <!-- Full ROG · Save to USB -->
+              <div class="sk-pane" data-build-pane="skusb" hidden>
                 <p class="setup-sub">Available USB media: <button class="sk-refresh" type="button" id="sk-usb-refresh">↻ Refresh</button></p>
                 <div class="sk-usb-list" id="sk-usb-list"></div>
                 <label class="sk-format"><input type="checkbox" id="sk-format" /> Format first (exFAT, quick erase)</label>
@@ -312,8 +365,8 @@
             <!-- Saving a profile now lives in the shared ProfileBar on the
                  Review & customise screen (mountRogProfileBar). -->
 
-            <div class="sk-save">
-              <p class="sk-h">3 · Check the device <span class="muted">(after you've run the kit)</span></p>
+            <div class="sk-save" id="build-verify" hidden>
+              <p class="sk-h">Check the device <span class="muted">(after you've run the kit)</span></p>
               <p class="setup-sub">When the strip finishes it beacons on your network for ~10 minutes — open Find my device and it'll appear, no IP needed.</p>
               <div class="summary-actions">
                 <button class="btn-primary" type="button" data-go="watch">Find my device →</button>
@@ -344,48 +397,6 @@
 
           <!-- bundle cards are rendered from the device profile -->
           <div class="bundle-list"></div>
-
-          <div class="bundle-back">
-            <button class="btn-ghost" type="button" data-back>Back</button>
-          </div>
-        </main>
-
-        <!-- ───────────────────── METHOD (how to apply) ───────────────────── -->
-        <main class="view setup" data-view="method">
-          <div class="setup-head">
-            <p class="eyebrow">Choose a method</p>
-            <h1 class="setup-title">How should we apply it?</h1>
-            <p class="setup-sub">Same config, three ways to apply it — pick what fits.</p>
-          </div>
-
-          <div class="method-list">
-            <button class="method-card" type="button" data-method="usb" data-go="account">
-              <span class="method-icon" aria-hidden="true">▤</span>
-              <span class="method-main">
-                <span class="method-name">Build a USB</span>
-                <span class="method-desc">Make a bootable stick that wipes, installs Windows and configures the Ally hands-off.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">zero-touch</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
-
-            <button class="method-card" type="button" data-method="export" data-go="review">
-              <span class="method-icon" aria-hidden="true">▦</span>
-              <span class="method-main">
-                <span class="method-name">Export the config</span>
-                <span class="method-desc">Save this setup to your bootible account and a local file to reuse any time.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">save</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
-
-            <button class="method-card" type="button" data-method="device" data-go="review">
-              <span class="method-icon" aria-hidden="true">▣</span>
-              <span class="method-main">
-                <span class="method-name">Run on this device</span>
-                <span class="method-desc">Apply the config now, on a Windows that's already installed — with restore points.</span>
-              </span>
-              <span class="method-meta"><span class="group-tag">on-device</span><span class="arrow" aria-hidden="true">→</span></span>
-            </button>
-          </div>
 
           <div class="bundle-back">
             <button class="btn-ghost" type="button" data-back>Back</button>
@@ -448,7 +459,7 @@
               <div class="rline"><span class="mark"></span><span class="rkey">est.</span><span class="rval">~8 min<span class="cursor"></span></span></div>
 
               <div class="summary-actions">
-                <button class="btn-primary" type="button" data-go="method">
+                <button class="btn-primary" type="button" data-go="account">
                   Continue <span class="arrow" aria-hidden="true">→</span>
                 </button>
                 <button class="btn-ghost" type="button" data-back>Back</button>
@@ -692,10 +703,10 @@
             </aside>
 
             <div class="done-actions">
-              <button class="btn-primary" type="button" data-go="review">
+              <button class="btn-primary" type="button" data-go="build">
                 Continue <span class="arrow" aria-hidden="true">→</span>
               </button>
-              <button class="btn-ghost" type="button" data-go="review">Skip</button>
+              <button class="btn-ghost" type="button" data-go="build">Skip</button>
             </div>
           </div>
         </main>
@@ -725,60 +736,6 @@
               </button>
               <button class="btn-ghost" type="button" data-back>Back</button>
             </div>
-          </div>
-        </main>
-
-        <!-- ───────────────────── USB WRITE (in-app build) ───────────────────── -->
-        <main class="view setup" data-view="usbwrite">
-          <div class="setup-head">
-            <p class="eyebrow">Build a USB</p>
-            <h1 class="setup-title">Write the install stick</h1>
-            <p class="setup-sub">Pick a Windows image and the USB to erase — bootible writes it for you.</p>
-          </div>
-
-          <div class="usbwrite-body">
-            <section class="uw-section">
-              <p class="uw-label">Windows language</p>
-              <select class="uw-select" id="lang-select" aria-label="Windows language"></select>
-              <p class="uw-hint muted">Sets the download <em>and</em> the on-screen language — they always match, so Setup won't ask.</p>
-            </section>
-
-            <section class="uw-section">
-              <p class="uw-label">Keyboard &amp; region</p>
-              <select class="uw-select" id="region-select" aria-label="Keyboard and region"></select>
-            </section>
-
-            <section class="uw-section">
-              <p class="uw-label">Windows image</p>
-              <div class="uw-row">
-                <button class="linkbtn" type="button" id="iso-browse">Use a local ISO instead…</button>
-                <span class="uw-iso-path muted" id="iso-path"></span>
-              </div>
-            </section>
-
-            <section class="uw-section">
-              <p class="uw-label">USB drive <button class="linkbtn" type="button" id="disk-refresh">refresh</button></p>
-              <div class="uw-disks" id="disk-list"><p class="muted">Scanning for removable drives…</p></div>
-            </section>
-
-            <section class="uw-section uw-go">
-              <label class="uw-confirm">
-                <input type="checkbox" id="erase-confirm" />
-                <span>I understand this <strong>erases</strong> the selected drive</span>
-              </label>
-              <div class="done-actions">
-                <button class="btn-primary" type="button" id="usb-write-btn" disabled>
-                  Write USB <span class="arrow" aria-hidden="true">→</span>
-                </button>
-                <button class="btn-ghost" type="button" data-back>Back</button>
-              </div>
-            </section>
-
-            <section class="uw-section uw-progress" hidden>
-              <p class="provision-now" id="uw-msg">Starting…</p>
-              <div class="progress"><div class="progress-fill" id="uw-fill" style="width: 0%"></div></div>
-              <p class="progress-meta" id="uw-pct">Working… keep the app open.</p>
-            </section>
           </div>
         </main>
 

@@ -1,58 +1,10 @@
-import type { ProvisioningMethod, ProvisionResult, StepEvent } from "@bootible/core";
+import type { ProvisionResult, StepEvent } from "@bootible/core";
 import { el } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 
-// ── method selector (data-driven from the device's provisioning_models) ──────
-const METHOD_ICONS: Record<string, string> = {
-  usb: "▤",
-  export: "▦",
-  device: "▣",
-  android: "▥",
-  guided: "◆",
-};
-
-async function hydrateMethods(): Promise<void> {
-  const api = window.bootible;
-  if (!api?.getMethods) return; // browser: keep the static Ally cards
-
-  let methods: ProvisioningMethod[];
-  try {
-    methods = await api.getMethods();
-  } catch {
-    return;
-  }
-  const list = document.querySelector<HTMLElement>('.view[data-view="method"] .method-list');
-  if (!list || methods.length === 0) return;
-
-  list.replaceChildren(
-    ...methods.map((method) => {
-      const btn = el("button", "method-card") as HTMLButtonElement;
-      btn.type = "button";
-      btn.dataset.method = method.id;
-      // USB needs the account + WiFi steps first; the rest go straight to review.
-      btn.dataset.go = method.id === "usb" ? "account" : "review";
-
-      const icon = el("span", "method-icon", METHOD_ICONS[method.id] ?? "▤");
-      icon.setAttribute("aria-hidden", "true");
-
-      const main = el("span", "method-main");
-      main.append(
-        el("span", "method-name", method.label),
-        el("span", "method-desc", method.description),
-      );
-
-      const meta = el("span", "method-meta");
-      const arrow = el("span", "arrow", "→");
-      arrow.setAttribute("aria-hidden", "true");
-      meta.append(el("span", "group-tag", method.tag), arrow);
-
-      btn.append(icon, main, meta);
-      return btn;
-    }),
-  );
-}
-
-void hydrateMethods();
+// The apply-method choice (Build USB / Export / Run on device) now lives as tabs on
+// the unified build screen (features/rog/build.ts); the separate method selector
+// screen was retired.
 
 // ── provisioning (dry run) ─────────────────────────────────────────────────
 // Entering #provision streams real module step events from the executor into

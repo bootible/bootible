@@ -146,15 +146,11 @@ body[data-view="apps"] .view[data-view="apps"] {
   display: flex;
 }
 
-body[data-view="stripkit"] .view[data-view="stripkit"] {
+body[data-view="build"] .view[data-view="build"] {
   display: flex;
 }
 
 body[data-view="bundles"] .view[data-view="bundles"] {
-  display: flex;
-}
-
-body[data-view="method"] .view[data-view="method"] {
   display: flex;
 }
 
@@ -199,10 +195,6 @@ body[data-view="failed"] .view[data-view="failed"] {
 }
 
 body[data-view="review"] .view[data-view="review"] {
-  display: flex;
-}
-
-body[data-view="usbwrite"] .view[data-view="usbwrite"] {
   display: flex;
 }
 

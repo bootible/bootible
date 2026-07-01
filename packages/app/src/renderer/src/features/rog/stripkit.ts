@@ -3,23 +3,14 @@ import { el } from "../../lib/dom";
 import { gatherUsbRequest } from "./usbwrite";
 
 // ── strip kit (Full ROG): save to disk / USB, format, eject ─────────────────
-let skMode: "disk" | "usb" = "disk";
+// The Save-to-Disk / Save-to-USB tabs live on the unified build screen
+// (features/rog/build.ts owns tab visibility); these are the actions behind them.
 let skDisks: UsbDisk[] = [];
 let skSelectedDisk = "";
 
 function setSkStatus(msg: string): void {
   const s = document.querySelector("#sk-status");
   if (s) s.textContent = msg;
-}
-
-function setSkMode(mode: "disk" | "usb"): void {
-  skMode = mode;
-  for (const tab of document.querySelectorAll<HTMLElement>(".sk-tab")) {
-    tab.classList.toggle("is-active", tab.dataset.sk === mode);
-  }
-  for (const pane of document.querySelectorAll<HTMLElement>(".sk-pane")) {
-    pane.hidden = pane.dataset.skPane !== mode;
-  }
 }
 
 function renderSkUsbList(): void {
@@ -52,7 +43,8 @@ function renderSkUsbList(): void {
 
 export async function hydrateStripkit(): Promise<void> {
   const api = window.bootible;
-  setSkMode(skMode);
+  // Tab visibility is owned by the unified build screen (features/rog/build.ts);
+  // here we only load the USB media list.
   setSkStatus("");
   if (api?.getUsbDisks) {
     try {
@@ -171,14 +163,9 @@ async function skVerify(): Promise<void> {
   }
 }
 
-// Strip-kit clicks: tab toggle + the disk/usb/eject buttons.
+// Strip-kit clicks: the disk/usb/eject/verify buttons (tabs are the build screen's).
 document.addEventListener("click", (event) => {
   const t = event.target as HTMLElement;
-  const tab = t.closest<HTMLElement>(".sk-tab");
-  if (tab?.dataset.sk) {
-    setSkMode(tab.dataset.sk === "usb" ? "usb" : "disk");
-    return;
-  }
   if (t.closest("#sk-disk-save")) void skSaveDisk();
   else if (t.closest("#sk-usb-copy")) void skCopyUsb();
   else if (t.closest("#sk-usb-eject")) void skEject();
