@@ -188,6 +188,22 @@ document.addEventListener("click", (event) => {
   }
   // Disk selection is owned by the shared DiskPicker (refreshDeckReimageDisks).
   if (target.closest("#deckre-write-btn")) void startDeckReimage();
+  // Safe-remove the reimaged stick before carrying it to the Deck. It was flashed
+  // by disk NUMBER, so eject by number (the payload partition's letter is assigned
+  // by Windows post-flash) — ejectUsbDisk resolves the letter server-side.
+  if (target.closest("#deckre-usb-eject")) {
+    void (async () => {
+      if (deckReDisk < 0) return;
+      document.querySelector("#deckre-progress")?.removeAttribute("hidden");
+      const pct = document.querySelector("#deckre-pct");
+      if (pct) pct.textContent = "Ejecting…";
+      const r = await window.bootible?.ejectUsbDisk?.(deckReDisk);
+      if (pct)
+        pct.textContent = r?.ok
+          ? "✓ Ejected — safe to remove."
+          : "Couldn't eject — close any windows on the drive and try again.";
+    })();
+  }
 });
 
 document.addEventListener("change", (event) => {

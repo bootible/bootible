@@ -765,6 +765,29 @@ if (Test-Path $root) { 'FAILED' } else { 'EJECTED' }`;
   }
 }
 
+/** Eject a USB by DISK NUMBER (the boot-USB writers — clean-install + reimage —
+ *  pick by number, and the flashed payload/installer partition only gets a drive
+ *  letter after the write). Resolve the disk's first lettered volume, then eject
+ *  via that letter (the physical device goes with it). */
+function ejectUsbDisk(diskNumber: number): { ok: boolean } {
+  if (validDiskNumber(diskNumber) === null) return { ok: false };
+  try {
+    const letter = execFileSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        `(Get-Partition -DiskNumber ${diskNumber} -ErrorAction SilentlyContinue | Get-Volume -ErrorAction SilentlyContinue | Where-Object DriveLetter | Select-Object -First 1 -ExpandProperty DriveLetter)`,
+      ],
+      { timeout: 15000, encoding: "utf8" },
+    ).trim();
+    if (!/^[A-Za-z]$/.test(letter)) return { ok: false };
+    return ejectUsb(letter);
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** Assemble the USB bundle (autounattend + bootstrap + config + wifi) into a
  *  staging folder. Returns the path, or null if there's no device profile. */
 function stageUsbBundle(req: UsbBuildRequest): string | null {
@@ -1411,6 +1434,7 @@ app.whenReady().then(() => {
   ipcMain.handle(CHANNELS.profilesLoad, (_event, name: string) => loadProfile(name));
   ipcMain.handle(CHANNELS.profilesDelete, (_event, name: string) => deleteProfile(name));
   ipcMain.handle(CHANNELS.usbEject, (_event, drive: string) => ejectUsb(drive));
+  ipcMain.handle(CHANNELS.usbEjectDisk, (_event, diskNumber: number) => ejectUsbDisk(diskNumber));
   ipcMain.handle(CHANNELS.usbFormat, (_event, drive: string) => formatUsbDrive(drive));
   ipcMain.handle(CHANNELS.usbDisks, () => listUsbDisks());
   ipcMain.handle(CHANNELS.deckApps, () => FLATPAK_APPS);

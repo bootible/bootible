@@ -97,6 +97,7 @@ export interface BootibleApi {
   saveStripKitDisk(req: UsbBuildRequest): Promise<{ path: string } | null>;
   saveStripKitUsb(req: UsbBuildRequest, drive: string): Promise<{ path: string }>;
   ejectUsb(drive: string): Promise<{ ok: boolean }>;
+  ejectUsbDisk(diskNumber: number): Promise<{ ok: boolean }>;
   formatUsb(drive: string): Promise<{ ok: boolean }>;
   listProfiles(): Promise<ProfileSummary[]>;
   groupProfiles(deviceModel: string): Promise<GroupedProfiles<ProfileSummary>>;

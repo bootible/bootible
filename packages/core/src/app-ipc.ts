@@ -85,6 +85,7 @@ export const CHANNELS = {
   usbBuild: "usb:build",
   usbDisks: "usb:disks",
   usbEject: "usb:eject",
+  usbEjectDisk: "usb:eject-disk",
   usbFormat: "usb:format",
   usbProgress: "usb:progress",
   usbWrite: "usb:write",

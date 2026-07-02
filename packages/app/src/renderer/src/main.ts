@@ -269,6 +269,22 @@ document.addEventListener("click", (event) => {
 
   // Disk selection is owned by the shared DiskPicker (refreshDisks).
   if (target.closest("#usb-write-btn")) void startUsbWrite();
+  // Safe-remove the install stick before carrying it to the Ally. It's picked by
+  // disk NUMBER, so eject by number (ejectUsbDisk resolves the installer partition
+  // letter server-side).
+  if (target.closest("#usb-eject-btn")) {
+    void (async () => {
+      if (rog.usbState.disk < 0) return;
+      const pct = document.querySelector("#uw-pct");
+      pct?.closest(".uw-section")?.removeAttribute("hidden");
+      if (pct) pct.textContent = "Ejecting…";
+      const r = await window.bootible?.ejectUsbDisk?.(rog.usbState.disk);
+      if (pct)
+        pct.textContent = r?.ok
+          ? "✓ Ejected — safe to remove."
+          : "Couldn't eject — close any windows on the drive and try again.";
+    })();
+  }
 });
 
 document.addEventListener("click", (event) => {

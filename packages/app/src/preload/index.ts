@@ -106,6 +106,8 @@ const api = {
     ipcRenderer.invoke(CHANNELS.stripkitDisk, req),
   saveStripKitUsb: (req: UsbBuildRequest, drive: string): Promise<{ path: string }> =>
     ipcRenderer.invoke(CHANNELS.stripkitUsb, { req, drive }),
+  ejectUsbDisk: (diskNumber: number): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(CHANNELS.usbEjectDisk, diskNumber),
   ejectUsb: (drive: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(CHANNELS.usbEject, drive),
   listProfiles: (): Promise<ProfileSummary[]> => ipcRenderer.invoke(CHANNELS.profilesList),
