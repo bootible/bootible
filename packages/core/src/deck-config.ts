@@ -68,6 +68,9 @@ export interface DeckConfig {
   passwordManagers: DeckPasswordManagerConfig;
   /** Optional fixed IP for the Wi-Fi or Ethernet connection (NetworkManager). */
   staticIp?: StaticIp;
+  /** Catalog id of the browser to set as default (must also be in flatpakApps);
+   *  undefined/"" leaves SteamOS's default alone. See catalog "Browser" apps. */
+  defaultBrowser?: string;
 }
 
 export interface DeckPasswordManagerConfig {

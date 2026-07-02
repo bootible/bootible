@@ -136,6 +136,9 @@ export interface UsbBuildRequest {
   disabledModules?: string[];
   /** App slugs picked in the app-picker. */
   selectedApps?: string[];
+  /** Catalog id of the browser to set as default (must also be in selectedApps);
+   *  undefined/"" leaves Windows' default alone. See catalog "Browser" apps. */
+  defaultBrowser?: string;
   /** Removal-catalog ids the user opted into stripping (Full ROG). */
   selectedRemovals?: string[];
   account: { mode: "local" | "microsoft"; username?: string; password?: string };

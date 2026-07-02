@@ -24,6 +24,8 @@ export type BuildChoice = {
   selectedApps?: string[];
   /** Removal-catalog ids the user opted into stripping (settings.strip_removals). */
   selectedRemovals?: string[];
+  /** Catalog id of the browser to set as default (settings.default_browser). */
+  defaultBrowser?: string;
 };
 
 /** The universal power/display floor every build starts from. */
@@ -72,6 +74,10 @@ export function buildSettings(req: BuildChoice): Record<string, unknown> {
   if (keys.length > 0) settings.ssh_public_keys = keys;
   if (req.selectedApps?.length) settings.selected_apps = req.selectedApps;
   if (req.selectedRemovals?.length) settings.strip_removals = req.selectedRemovals;
+  // Only meaningful if the browser was also selected for install.
+  if (req.defaultBrowser && req.selectedApps?.includes(req.defaultBrowser)) {
+    settings.default_browser = req.defaultBrowser;
+  }
   if (req.staticIp?.ip) settings.static_ip = req.staticIp;
   if (req.remoteAccess?.sunshine && req.sunshineUser && req.sunshinePass) {
     settings.sunshine_user = req.sunshineUser;

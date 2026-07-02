@@ -1,4 +1,5 @@
 import { BEACON_PORT } from "./beacon";
+import { catalogApp } from "./catalog";
 import { flatpakRefs, passwordManagers } from "./deck-apps";
 import type { DeckConfig } from "./deck-config";
 import { normalizeDeckConfig } from "./deck-config";
@@ -424,6 +425,20 @@ BOOTIBLE_BEACON
 ok "this Deck will report 'done' to bootible for ~10 min — open Watch on your PC"`;
 }
 
+/** Set the chosen browser as SteamOS's default (only if it was installed). Uses
+ *  xdg-settings + the http/https/html mime handlers so clicks and links open it. */
+function browserDefaultBlock(cfg: DeckConfig): string {
+  const id = cfg.defaultBrowser;
+  if (!id || !cfg.flatpakApps.includes(id)) return "";
+  const app = catalogApp(id);
+  if (!app?.flatpak) return "";
+  const desktop = `${app.flatpak}.desktop`;
+  return `say ${shq(`Setting ${app.name} as the default browser`)}
+xdg-settings set default-web-browser ${desktop} 2>/dev/null || warn ${shq(`couldn't set default browser (${desktop})`)}
+for m in x-scheme-handler/http x-scheme-handler/https text/html; do xdg-mime default ${desktop} "$m" 2>/dev/null || true; done
+ok ${shq(`default browser: ${app.name}`)}`;
+}
+
 export function generateDeckProvision(input: Partial<DeckConfig>): string {
   const cfg = normalizeDeckConfig(input);
   const blocks: string[] = [HEADER];
@@ -439,6 +454,7 @@ sudo hostnamectl set-hostname ${shq(cfg.hostname)}`);
 
   for (const block of [
     flatpakBlock(cfg),
+    browserDefaultBlock(cfg),
     deckyBlock(cfg),
     protonBlock(cfg),
     emudeckBlock(cfg),

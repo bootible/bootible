@@ -12,6 +12,7 @@ import { allyCatalog } from "./ally-modules";
 import { getSelectedAppCommands, getSelectedGithubReleases } from "./apps";
 import { UNIVERSAL_FLOOR } from "./bases";
 import { BEACON_PORT } from "./beacon";
+import { catalogApp } from "./catalog";
 import type { BootibleConfig } from "./config";
 import { generateGithubReleaseInstall } from "./github-install";
 import type { ApplyContext } from "./orchestrator";
@@ -305,6 +306,13 @@ export function generateStripScript(config: BootibleConfig): string {
     ? ((config.settings?.selected_apps as string[] | undefined) ?? [])
     : [];
   const appInstalls = getSelectedAppCommands(selectedAppSlugs);
+  // Default browser (only if it was also selected for install). Windows blocks the
+  // clean automated set, so we queue a one-tap "Default apps" prompt (see below).
+  const dbId = config.settings?.default_browser as string | undefined;
+  const defaultBrowserName =
+    dbId && selectedAppSlugs.includes(dbId)
+      ? catalogApp(dbId)?.name?.replace(/'/g, "''")
+      : undefined;
   const needsStoreUpdate = appInstalls.some((c) => c.includes("msstore"));
   const appBlock = [
     needsStoreUpdate ? generateAppInstallerUpdate("Write-Strip") : "",
@@ -510,6 +518,18 @@ try {
 } catch { Write-Strip "  beacon failed: $_" }
 
 Write-Strip 'Review C:\\bootible\\inventory-*.txt and send them back so we can tighten the strip list.'
+${
+  defaultBrowserName
+    ? `# Default browser: Windows blocks setting it programmatically (hash-protected
+# UserChoice), so queue a one-tap prompt for the user-scope phase — it opens the
+# Default apps page so the user clicks "Set default" on ${defaultBrowserName}.
+$ubs = "$Root\\user-installs.ps1"
+Add-Content -Path $ubs -Value 'Write-Host ""'
+Add-Content -Path $ubs -Value 'Write-Host "Almost done: set ${defaultBrowserName} as your DEFAULT BROWSER -- pick it in the window that opens, then click Set default." -ForegroundColor Yellow'
+Add-Content -Path $ubs -Value 'Start-Process "ms-settings:defaultapps"'
+Write-Strip 'queued default-browser prompt (${defaultBrowserName})'`
+    : ""
+}
 # Completion marker — bootible.bat waits for THIS before running the user-scope
 # installs. Start-Process -Verb RunAs -Wait doesn't reliably wait across the UAC
 # boundary (it can return immediately), so the launcher polls for this file instead

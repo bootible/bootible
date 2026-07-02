@@ -547,6 +547,12 @@ export function catalogApp(id: string): CatalogApp | undefined {
   return CATALOG.find((a) => a.id === id);
 }
 
+/** The catalog's browsers (Chrome / Firefox / Opera) — the "set as default"
+ *  candidates. The UI offers the subset the user actually selected. */
+export function browserApps(): CatalogApp[] {
+  return CATALOG.filter((a) => a.category === "Browser");
+}
+
 export interface CategoryMeta {
   /** Stable group id the renderer keys collapse-state + the Emulators picker off. */
   id: string;
