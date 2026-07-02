@@ -238,12 +238,13 @@ export async function startUsbWrite(): Promise<void> {
 
 function onUsbProgress(event: UsbProgress): void {
   // The Deck writers share the usb:progress channel but have their own progress UI
-  // + finish behaviour (onDeckProgress) — don't double-handle them here.
-  const dv = document.body.dataset.view;
-  if (dv === "deckwrite" || dv === "deckreimage") return;
+  // + finish behaviour (onDeckProgress) — don't double-handle them here. Since the
+  // tabbed-build merge the Deck build screen is the single "deckbuild" view.
+  if (document.body.dataset.view === "deckbuild") return;
   renderProgress("uw", event, "Done — boot the Ally from the stick.");
-  // Once the stick is written, move to watching the network for the device.
-  if (event.status === "done") setTimeout(() => (location.hash = "watch"), 1200);
+  // Stay on the build screen when the write finishes: the shared DeviceReach block
+  // (Find my device + verify) and Eject are right there, so the user ejects and
+  // watches when ready rather than being yanked to the Watch screen mid-eject.
 }
 
 /** If the user opted to also set up streaming on this PC, do it (winget) and
