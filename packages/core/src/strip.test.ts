@@ -17,7 +17,10 @@ describe("generateStripLauncher", () => {
     const bat = generateStripLauncher();
     expect(bat).toContain("@echo off");
     expect(bat).toContain("-Verb RunAs"); // strip runs elevated
-    expect(bat).toContain("-Wait"); // wait for the elevated strip to finish first
+    // Poll for the strip.done marker rather than -Verb RunAs -Wait, which doesn't
+    // reliably wait across the UAC boundary (raced the user-scope step on real HW).
+    expect(bat).toContain("strip.done");
+    expect(bat).toContain(":bootible_wait"); // the wait-for-completion poll loop
     expect(bat).toContain("bootible.ps1"); // aligned name
     expect(bat).toContain("bootible*.ps1"); // wildcard fallback
     expect(bat).toContain("user-installs.ps1"); // user-scope step in THIS session

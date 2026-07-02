@@ -230,10 +230,25 @@ export function generateStripLauncher(): string {
     "REM session -- no staging, no reboot. Tip: double-tap it; don't launch it",
     "REM from an already-elevated prompt, or the user-scope step would be admin too.",
     'del "%SystemDrive%\\bootible\\user-installs.ps1" 2>nul',
+    'del "%SystemDrive%\\bootible\\strip.done" 2>nul',
     'set "PS=%~dp0bootible.ps1"',
     `if not exist "%PS%" for /f "delims=" %%f in ('dir /b /a-d "%~dp0bootible*.ps1" 2^>nul ^| findstr /v /b /c:"._"') do set "PS=%~dp0%%f"`,
-    "echo Running the strip in an elevated window -- watch that window. This one closes itself when done.",
-    `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',\\"%PS%\\",'-FromLauncher'"`,
+    "echo Running the strip in an elevated window -- watch that window. Leave THIS window open.",
+    // No -Wait: Start-Process -Verb RunAs -Wait can return immediately across the UAC
+    // boundary, so we launch, then POLL for the strip.done marker the strip writes when
+    // it finishes — otherwise 'if exist user-installs.ps1' races the strip and the
+    // user-scope installs get skipped (they don't exist yet at launch time).
+    `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',\\"%PS%\\",'-FromLauncher'"`,
+    "echo.",
+    "echo Waiting for the strip to finish (this can take a while)...",
+    "set /a _bt=0",
+    ":bootible_wait",
+    'if exist "%SystemDrive%\\bootible\\strip.done" goto bootible_ready',
+    "set /a _bt+=1",
+    "if %_bt% GEQ 900 goto bootible_ready",
+    "timeout /t 5 >nul",
+    "goto bootible_wait",
+    ":bootible_ready",
     'if exist "%SystemDrive%\\bootible\\user-installs.ps1" (',
     "  echo.",
     "  echo Finishing user-scope app installs in this session ^(no reboot needed^)...",
@@ -495,8 +510,23 @@ try {
 } catch { Write-Strip "  beacon failed: $_" }
 
 Write-Strip 'Review C:\\bootible\\inventory-*.txt and send them back so we can tighten the strip list.'
+# Completion marker — bootible.bat waits for THIS before running the user-scope
+# installs. Start-Process -Verb RunAs -Wait doesn't reliably wait across the UAC
+# boundary (it can return immediately), so the launcher polls for this file instead
+# of racing 'if exist user-installs.ps1'. Written last, after all work is done.
+'done' | Set-Content "$Root\\strip.done"
 # When run via bootible.bat the launcher owns the final pause (and the user-scope
-# installs run after this). Only pause here for a standalone right-click run.
-if (-not $FromLauncher) { Read-Host 'Done. Press Enter to close this window' }
+# installs run after this). Only pause here for a standalone right-click run — and
+# since a direct .ps1 run is elevated, it CAN'T do the user-scope installs itself
+# (they'd land as admin), so tell the user how to finish them.
+if (-not $FromLauncher) {
+  if (Test-Path "$Root\\user-installs.ps1") {
+    Write-Host ''
+    Write-Host 'NOTE: user-scope apps (Spotify, GeForce NOW, ...) were NOT installed.' -ForegroundColor Yellow
+    Write-Host 'Finish them in a NON-admin terminal (or just double-tap bootible.bat instead):' -ForegroundColor Yellow
+    Write-Host '  powershell -ExecutionPolicy Bypass -File C:\\bootible\\user-installs.ps1'
+  }
+  Read-Host 'Done. Press Enter to close this window'
+}
 `;
 }
