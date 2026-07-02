@@ -259,9 +259,12 @@ if command -v tailscale >/dev/null 2>&1; then
   ok "Tailscale already installed — run 'tailscale up' to log in"
 else
   rm -rf "$HOME/deck-tailscale"
-  # Don't swallow the installer output — a failure needs to land in provision.log
-  # so we can see WHY (a bare "install failed" is undebuggable after a hands-off run).
-  if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" && sudo bash "$HOME/deck-tailscale/tailscale.sh"; then
+  # Run the installer FROM its repo dir: tailscale.sh copies an override.conf by
+  # RELATIVE path (after an internal pushd/popd back to the caller's CWD), so
+  # invoking it by absolute path from elsewhere aborts at "cp override.conf" under
+  # its set -e — leaving tailscaled half-installed + disabled. cd in first. Output
+  # is left un-suppressed so any future failure lands in provision.log.
+  if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" && (cd "$HOME/deck-tailscale" && sudo bash tailscale.sh); then
     ok "Tailscale installed — run 'tailscale up' to log in"
   else
     warn "Tailscale install failed — install manually: https://github.com/tailscale-dev/deck-tailscale"
