@@ -160,5 +160,6 @@ export function normalizeDeckConfig(partial: Partial<DeckConfig> | undefined): D
       method: p.passwordManagers?.method ?? "flatpak",
     },
     staticIp: normalizeStaticIp(p.staticIp),
+    defaultBrowser: p.defaultBrowser || undefined,
   };
 }

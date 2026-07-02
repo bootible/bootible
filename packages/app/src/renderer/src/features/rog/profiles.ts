@@ -25,6 +25,7 @@ function captureProfile(name: string): Profile {
     baseId: rog.selectedBaseId || undefined,
     ui: {
       selectedApps: [...rog.selectedApps],
+      defaultBrowser: rog.defaultBrowser,
       selectedRemovals: [...rog.selectedRemovals],
       enabledExtras: [...rog.enabledExtras],
       disabledModules: [...rog.disabledModules],
@@ -66,6 +67,7 @@ function applyProfile(p: Profile): void {
   // "selectedApps", not "rog.selectedApps") — else a loaded profile restores
   // nothing into these Sets.
   restore(rog.selectedApps, "selectedApps");
+  rog.defaultBrowser = typeof ui.defaultBrowser === "string" ? ui.defaultBrowser : undefined;
   restore(rog.selectedRemovals, "selectedRemovals");
   restore(rog.enabledExtras, "enabledExtras");
   restore(rog.disabledModules, "disabledModules");

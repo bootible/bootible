@@ -1,3 +1,4 @@
+import { defaultBrowserSelect } from "../../components/DefaultBrowser";
 import { NetworkSettings } from "../../components/NetworkSettings";
 import { RemoteAccessSettings } from "../../components/RemoteAccessSettings";
 import { Section } from "../../components/Section";
@@ -103,7 +104,7 @@ export function hydrateAccount(): void {
   localAccount.dataset.when = "local";
   localAccount.dataset.clean = "";
 
-  host.replaceChildren(
+  const sections = [
     Section(ACCESS_LABELS.deviceName, [
       accountField("device-hostname", "text", "Device name (for SSH)", undefined, "my-handheld"),
     ]),
@@ -113,8 +114,19 @@ export function hydrateAccount(): void {
     mountSection(ACCESS_LABELS.streaming, "rog-streaming-mount"),
     mountSection(ACCESS_LABELS.remote, "rog-remote-access-mount"),
     mountSection(ACCESS_LABELS.ssh, "ssh-mount"),
-    personalizeSection(),
-  );
+  ];
+  // Default browser — only when a browser was picked in the app list (Windows opens
+  // its Default-apps prompt for a one-tap set; MS blocks the automated path).
+  const browserSel = defaultBrowserSelect([...rog.selectedApps], rog.defaultBrowser, (id) => {
+    rog.defaultBrowser = id;
+  });
+  if (browserSel) {
+    const wrap = el("div", "cz-span deck-field");
+    wrap.append(el("div", "cz-name", "Default browser"), browserSel);
+    sections.push(Section("Default browser", [wrap]));
+  }
+  sections.push(personalizeSection());
+  host.replaceChildren(...sections);
 }
 
 // ── SSH source: BYO key / GitHub / Both ─────────────────────────────────────

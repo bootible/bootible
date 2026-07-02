@@ -32,6 +32,7 @@ const MAX: Partial<DeckConfig> = {
   waydroid: true,
   stickdeck: true,
   passwordManagers: { managers: ["1password", "bitwarden"], method: "distrobox" },
+  defaultBrowser: "chrome",
   ssh: { enabled: true, port: 22, githubUser: "gavinmcfall", authorizedKeys: [] },
   staticIp: {
     iface: "wifi",
@@ -98,6 +99,8 @@ const STUBBED_TOOLS = [
   "nohup",
   "nmcli",
   "install",
+  "xdg-settings",
+  "xdg-mime",
 ];
 
 const bash = bashPath();
@@ -167,6 +170,7 @@ describe("deck provisioner — full-config dry run", () => {
         expect(receipt, `decky plugin ${plugin}`).toContain(`plugin: ${plugin}`);
       }
       expect(receipt, "ssh").toMatch(/ssh ready/i);
+      expect(receipt, "default browser set").toMatch(/default browser: Chrome/i);
       expect(receipt, "tailscale").toMatch(/tailscale/i);
       expect(receipt, "waydroid").toMatch(/waydroid/i);
       expect(receipt, "stickdeck").toMatch(/stickdeck/i);
@@ -188,6 +192,9 @@ describe("deck provisioner — full-config dry run", () => {
       expect(script, "password managers via distrobox").toMatch(/distrobox/i);
       expect(script, "github ssh keys").toMatch(/gavinmcfall\.keys/i);
       expect(script, "sshd enabled").toMatch(/systemctl enable[^\n]*sshd/i);
+      expect(script, "default browser xdg-settings").toMatch(
+        /xdg-settings set default-web-browser com\.google\.Chrome\.desktop/,
+      );
     },
     60000,
   );

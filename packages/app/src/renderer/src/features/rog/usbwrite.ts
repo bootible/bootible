@@ -110,6 +110,7 @@ export function gatherUsbRequest(): UsbBuildRequest {
     lockscreenPath: rog.lockscreenPath || undefined,
     disabledModules: rog.disabledModules.size ? [...rog.disabledModules] : undefined,
     selectedApps: rog.selectedApps.size ? [...rog.selectedApps] : undefined,
+    defaultBrowser: rog.defaultBrowser || undefined,
     selectedRemovals: rog.selectedRemovals.size ? [...rog.selectedRemovals] : undefined,
     account,
     wifi,

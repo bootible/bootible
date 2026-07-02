@@ -49,6 +49,7 @@ export const rog = {
   // ── app / emulator picker ──
   appGroups: [] as AppGroup[],
   selectedApps: new Set<string>(),
+  defaultBrowser: undefined as string | undefined, // catalog id of the browser to set default
   openGroups: new Set<string>(), // which app-picker groups are expanded
   appsHydrated: false,
   pickerMode: "apps" as "apps" | "emulators",

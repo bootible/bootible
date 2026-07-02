@@ -1,3 +1,4 @@
+import { defaultBrowserSelect } from "../../components/DefaultBrowser";
 import { NetworkSettings } from "../../components/NetworkSettings";
 import { PickerRow } from "../../components/PickerRow";
 import { RemoteAccessSettings } from "../../components/RemoteAccessSettings";
@@ -255,6 +256,21 @@ export async function hydrateDeckSetup(): Promise<void> {
   sshMount.id = "deck-ssh-mount";
   body.append(deckSection(ACCESS_LABELS.ssh, [sshMount]));
   mountDeckSsh();
+
+  // Default browser — only when a browser was picked in the Apps list (xdg-settings
+  // sets it on-device). Shares the ROG's DefaultBrowser component.
+  const browserSel = defaultBrowserSelect(
+    [...deckState.flatpakApps],
+    deckState.defaultBrowser,
+    (id) => {
+      deckState.defaultBrowser = id;
+    },
+  );
+  if (browserSel) {
+    const wrap = el("div", "cz-span deck-field");
+    wrap.append(el("div", "cz-name", "Default browser"), browserSel);
+    body.append(deckSection("Default browser", [wrap]));
+  }
 }
 
 /** (Re)mount the Deck's shared StreamingSettings (re-mounts only when a toggle
