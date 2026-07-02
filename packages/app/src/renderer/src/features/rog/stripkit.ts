@@ -136,43 +136,14 @@ async function skRefresh(): Promise<void> {
   );
 }
 
-async function skVerify(): Promise<void> {
-  const api = window.bootible;
-  const out = document.querySelector("#sk-verify-out");
-  const ip = document.querySelector<HTMLInputElement>("#sk-verify-ip")?.value.trim();
-  const user = document.querySelector<HTMLInputElement>("#sk-verify-user")?.value.trim();
-  if (!ip) {
-    if (out)
-      out.textContent =
-        "Enter the device's IP, hostname, Tailscale IP or NordVPN Meshnet IP first.";
-    return;
-  }
-  if (!user) {
-    if (out) out.textContent = "Enter the device's account name (the one you set at OOBE).";
-    return;
-  }
-  if (!api?.verifyDevice) return;
-  if (out) out.textContent = `Reaching ${user}@${ip} over SSH…`;
-  try {
-    const r = await api.verifyDevice(ip, user);
-    if (out) {
-      out.textContent = r.reachable
-        ? `✓ Reachable${r.alias ? ` (ssh ${r.alias})` : ""} — ${r.output}`
-        : `✗ Couldn't reach it: ${r.output}`;
-    }
-  } catch (e) {
-    if (out) out.textContent = `Verify failed: ${e instanceof Error ? e.message : String(e)}`;
-  }
-}
-
-// Strip-kit clicks: the disk/usb/eject/verify buttons (tabs are the build screen's).
+// Strip-kit clicks: the disk/usb/eject/refresh buttons (tabs are the build screen's;
+// find-my-device + reach-by-address verify are the shared DeviceReach component).
 document.addEventListener("click", (event) => {
   const t = event.target as HTMLElement;
   if (t.closest("#sk-disk-save")) void skSaveDisk();
   else if (t.closest("#sk-usb-copy")) void skCopyUsb();
   else if (t.closest("#sk-usb-eject")) void skEject();
   else if (t.closest("#sk-usb-refresh")) void skRefresh();
-  else if (t.closest("#sk-verify-btn")) void skVerify();
 });
 
 // The chosen USB drive (radio) for the copy/eject actions.

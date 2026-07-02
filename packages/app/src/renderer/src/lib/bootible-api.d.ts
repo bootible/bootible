@@ -56,6 +56,7 @@ export interface BootibleApi {
   verifyDevice(
     ip: string,
     username?: string,
+    os?: "windows" | "linux",
   ): Promise<{ reachable: boolean; output: string; alias?: string }>;
   suggestNetwork(): Promise<{ prefix: number; gateway: string; subnet: string } | null>;
   installHostStreaming(which: {

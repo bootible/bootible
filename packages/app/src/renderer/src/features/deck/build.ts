@@ -1,3 +1,4 @@
+import { DeviceReach } from "../../components/DeviceReach";
 import { hydrateDeckReimage, hydrateDeckWrite } from "./media";
 
 // The unified "Set up your Steam Deck" build screen — the Deck mirror of the ROG
@@ -36,6 +37,23 @@ export function hydrateDeckBuild(): void {
   // Both writers key their DOM by id, so hydrating both up front is safe.
   void hydrateDeckWrite();
   void hydrateDeckReimage();
+  // Shared end state — the same DeviceReach block the ROG build screen mounts.
+  const verifyHost = document.getElementById("deckbuild-verify");
+  if (verifyHost) {
+    verifyHost.removeAttribute("hidden");
+    verifyHost.replaceChildren(
+      DeviceReach({
+        onFindDevice: () => {
+          location.hash = "watch";
+        },
+        // The Deck's login shell is bash — verify with the Linux probe.
+        onVerify: (ip, user) =>
+          window.bootible?.verifyDevice?.(ip, user, "linux") ??
+          Promise.resolve({ reachable: false, output: "unavailable" }),
+        userPlaceholder: "account name (usually 'deck')",
+      }),
+    );
+  }
 }
 
 // Tab switching within the Deck build screen.

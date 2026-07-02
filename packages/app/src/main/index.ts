@@ -523,11 +523,17 @@ function identityForKeys(keys: string[]): string {
 function verifyDevice(
   ip: string,
   username?: string,
+  os: "windows" | "linux" = "windows",
 ): { reachable: boolean; output: string; alias?: string } {
   const target = `${username || lastBuildUsername || "ally"}@${ip}`;
-  // cmd-friendly remote command — no nested quoting through ssh -> cmd.
+  // Device-appropriate probe. Windows (ROG): read the bootstrap receipt via cmd.
+  // Linux (Deck): the login shell is bash, so `type`/`C:\` don't exist — read the
+  // provision receipt if present and always fall back to `hostname` so a reachable
+  // Deck reports cleanly even before it writes one (exits 0 either way).
   const remote =
-    "type C:\\bootible\\status.txt 2>nul & echo. & type C:\\bootible\\receipt.txt 2>nul";
+    os === "linux"
+      ? "cat ~/.bootible/receipt 2>/dev/null; hostname"
+      : "type C:\\bootible\\status.txt 2>nul & echo. & type C:\\bootible\\receipt.txt 2>nul";
   const args = [
     "-o",
     "BatchMode=yes",
@@ -1324,8 +1330,10 @@ app.whenReady().then(() => {
   ipcMain.handle(CHANNELS.sshGithubKeys, (_event, user: string) => fetchGithubKeys(user));
   ipcMain.handle(CHANNELS.discoveryStart, (event) => startDiscovery(event.sender));
   ipcMain.handle(CHANNELS.discoveryStop, () => stopDiscovery());
-  ipcMain.handle(CHANNELS.deviceVerify, (_event, ip: string, username?: string) =>
-    verifyDevice(ip, username),
+  ipcMain.handle(
+    CHANNELS.deviceVerify,
+    (_event, ip: string, username?: string, os?: "windows" | "linux") =>
+      verifyDevice(ip, username, os),
   );
   ipcMain.handle(CHANNELS.networkSuggest, () => suggestNetwork());
   ipcMain.handle(CHANNELS.basePlan, (_event, baseId: string) => getBasePlan(baseId));

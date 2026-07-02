@@ -62,8 +62,9 @@ const api = {
   verifyDevice: (
     ip: string,
     username?: string,
+    os?: "windows" | "linux",
   ): Promise<{ reachable: boolean; output: string; alias?: string }> =>
-    ipcRenderer.invoke(CHANNELS.deviceVerify, ip, username),
+    ipcRenderer.invoke(CHANNELS.deviceVerify, ip, username, os),
   suggestNetwork: (): Promise<{ prefix: number; gateway: string; subnet: string } | null> =>
     ipcRenderer.invoke(CHANNELS.networkSuggest),
   installHostStreaming: (which: {

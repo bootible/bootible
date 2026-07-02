@@ -1,3 +1,4 @@
+import { DeviceReach } from "../../components/DeviceReach";
 import { fill } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 import { session } from "../../lib/session";
@@ -42,9 +43,23 @@ export function hydrateBuild(): void {
       : "Pick how to apply your setup — build a USB, export the config, or run it here.",
   );
   // The restore guide is Full-ROG only; the Find-my-device / verify section shows
-  // for every base (both beacon on the network once they boot/finish).
+  // for every base (both beacon on the network once they boot/finish). It's the
+  // shared DeviceReach block — the Deck build screen mounts the same one.
   document.getElementById("build-restore")?.toggleAttribute("hidden", !strip);
-  document.getElementById("build-verify")?.removeAttribute("hidden");
+  const verifyHost = document.getElementById("build-verify");
+  if (verifyHost) {
+    verifyHost.removeAttribute("hidden");
+    verifyHost.replaceChildren(
+      DeviceReach({
+        onFindDevice: () => {
+          location.hash = "watch";
+        },
+        onVerify: (ip, user) =>
+          window.bootible?.verifyDevice?.(ip, user) ??
+          Promise.resolve({ reachable: false, output: "unavailable" }),
+      }),
+    );
+  }
   // Show the tabs for this base and select the first.
   const tabs = strip ? STRIP_TABS : CLEAN_TABS;
   const bar = document.getElementById("build-tabs");

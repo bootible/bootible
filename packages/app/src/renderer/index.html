@@ -365,20 +365,10 @@
             <!-- Saving a profile now lives in the shared ProfileBar on the
                  Review & customise screen (mountRogProfileBar). -->
 
-            <div class="sk-save" id="build-verify" hidden>
-              <p class="sk-h">Find your device <span class="muted">(once it's booted / finished)</span></p>
-              <p class="setup-sub">When setup finishes, the device beacons on your network for ~10 minutes — open Find my device and it'll appear, no IP needed.</p>
-              <div class="summary-actions">
-                <button class="btn-primary" type="button" data-go="watch">Find my device →</button>
-              </div>
-              <p class="setup-sub sk-or">…or reach it directly by address (handy over Tailscale or NordVPN Meshnet):</p>
-              <div class="sk-verify-row">
-                <input class="field-input sk-verify-user" id="sk-verify-user" type="text" placeholder="account name (from OOBE)" autocomplete="off" spellcheck="false" />
-                <input class="field-input" id="sk-verify-ip" type="text" placeholder="device IP, hostname, Tailscale IP or NordVPN Meshnet IP" autocomplete="off" spellcheck="false" />
-                <button class="btn-ghost" type="button" id="sk-verify-btn">Verify →</button>
-              </div>
-              <p class="sk-status" id="sk-verify-out"></p>
-            </div>
+            <!-- Shared DeviceReach block (find-my-device + reach-by-address verify)
+                 is mounted here by hydrateBuild(); the Deck build screen mounts the
+                 same component, so both devices show the identical end state. -->
+            <div class="sk-save" id="build-verify" hidden></div>
           </div>
           <div class="customise-foot">
             <div class="summary-actions">
@@ -804,16 +794,13 @@
                 </label>
                 <div class="done-actions">
                   <button class="btn-primary" type="button" id="deck-write-btn" disabled>Write USB <span class="arrow" aria-hidden="true">→</span></button>
+                  <button class="btn-ghost" type="button" id="deck-usb-eject">Eject ⏏</button>
                 </div>
               </section>
               <section class="uw-section uw-progress" id="deck-progress" hidden>
                 <p class="provision-now" id="deck-msg">Starting…</p>
                 <div class="progress"><div class="progress-fill" id="deck-fill" style="width: 0%"></div></div>
                 <p class="progress-meta" id="deck-pct">Working… keep the app open.</p>
-                <div class="done-actions" id="deck-done-actions" hidden>
-                  <button class="btn-primary" type="button" id="deck-watch-btn">Watch for my Deck <span class="arrow" aria-hidden="true">→</span></button>
-                  <button class="btn-ghost" type="button" id="deck-usb-eject">Eject ⏏</button>
-                </div>
               </section>
             </div>
 
@@ -851,6 +838,11 @@
                 <button class="btn-primary" type="button" data-deck-export>Export the config <span class="arrow" aria-hidden="true">→</span></button>
               </div>
             </div>
+
+            <!-- Shared DeviceReach block (find-my-device + reach-by-address verify),
+                 mounted by hydrateDeckBuild() — the same component the ROG build
+                 screen uses, so both devices show the identical end state. -->
+            <div class="sk-save" id="deckbuild-verify" hidden></div>
           </div>
           <div class="bundle-back"><button class="btn-ghost" type="button" data-back>Back</button></div>
         </main>

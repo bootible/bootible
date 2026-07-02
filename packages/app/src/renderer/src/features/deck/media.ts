@@ -88,12 +88,8 @@ function onDeckProgress(event: UsbProgress): void {
       ? "Done — boot the Deck from this USB and choose Reimage."
       : "Done — eject it and run bootible/provision.sh on your Deck.";
   renderProgress(pfx, event, doneText);
-  // Offer Eject once the provision-only write finishes (reimage USBs are booted, not ejected).
-  if (pfx === "deck") {
-    document
-      .querySelector("#deck-done-actions")
-      ?.toggleAttribute("hidden", event.status !== "done");
-  }
+  // Eject lives persistently next to Write (matching the ROG) and find-my-device /
+  // verify are the shared DeviceReach block — no gated done-actions row any more.
   // Release the routing claim once the write settles, so a later write on the
   // other tab can't inherit a stale target.
   if (event.status === "done" || event.status === "error") activeDeckWrite = null;
@@ -109,9 +105,6 @@ document.addEventListener("click", (event) => {
   }
   // Disk selection is owned by the shared DiskPicker (refreshDeckDisks).
   if (target.closest("#deck-write-btn")) void startDeckWrite();
-  // Hop to the Watch screen so the Deck can report "done" back to the host once
-  // provision.sh finishes (the beacon carries this build's id → flagged "mine").
-  if (target.closest("#deck-watch-btn")) location.hash = "watch";
   if (target.closest("#deck-usb-eject")) {
     void (async () => {
       const pct = document.querySelector("#deck-pct");
