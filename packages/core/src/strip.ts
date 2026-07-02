@@ -521,12 +521,14 @@ Write-Strip 'Review C:\\bootible\\inventory-*.txt and send them back so we can t
 ${
   defaultBrowserName
     ? `# Default browser: Windows blocks setting it programmatically (hash-protected
-# UserChoice), so queue a one-tap prompt for the user-scope phase — it opens the
-# Default apps page so the user clicks "Set default" on ${defaultBrowserName}.
+# UserChoice), so queue a ONE-TAP prompt for the user-scope phase. The resolver
+# deep-links Default apps straight to THIS browser's page (Apps > Default apps >
+# <browser>, one "Set default" button) — resolving the RegisteredApplications name
+# + HKLM/HKCU scope at runtime, since Firefox's carries a per-install hash.
 $ubs = "$Root\\user-installs.ps1"
 Add-Content -Path $ubs -Value 'Write-Host ""'
-Add-Content -Path $ubs -Value 'Write-Host "Almost done: set ${defaultBrowserName} as your DEFAULT BROWSER -- pick it in the window that opens, then click Set default." -ForegroundColor Yellow'
-Add-Content -Path $ubs -Value 'Start-Process "ms-settings:defaultapps"'
+Add-Content -Path $ubs -Value 'Write-Host "Almost done: set ${defaultBrowserName} as your DEFAULT BROWSER -- click Set default in the window that opens." -ForegroundColor Yellow'
+Add-Content -Path $ubs -Value '$n=$null; foreach($rk in "HKLM:\\SOFTWARE\\RegisteredApplications","HKCU:\\SOFTWARE\\RegisteredApplications"){$m=(Get-ItemProperty $rk -ErrorAction SilentlyContinue).PSObject.Properties|Where-Object{$_.Name -match "${defaultBrowserName}"}|Select-Object -First 1; if($m){$s=if($rk -like "HKCU*"){"registeredAppUser"}else{"registeredAppMachine"}; $n="$s=$($m.Name)"; break}}; if($n){Start-Process "ms-settings:defaultapps?$n"}else{Start-Process "ms-settings:defaultapps"}'
 Write-Strip 'queued default-browser prompt (${defaultBrowserName})'`
     : ""
 }
