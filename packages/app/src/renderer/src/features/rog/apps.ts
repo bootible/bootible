@@ -31,7 +31,7 @@ function rogAppItem(a: AppEntry): PickerItem {
     label: a.name,
     sublabel: a.desc ?? a.wingetId ?? "",
     checked: entryOn(a),
-    icon: logoEl(APP_LOGOS[a.id], logoCls),
+    icon: logoEl(APP_LOGOS[a.id], logoCls, a.name),
   };
 }
 

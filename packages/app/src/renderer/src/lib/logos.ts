@@ -18,9 +18,19 @@ export function logoMap(mods: Record<string, unknown>): Record<string, string> {
   return m;
 }
 
-/** An `<img>` of a brand logo (full colour), or a blank `.no-logo` span. */
-export function logoEl(url: string | undefined, cls: string): HTMLElement {
-  if (!url) return el("span", `${cls} no-logo`);
+/** An `<img>` of a brand logo (full colour); if there's no logo asset, a letter
+ *  monogram chip when a `fallback` name is given (e.g. Greenlight, which has no
+ *  SVG — better than an empty dark slot), else a blank `.no-logo` span. */
+export function logoEl(url: string | undefined, cls: string, fallback?: string): HTMLElement {
+  if (!url) {
+    const span = el("span", `${cls} no-logo`);
+    const letter = fallback?.trim().charAt(0).toUpperCase();
+    if (letter) {
+      span.classList.add("mono");
+      span.textContent = letter;
+    }
+    return span;
+  }
   const img = el("img", cls) as HTMLImageElement;
   img.src = url;
   img.alt = "";

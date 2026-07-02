@@ -1876,10 +1876,19 @@ body[data-view="account"] .summary::before {
 .ns-fields {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 .ns-fields:empty {
   display: none;
+}
+/* Each static-IP field: persistent label above its input (not placeholder-only). */
+.ns-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ns-field .cz-name {
+  font-size: 12.5px;
 }
 
 /* ── Decky plugin search + expandable detail cards ── */
@@ -2241,6 +2250,18 @@ body.is-strip [data-clean] {
 }
 .app-logo.no-logo {
   visibility: hidden;
+}
+/* No brand SVG (e.g. Greenlight) → a letter-monogram chip, not an empty dark slot. */
+.app-logo.no-logo.mono {
+  visibility: visible;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dim);
 }
 /* Black/dark monochrome logos → white, so they read on the dark UI. */
 .force-white {

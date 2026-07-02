@@ -39,23 +39,31 @@ export function NetworkSettings(opts: NetworkSettingsOptions): HTMLElement {
   const fields = el("div", "ns-fields cz-span");
   root.append(fields);
 
-  const textField = (
+  // Each field carries a PERSISTENT label (not just a placeholder) — a filled
+  // field must still say what it is, or you get an unlabelled column of numbers.
+  const labelledField = (
     field: string,
+    label: string,
     placeholder: string,
     val: string,
     onInput: (v: string) => void,
     type = "text",
-  ): HTMLInputElement => {
+  ): HTMLElement => {
+    const wrap = el("div", "ns-field");
+    wrap.append(el("div", "cz-name", label));
     const input = el("input", "uw-select") as HTMLInputElement;
     input.type = type;
     input.dataset.field = field;
     input.placeholder = placeholder;
     input.value = val;
     input.addEventListener("input", () => onInput(input.value));
-    return input;
+    wrap.append(input);
+    return wrap;
   };
 
   const renderFields = (cfg: StaticIp): void => {
+    const ifaceWrap = el("div", "ns-field");
+    ifaceWrap.append(el("div", "cz-name", "Interface"));
     const ifaceSel = el("select", "uw-select") as HTMLSelectElement;
     ifaceSel.dataset.field = "iface";
     for (const i of interfaces) {
@@ -68,16 +76,18 @@ export function NetworkSettings(opts: NetworkSettingsOptions): HTMLElement {
     ifaceSel.addEventListener("change", () =>
       onChange({ ...cfg, iface: ifaceSel.value as "wifi" | "ethernet" }),
     );
+    ifaceWrap.append(ifaceSel);
 
     fields.replaceChildren(
-      ifaceSel,
-      textField("ip", "IP address — e.g. 192.168.1.50", cfg.ip, (v) => {
+      ifaceWrap,
+      labelledField("ip", "IP address", "e.g. 192.168.1.50", cfg.ip, (v) => {
         cfg = { ...cfg, ip: v.trim() };
         onChange(cfg);
       }),
-      textField(
+      labelledField(
         "prefix",
-        "Prefix (1–32) — 24 for a /24 network",
+        "Prefix (1–32)",
+        "24 for a /24 network",
         String(cfg.prefix),
         (v) => {
           cfg = { ...cfg, prefix: Number(v) || 24 };
@@ -85,11 +95,11 @@ export function NetworkSettings(opts: NetworkSettingsOptions): HTMLElement {
         },
         "number",
       ),
-      textField("gateway", "Gateway (optional)", cfg.gateway ?? "", (v) => {
+      labelledField("gateway", "Gateway (optional)", "e.g. 192.168.1.1", cfg.gateway ?? "", (v) => {
         cfg = { ...cfg, gateway: v.trim() || undefined };
         onChange(cfg);
       }),
-      textField("dns", "DNS (optional) — e.g. 1.1.1.1,8.8.8.8", cfg.dns ?? "", (v) => {
+      labelledField("dns", "DNS (optional)", "e.g. 1.1.1.1, 8.8.8.8", cfg.dns ?? "", (v) => {
         cfg = { ...cfg, dns: v.trim() || undefined };
         onChange(cfg);
       }),

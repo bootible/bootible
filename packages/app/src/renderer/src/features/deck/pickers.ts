@@ -56,16 +56,38 @@ export async function hydrateDeckEmulators(): Promise<void> {
     "stages EmuDeck; run its wizard once",
   );
   emudeck.classList.add("cz-span");
-  const rows = emus.map((a) =>
-    deckItemRow(a.name, "", deckState.flatpakApps.includes(a.id), (v) => {
-      const set = new Set(deckState.flatpakApps);
-      if (v) set.add(a.id);
-      else set.delete(a.id);
-      deckState.flatpakApps = [...set];
+  const applyToggle = (id: string, on: boolean): void => {
+    const set = new Set(deckState.flatpakApps);
+    if (on) set.add(id);
+    else set.delete(id);
+    deckState.flatpakApps = [...set];
+  };
+  // Standalone emulators go in one GroupedPicker group so they get a select-all
+  // header (matching the ROG + the Deck Apps picker) instead of ticking each by
+  // hand. EmuDeck is a manager, not a per-system emulator, so it stays its own card.
+  const picker = GroupedPicker({
+    groups: [
+      {
+        id: "emulators",
+        label: "Standalone emulators",
+        open: true,
+        items: emus.map((a) => ({
+          id: a.id,
+          label: a.name,
+          checked: deckState.flatpakApps.includes(a.id),
+        })),
+      },
+    ],
+    onToggleItem: (_g, id, on) => {
+      applyToggle(id, on);
       update();
-    }),
-  );
-  box.replaceChildren(emudeck, ...rows);
+    },
+    onToggleGroup: (_g, on) => {
+      for (const a of emus) applyToggle(a.id, on);
+      update();
+    },
+  });
+  box.replaceChildren(emudeck, picker);
   update();
 }
 
