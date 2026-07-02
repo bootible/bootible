@@ -136,9 +136,12 @@ export const PASSWORD_MANAGERS: readonly PasswordManager[] = [
     id: "bitwarden",
     name: "Bitwarden",
     flatpak: "com.bitwarden.desktop",
-    pkg: "bitwarden-desktop",
+    // `bitwarden-desktop` doesn't exist on Arch; the desktop client is `bitwarden`
+    // in the official extra repo (yay resolves it fine). The old name failed on a
+    // real Deck run with "No AUR package found for bitwarden-desktop".
+    pkg: "bitwarden",
     aur: true,
-    bin: "bitwarden-desktop",
+    bin: "bitwarden",
   },
   {
     id: "keepassxc",

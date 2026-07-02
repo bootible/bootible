@@ -138,7 +138,9 @@ BOOTIBLE_KEYS`,
 }
 
 const fpInstall = (ref: string) =>
-  `flatpak install --user --noninteractive --or-update flathub ${ref} || warn "failed: ${ref}"`;
+  // Retry once — transient Flathub/CDN hiccups (e.g. "HTTP/2 framing layer" stream
+  // errors, which killed Spotify on a real run) usually clear on a second attempt.
+  `flatpak install --user --noninteractive --or-update flathub ${ref} || flatpak install --user --noninteractive --or-update flathub ${ref} || warn "failed: ${ref}"`;
 
 function deckyBlock(cfg: DeckConfig): string {
   if (!cfg.decky.enabled) return "";
@@ -257,7 +259,9 @@ if command -v tailscale >/dev/null 2>&1; then
   ok "Tailscale already installed — run 'tailscale up' to log in"
 else
   rm -rf "$HOME/deck-tailscale"
-  if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" >/dev/null 2>&1 && sudo bash "$HOME/deck-tailscale/tailscale.sh" >/dev/null 2>&1; then
+  # Don't swallow the installer output — a failure needs to land in provision.log
+  # so we can see WHY (a bare "install failed" is undebuggable after a hands-off run).
+  if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" && sudo bash "$HOME/deck-tailscale/tailscale.sh"; then
     ok "Tailscale installed — run 'tailscale up' to log in"
   else
     warn "Tailscale install failed — install manually: https://github.com/tailscale-dev/deck-tailscale"
