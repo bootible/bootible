@@ -208,7 +208,9 @@ function emudeckBlock(cfg: DeckConfig): string {
   const path =
     cfg.emulationStorage === "sdcard" ? `\${SDCARD:-$HOME/Emulation}` : `$HOME/Emulation`;
   return `say "Staging EmuDeck"
-SDCARD="$(ls -d /run/media/*/* 2>/dev/null | head -1)"
+# No SD card mounted → the glob doesn't match and ls exits non-zero; the trailing
+# '|| true' keeps that from aborting the run under set -euo pipefail.
+SDCARD="$(ls -d /run/media/*/* 2>/dev/null | head -1 || true)"
 EMU="${path}"
 for d in roms bios saves states; do install -d "$EMU/$d"; done
 install -d "$HOME/Desktop"
