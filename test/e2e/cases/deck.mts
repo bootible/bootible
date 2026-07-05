@@ -41,7 +41,12 @@ function deckCase(
   };
 }
 
-const base = { ssh: { enabled: true, port: 22, authorizedKeys: [] } };
+const base = {
+  ssh: { enabled: true, port: 22, authorizedKeys: [] },
+  createSnapshot: false,
+  decky: { enabled: false, plugins: [] },
+  proton: { ge: false, protonUpQt: false, protontricks: false },
+};
 export const deckCases: (Case & { config: any })[] = [
   deckCase(
     "deck:minimal",
