@@ -1,9 +1,13 @@
 import {
   allyExecutor,
+  buildConfig,
   buildDeckBundle,
   buildUsbBundle,
   generateAutounattend,
   generateDeckProvision,
+  generateStripLauncher,
+  generateStripReadme,
+  generateStripScript,
 } from "@bootible/core";
 import type { AutounattendConfig, BundleFile, DeckConfig, UsbBuildSpec } from "@bootible/core";
 
@@ -36,4 +40,22 @@ export function genAutounattend(cfg: AutounattendConfig): string {
  *  (see withTiKey) so the harness never locks itself out of the guest. */
 export function genDeckBundle(cfg: Partial<DeckConfig>): BundleFile[] {
   return buildDeckBundle(withTiKey(cfg));
+}
+
+export interface StripKitRequest {
+  modules?: string[];
+  settings?: Record<string, unknown>;
+}
+
+/** Generate the full-ROG strip kit (script + double-tap launcher + readme) from
+ *  a minimal request, the same way the app builds a BootibleConfig for the
+ *  rog-ally device (see packages/core/src/strip.test.ts for the authoritative
+ *  minimal config shape). */
+export function genStripKit(req: StripKitRequest): { script: string; launcher: string; readme: string } {
+  const config = buildConfig({ device: "rog-ally", modules: req.modules, settings: req.settings });
+  return {
+    script: generateStripScript(config),
+    launcher: generateStripLauncher(),
+    readme: generateStripReadme(),
+  };
 }

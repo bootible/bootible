@@ -1,4 +1,4 @@
-import { runBash } from "./remote.mts";
+import { runBash, runPwsh } from "./remote.mts";
 import type { Target } from "./config.mts";
 
 export async function commandOnPath(t: Target, key: string, bin: string): Promise<string | null> {
@@ -31,4 +31,40 @@ export function bundleHasFile(files: { path: string }[], path: string): string |
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// ── Windows probes (runPwsh) — used by strip-kit and other Windows-VM cases ──
+
+export async function wingetListed(t: Target, key: string, id: string): Promise<string | null> {
+  const r = await runPwsh(t, `winget list --id ${id} -e 2>$null | Select-String ${id}`, key);
+  return r.out.includes(id) ? null : `winget ${id} not installed`;
+}
+
+export async function regEquals(
+  t: Target,
+  key: string,
+  path: string,
+  name: string,
+  val: string,
+): Promise<string | null> {
+  const r = await runPwsh(t, `(Get-ItemProperty '${path}' -Name '${name}' -EA SilentlyContinue).'${name}'`, key);
+  return r.out.trim() === val ? null : `${path}\\${name} != ${val} (got ${r.out.trim()})`;
+}
+
+export async function appxAbsent(t: Target, key: string, pattern: string): Promise<string | null> {
+  const r = await runPwsh(
+    t,
+    `Get-AppxPackage -AllUsers ${pattern} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name`,
+    key,
+  );
+  return r.out.trim().length === 0 ? null : `appx matching ${pattern} still present: ${r.out.trim()}`;
+}
+
+export async function portOpen(t: Target, key: string, port: number): Promise<string | null> {
+  const r = await runPwsh(
+    t,
+    `(Test-NetConnection -ComputerName localhost -Port ${port} -WarningAction SilentlyContinue).TcpTestSucceeded`,
+    key,
+  );
+  return r.out.trim().toLowerCase() === "true" ? null : `port ${port} not open`;
 }
