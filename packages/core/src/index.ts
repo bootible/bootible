@@ -34,7 +34,7 @@ export { generateAutounattend, generateWifiProfileXml } from "./autounattend";
 export type { Base } from "./bases";
 export { BASES, baseById, baseModuleIds, UNIVERSAL_FLOOR } from "./bases";
 export type { BeaconMessage, BeaconOptions } from "./beacon";
-export { BEACON_PORT, generateBeaconScript } from "./beacon";
+export { BEACON_PORT, generateBeaconScript, parseBeacon } from "./beacon";
 export type { BootstrapOptions } from "./bootstrap";
 export { generateBootstrapScript } from "./bootstrap";
 export type { BundleFile, UsbBuildSpec } from "./bundle";

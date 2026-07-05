@@ -3,6 +3,8 @@
 // UDP datagram every few seconds; the desktop listens on the same port and
 // matches the buildId it baked into this USB. See docs/v2/design-headless-provisioning.md.
 
+import type { DiscoveredDevice } from "./app-ipc";
+
 /** The fixed UDP port the device broadcasts on and the desktop listens on. */
 export const BEACON_PORT = 50474;
 
@@ -61,4 +63,29 @@ while ($true) {
   Start-Sleep -Seconds 5
 }
 `;
+}
+
+/**
+ * Parse a raw UDP datagram from the device beacon into a DiscoveredDevice, or
+ * null when it isn't one (non-JSON, unrelated LAN traffic, or missing the
+ * `bootible` marker). `myBuildId` is the desktop's own most recent build
+ * token; `mine` is set when the beacon's buildId matches it.
+ */
+export function parseBeacon(buf: Buffer, myBuildId: string): DiscoveredDevice | null {
+  let msg: Record<string, unknown>;
+  try {
+    msg = JSON.parse(buf.toString("utf8")) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  if (msg.bootible !== 1) return null;
+  return {
+    buildId: String(msg.buildId ?? ""),
+    mac: String(msg.mac ?? ""),
+    ip: String(msg.ip ?? ""),
+    hostname: String(msg.hostname ?? ""),
+    username: String(msg.username ?? ""),
+    status: String(msg.status ?? ""),
+    mine: myBuildId !== "" && msg.buildId === myBuildId,
+  };
 }

@@ -39,7 +39,6 @@ import {
   type DeviceProfile,
   type DeviceSummary,
   DISPLAY_LANGUAGES,
-  type DiscoveredDevice,
   defaultKeyboardRegion,
   deviceProfile,
   deviceSummary,
@@ -63,6 +62,7 @@ import {
   PLATFORMS,
   type PlanModule,
   type ProvisioningMethod,
+  parseBeacon,
   platformForOs,
   provisioningMethods,
   RECOMMENDED_SETTINGS,
@@ -583,22 +583,8 @@ function startDiscovery(sender: WebContents): void {
   try {
     const sock = createSocket({ type: "udp4", reuseAddr: true });
     sock.on("message", (buf) => {
-      try {
-        const msg = JSON.parse(buf.toString("utf8")) as Record<string, unknown>;
-        if (msg.bootible !== 1) return;
-        const device: DiscoveredDevice = {
-          buildId: String(msg.buildId ?? ""),
-          mac: String(msg.mac ?? ""),
-          ip: String(msg.ip ?? ""),
-          hostname: String(msg.hostname ?? ""),
-          username: String(msg.username ?? ""),
-          status: String(msg.status ?? ""),
-          mine: lastBuildId !== "" && msg.buildId === lastBuildId,
-        };
-        if (!sender.isDestroyed()) sender.send(CHANNELS.beaconDevice, device);
-      } catch {
-        // ignore non-JSON / unrelated UDP traffic
-      }
+      const device = parseBeacon(buf, lastBuildId);
+      if (device && !sender.isDestroyed()) sender.send(CHANNELS.beaconDevice, device);
     });
     sock.on("error", () => {
       try {
