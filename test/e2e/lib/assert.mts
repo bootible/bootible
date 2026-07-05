@@ -68,3 +68,22 @@ export async function portOpen(t: Target, key: string, port: number): Promise<st
   );
   return r.out.trim().toLowerCase() === "true" ? null : `port ${port} not open`;
 }
+
+export async function firewallGroupEnabled(t: Target, key: string, group: string): Promise<string | null> {
+  const r = await runPwsh(
+    t,
+    `(Get-NetFirewallRule -DisplayGroup '${group}' -ErrorAction SilentlyContinue | Where-Object Enabled -eq 'True').Count`,
+    key,
+  );
+  return Number.parseInt(r.out.trim(), 10) > 0 ? null : `firewall group ${group} not enabled`;
+}
+
+export async function serviceRunning(t: Target, key: string, name: string): Promise<string | null> {
+  const r = await runPwsh(t, `(Get-Service -Name ${name} -ErrorAction SilentlyContinue).Status`, key);
+  return r.out.trim() === "Running" ? null : `service ${name} not running`;
+}
+
+export async function fileContains(t: Target, key: string, path: string, needle: string): Promise<string | null> {
+  const r = await runPwsh(t, `Get-Content -Raw '${path}' -ErrorAction SilentlyContinue`, key);
+  return r.out.includes(needle) ? null : `${path} missing expected content`;
+}
