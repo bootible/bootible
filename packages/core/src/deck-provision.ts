@@ -40,12 +40,18 @@ warn(){ printf '\\033[1;33m  !!\\033[0m %s\\n' "$1"; printf 'WARN %s\\n' "$1" >>
 
 say "bootible — provisioning this Steam Deck"
 
-# A password is required for sudo. The 'deck' user has none by default.
-if passwd -S "$USER" 2>/dev/null | grep -q " NP "; then
-  warn "No password set for $USER. Run 'passwd' to set one, then re-run this script."
-  exit 1
+# Cache sudo credentials up front so later steps don't each re-prompt — but only
+# when sudo actually needs a password. On a passwordless-sudo host (e.g. a ti test
+# VM) skip it: a bare 'sudo -v' would try to prompt and, with no tty, hang/fail.
+# The 'deck' user has no password by default, so if sudo DOES need one and none is
+# set, stop with a clear message instead of blocking on an unanswerable prompt.
+if ! sudo -n true 2>/dev/null; then
+  if passwd -S "$USER" 2>/dev/null | grep -q " NP "; then
+    warn "No password set for $USER. Run 'passwd' to set one, then re-run this script."
+    exit 1
+  fi
+  sudo -v
 fi
-sudo -v
 
 # Run from $HOME, never the USB. The script is fully self-contained (all choices are
 # baked in; everything installs under $HOME), so it needs nothing from the stick once
