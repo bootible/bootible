@@ -17,12 +17,14 @@
     "build": "npm run build --workspaces --if-present",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "validate:schemas": "bun run scripts/validate-schemas.ts"
+    "validate:schemas": "bun run scripts/validate-schemas.ts",
+    "test:e2e": "tsx test/e2e/run.mts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
     "@types/node": "^25.9.3",
     "typescript": "^6.0.3",
+    "tsx": "^4.19.0",
     "vitest": "^4.1.9"
   }
 }

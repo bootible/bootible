@@ -64,3 +64,7 @@ AGENTS.md
 docs-site/site/
 .review/
 .scratch-deck/
+.codereview/
+
+# E2E harness local config (secrets/paths, never committed)
+test/e2e/e2e.config.json

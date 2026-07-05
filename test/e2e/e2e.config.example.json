@@ -1,0 +1,10 @@
+{
+  "keyPath": "C:/Users/gavin/.ssh/ti_ed25519",
+  "tiModule": "G:/code/Tools/test-infrastructure/ti/ti.psd1",
+  "targets": {
+    "bazzite":   { "ip": "172.30.90.13", "user": "test-infra", "os": "linux" },
+    "cachyos":   { "ip": "172.30.90.14", "user": "test-infra", "os": "linux" },
+    "win11":     { "ip": "172.30.90.11", "user": "test-infra", "os": "windows" },
+    "win11home": { "ip": "172.30.90.15", "user": "test-infra", "os": "windows" }
+  }
+}
