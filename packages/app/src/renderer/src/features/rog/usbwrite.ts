@@ -209,7 +209,11 @@ export function updateWriteButton(): void {
 export async function startUsbWrite(): Promise<void> {
   const api = window.bootible;
   if (!api?.writeUsb) return;
-  document.querySelector(".uw-go")?.setAttribute("hidden", "");
+  // Retire the confirm + Write button but KEEP Eject visible — the post-write end
+  // state must still let the user safely remove the stick (ROG + Deck match here).
+  const go = document.querySelector<HTMLElement>(".uw-go");
+  go?.querySelector<HTMLElement>(".uw-confirm")?.setAttribute("hidden", "");
+  go?.querySelector<HTMLElement>("#usb-write-btn")?.setAttribute("hidden", "");
   document.querySelector(".uw-progress")?.removeAttribute("hidden");
   // Immediate feedback before the elevated writer emits its first line.
   onUsbProgress({

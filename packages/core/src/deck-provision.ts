@@ -45,7 +45,14 @@ if passwd -S "$USER" 2>/dev/null | grep -q " NP "; then
   warn "No password set for $USER. Run 'passwd' to set one, then re-run this script."
   exit 1
 fi
-sudo -v`;
+sudo -v
+
+# Run from $HOME, never the USB. The script is fully self-contained (all choices are
+# baked in; everything installs under $HOME), so it needs nothing from the stick once
+# it's started. Staying cd'd into the USB lets any long-lived child it spawns — most
+# notably the distrobox/podman 'conmon' monitor — inherit the mount as its CWD and pin
+# it, so the user can't eject afterwards. cd away up front and the stick stays free.
+cd "$HOME"`;
 
 const SNAPSHOT = `say "Taking a btrfs snapshot (rollback point)"
 if findmnt -n -o FSTYPE / | grep -q btrfs; then
@@ -256,7 +263,31 @@ function tailscaleBlock(cfg: DeckConfig): string {
   // official Deck method is the deck-tailscale installer (systemd-sysext overlay
   // into /var, survives SteamOS updates). `tailscale up` stays interactive (QR auth).
   return `say "Installing Tailscale"
-if command -v tailscale >/dev/null 2>&1; then
+# The deck-tailscale installer drops the CLI in /opt/tailscale but never puts it on
+# PATH, so a fresh Konsole can't find \`tailscale up\`. Link it into /usr/local/bin
+# (on PATH; best-effort — the rootfs may be read-only) AND export /opt/tailscale via
+# ~/.bashrc, which survives even a SteamOS rootfs reset. Both are idempotent.
+ts_onpath() {
+  [ -x /opt/tailscale/tailscale ] || return 0
+  # deck-tailscale drops the CLI in /opt/tailscale, which is on NO standard PATH — so
+  # neither a fresh Konsole nor sudo can find it (sudo's secure_path is locked to the
+  # /usr/*bin dirs, hence "sudo: tailscale: command not found"). Symlink into
+  # /usr/local/bin, which IS on both the user PATH and sudo's secure_path, so
+  # "sudo tailscale up" (the deck-tailscale-documented command) works. That dir lives
+  # on the read-only rootfs, so toggle it writable first. Also export /opt/tailscale
+  # from ~/.bashrc, which survives a SteamOS update even if the rootfs symlink is wiped.
+  (
+    trap 'sudo steamos-readonly enable 2>/dev/null || true' EXIT
+    sudo steamos-readonly disable 2>/dev/null || true
+    sudo ln -sf /opt/tailscale/tailscale /usr/local/bin/tailscale 2>/dev/null || true
+  )
+  grep -q '/opt/tailscale' "$HOME/.bashrc" 2>/dev/null ||
+    echo 'export PATH="$PATH:/opt/tailscale"' >> "$HOME/.bashrc"
+}
+# Treat the /opt binary as "installed" too — a re-provision would otherwise reinstall
+# just because the CLI isn't yet on this shell's PATH.
+if command -v tailscale >/dev/null 2>&1 || [ -x /opt/tailscale/tailscale ]; then
+  ts_onpath
   ok "Tailscale already installed — run 'tailscale up' to log in"
 else
   rm -rf "$HOME/deck-tailscale"
@@ -266,11 +297,19 @@ else
   # its set -e — leaving tailscaled half-installed + disabled. cd in first. Output
   # is left un-suppressed so any future failure lands in provision.log.
   if git clone --depth 1 https://github.com/tailscale-dev/deck-tailscale.git "$HOME/deck-tailscale" && (cd "$HOME/deck-tailscale" && sudo bash tailscale.sh); then
+    ts_onpath
     ok "Tailscale installed — run 'tailscale up' to log in"
   else
     warn "Tailscale install failed — install manually: https://github.com/tailscale-dev/deck-tailscale"
   fi
-fi`;
+fi
+# The official deck-tailscale install is CLI + daemon only — no app icon, so it never
+# shows in the Start menu (users expect the tray app they know from Windows/macOS).
+# Trayscale is the standard SteamOS GUI: a window + system-tray icon + Start-menu entry
+# to log in / toggle without the terminal. Decky's Tailscale Control covers Game Mode.
+say "Installing Trayscale (Tailscale GUI for the Start menu)"
+${fpInstall("dev.deedles.Trayscale")}
+ok "Trayscale installed — Tailscale GUI in the Start menu"`;
 }
 
 function networkBlock(cfg: DeckConfig): string {

@@ -9,9 +9,10 @@
 //
 // Add a module here only after confirming its transitive imports use no `node:`
 // builtins — the renderer build (electron-vite) fails loudly if one slips through.
+
+export type { CatalogApp } from "./catalog";
+export { browserApps, catalogApp } from "./catalog";
 export { RECOMMENDED_DECKY_PLUGINS } from "./deck-apps";
 export { DEFAULT_DECK_CONFIG } from "./deck-config";
-export { browserApps, catalogApp } from "./catalog";
-export type { CatalogApp } from "./catalog";
 export type { DeviceCapabilities, MediaMode, NetworkCapability } from "./device-capabilities";
 export { capabilitiesFor, devicesWithCapabilities } from "./device-capabilities";

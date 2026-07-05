@@ -176,15 +176,13 @@ export async function hydrateCatalog(): Promise<void> {
   } catch {
     // The catalog drives the whole setup/review plan — a silent return left the
     // groups empty with no explanation. Surface it with a retry.
-    document
-      .querySelector<HTMLElement>(".groups")
-      ?.replaceChildren(
-        StatusMessage({
-          kind: "error",
-          message: "Couldn't load the setup catalog.",
-          onRetry: () => void hydrateCatalog(),
-        }),
-      );
+    document.querySelector<HTMLElement>(".groups")?.replaceChildren(
+      StatusMessage({
+        kind: "error",
+        message: "Couldn't load the setup catalog.",
+        onRetry: () => void hydrateCatalog(),
+      }),
+    );
     return;
   }
   if (rog.catalog.length === 0) return;

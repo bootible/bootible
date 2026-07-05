@@ -65,7 +65,11 @@ async function startDeckWrite(): Promise<void> {
   const api = window.bootible;
   if (!api?.writeDeckProvisionUsb || !deckDisk) return;
   activeDeckWrite = "deck";
-  document.querySelector('[data-deckbuild-pane="provision"] .uw-go')?.setAttribute("hidden", "");
+  // Retire the confirm + Write button but KEEP Eject visible for the post-write
+  // end state (matches the ROG — the user still needs to safely remove the stick).
+  const go = document.querySelector<HTMLElement>('[data-deckbuild-pane="provision"] .uw-go');
+  go?.querySelector<HTMLElement>(".uw-confirm")?.setAttribute("hidden", "");
+  go?.querySelector<HTMLElement>("#deck-write-btn")?.setAttribute("hidden", "");
   document.querySelector("#deck-progress")?.removeAttribute("hidden");
   onDeckProgress({
     pct: 1,
@@ -167,7 +171,11 @@ async function startDeckReimage(): Promise<void> {
   const api = window.bootible;
   if (!api?.writeDeckReimageUsb || deckReDisk < 0) return;
   activeDeckWrite = "deckre";
-  document.querySelector('[data-deckbuild-pane="reimage"] .uw-go')?.setAttribute("hidden", "");
+  // Retire the confirm + Write button but KEEP Eject visible for the post-write
+  // end state (matches the ROG — the user still needs to safely remove the stick).
+  const go = document.querySelector<HTMLElement>('[data-deckbuild-pane="reimage"] .uw-go');
+  go?.querySelector<HTMLElement>(".uw-confirm")?.setAttribute("hidden", "");
+  go?.querySelector<HTMLElement>("#deckre-write-btn")?.setAttribute("hidden", "");
   document.querySelector("#deckre-progress")?.removeAttribute("hidden");
   onDeckProgress({
     pct: 1,

@@ -15,7 +15,11 @@ function fire(el: Element, type: string): void {
 
 describe("NetworkSettings", () => {
   it("starts on DHCP (no static fields shown) when value is undefined", () => {
-    const root = NetworkSettings({ value: undefined, interfaces: ["wifi", "ethernet"], onChange: vi.fn() });
+    const root = NetworkSettings({
+      value: undefined,
+      interfaces: ["wifi", "ethernet"],
+      onChange: vi.fn(),
+    });
     expect(q<HTMLInputElement>(root, "[data-toggle=static]")?.checked).toBe(false);
     expect(q(root, "[data-field=ip]")).toBeNull();
   });
