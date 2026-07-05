@@ -13,5 +13,5 @@ export function withTiKey(cfg: Partial<DeckConfig>): Partial<DeckConfig> {
 }
 
 export function genDeckProvision(cfg: Partial<DeckConfig>): string {
-  return generateDeckProvision(withTiKey(cfg) as DeckConfig);
+  return generateDeckProvision(withTiKey(cfg));
 }
