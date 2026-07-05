@@ -37,13 +37,13 @@ npm run test:e2e -- --kind payload-validate
 
 Examples: `payload:rog-local`, `payload:autounattend-msa`, `payload:deck-bundle`.
 
-### `deck-provision` — Linux (bazzite / cachyos)
+### `deck-provision` — Linux (bazzite)
 
 Linux provisioning: generate `provision.sh`, run on a Linux VM, read receipt and system probes.
 
 - **What it does:** `ti up` → `genDeckProvision(config)` → `scp` script → `ssh`-run → assert output + system state → `ti reset`.
-- **VMs:** `bazzite` (SteamOS proxy), `cachyos` (Arch cross-check).
-- **Duration:** ~4 min per case.
+- **VM:** `bazzite` (SteamOS proxy). cachyos is a configured `ti` target (in `e2e.config.example.json`) but has **no harness cases yet** — all deck-provision cases currently target `bazzite`. Adding cachyos coverage means parameterizing the `deckCase` factory's VM.
+- **Timeout budget:** 240s (~4 min) default; `deck:pw-distrobox` and `deck:everything-on` use 900s (~15 min, distrobox is slow).
 - **Tier:** Auto (fully headless + deterministic).
 - **Critical rule — ti-key authorization:** Every Linux case's config MUST include the `ti` public key in `ssh.authorizedKeys`. The provision script *owns* `~/.ssh/authorized_keys` and writes it fresh; if the key is missing, the script wipes it and you lock yourself out. See [Constraints](#constraints--ti-key-authorization) below.
 
@@ -53,19 +53,13 @@ Linux provisioning: generate `provision.sh`, run on a Linux VM, read receipt and
 npm run test:e2e -- --vm bazzite
 ```
 
-**Command (all cachyos cases):**
-
-```bash
-npm run test:e2e -- --vm cachyos
-```
-
 **Command (single case):**
 
 ```bash
 npm run test:e2e -- --case deck:minimal
 ```
 
-Examples: `deck:minimal`, `deck:flatpak-apps`, `deck:tailscale`, `deck:static-ip`, `deck:sunshine`, `discovery:beacon-e2e`.
+Examples: `deck:minimal`, `deck:flatpak-apps`, `deck:tailscale`, `deck:static-ip`, `deck:sunshine`.
 
 ### `strip-kit` — Windows (win11 / win11home)
 
@@ -73,7 +67,7 @@ Windows bloatware removal: generate the removal script + launcher, run on a Wind
 
 - **What it does:** `ti up` → `genStripKit(config)` → push `.ps1` + `.bat` → run elevated over SSH → assert Appx absence, winget list, registry keys, hostname unchanged.
 - **VMs:** `win11` (Pro edition), `win11home` (Home edition).
-- **Duration:** ~5 min per case.
+- **Timeout budget:** 900s (~15 min).
 - **Tier:** Auto (fully headless + deterministic).
 - **Key assertion:** Removal happens correctly **without reboot** (the script is idempotent and runs as-is from the harness, not wrapped in an installer).
 
@@ -103,7 +97,7 @@ Windows system configuration: generate a module script (remote-desktop, ssh-key,
 
 - **What it does:** `ti up` → `genStripKit()` with modules → push → run elevated over SSH → assert registry keys, services running, firewall rules, ports open.
 - **VMs:** `win11`, `win11home`.
-- **Duration:** 1–3 min per case.
+- **Timeout budget:** 300s (~5 min).
 - **Tiers:** Auto (deterministic RDP, SSH, power) or Semi (manual MSA sign-in).
 - **Edition gating:** RDP module only runs on Pro; Home cases assert it is *not* applied.
 
@@ -202,9 +196,9 @@ Real SteamOS has no Hyper-V drivers and cannot run as a Hyper-V guest. Use `bazz
 
 ## Exit codes
 
-- `0` — All cases passed.
+- `0` — All cases passed (or all failures were skipped).
 - `1` — At least one case failed or an error occurred.
-- Cases marked as "semi" or "manual" tier do not cause non-zero exit; they are skipped/logged but do not fail the overall run.
+- Cases with a `skipped` field (e.g., semi-manual or manual tiers) do not cause non-zero exit; they are excluded from the failure check. The `skipped` field indicates why the case was skipped (e.g., "manual OOBE sign-in with test MSA").
 
 ## Reporting
 
