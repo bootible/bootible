@@ -1,23 +1,15 @@
 import type { Case } from "./payload.mts";
 import type { CaseResult } from "../lib/report.mts";
-import type { Target } from "../lib/config.mts";
-import { loadConfig } from "../lib/config.mts";
 import { genStripKit, genAutounattend, TI_PUBKEY, type StripKitRequest } from "../lib/generate.mts";
-import { push, runPwsh } from "../lib/remote.mts";
-import { reset } from "../lib/ti.mts";
+import { winModuleCase, type VmCheck } from "../lib/vmcase.mts";
 import { regEquals, firewallGroupEnabled, portOpen, serviceRunning, fileContains, textContains } from "../lib/assert.mts";
-import { writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 
-interface BootstrapCheck {
-  name: string;
-  run(t: Target, key: string): Promise<string | null>;
-}
+type BootstrapCheck = VmCheck;
 
 /** Run a module via the same strip-kit generator strip.mts uses (it walks
  *  allyCatalog and calls mod.apply for every selected module id), then assert
- *  the module's effect on the VM. Mirrors stripCase in strip.mts. */
+ *  the module's effect on the VM. Thin wrapper over winModuleCase — mirrors
+ *  stripCase in strip.mts. */
 function bootstrapCase(
   id: string,
   vm: "win11" | "win11home",
@@ -26,43 +18,23 @@ function bootstrapCase(
   timeoutMs = 300_000,
 ): Case & { req: StripKitRequest } {
   return {
-    id,
-    vm,
-    kind: "bootstrap",
-    tier: "auto",
-    timeoutMs,
+    ...winModuleCase({
+      id,
+      vm,
+      kind: "bootstrap",
+      timeoutMs,
+      genArtifacts: () => {
+        const kit = genStripKit(req);
+        return [
+          { ext: "ps1", content: kit.script, remotePath: "C:\\bootible\\bootible.ps1" },
+          { ext: "bat", content: kit.launcher, remotePath: "C:\\bootible\\bootible.bat" },
+        ];
+      },
+      remoteScript: "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\bootible\\bootible.ps1 -FromLauncher",
+      checks,
+      failLabel: "bootstrap script",
+    }),
     req,
-    async run(): Promise<CaseResult> {
-      const cfg = loadConfig();
-      const t = cfg.targets[vm];
-      await reset(cfg.tiModule, vm);
-      const kit = genStripKit(req);
-      const scriptTmp = join(tmpdir(), `${id.replace(/[:]/g, "_")}.ps1`);
-      const launcherTmp = join(tmpdir(), `${id.replace(/[:]/g, "_")}.bat`);
-      writeFileSync(scriptTmp, kit.script);
-      writeFileSync(launcherTmp, kit.launcher);
-      await push(t, scriptTmp, "C:\\bootible\\bootible.ps1", cfg.keyPath);
-      await push(t, launcherTmp, "C:\\bootible\\bootible.bat", cfg.keyPath);
-      const r = await runPwsh(
-        t,
-        "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\bootible\\bootible.ps1 -FromLauncher",
-        cfg.keyPath,
-        timeoutMs,
-      );
-      const failures: (string | null)[] = [
-        r.code === 0 ? null : `bootstrap script exited non-zero (code ${r.code})`,
-      ];
-      for (const check of checks) {
-        failures.push(await check.run(t, cfg.keyPath));
-      }
-      return {
-        id,
-        vm,
-        tier: "auto",
-        pass: failures.every((f) => f == null),
-        failures: failures.filter((f): f is string => !!f),
-      };
-    },
   };
 }
 
