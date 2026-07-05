@@ -2,7 +2,7 @@ import type { Case } from "../cases/payload.mts";
 import type { CaseResult } from "./report.mts";
 import type { Target } from "./config.mts";
 import { loadConfig } from "./config.mts";
-import { push, runPwsh } from "./remote.mts";
+import { push, runPwsh, waitForSsh } from "./remote.mts";
 import { reset } from "./ti.mts";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -53,6 +53,8 @@ export function winModuleCase(opts: WinModuleCaseOpts): Case {
       const cfg = loadConfig();
       const t = cfg.targets[vm];
       await reset(cfg.tiModule, vm);
+      await waitForSsh(t, cfg.keyPath);
+      await runPwsh(t, "New-Item -ItemType Directory -Force -Path C:\\bootible | Out-Null", cfg.keyPath);
       const artifacts = genArtifacts();
       for (const a of artifacts) {
         const tmp = join(tmpdir(), `${id.replace(/[:]/g, "_")}.${a.ext}`);

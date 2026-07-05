@@ -50,7 +50,7 @@ const hostnameUnchanged = (expected: string): StripCheck => ({
   name: "hostname unchanged",
   run: async (t, key) => {
     const r = await runPwsh(t, "$env:COMPUTERNAME", key);
-    return r.out.trim() === expected ? null : `hostname changed (expected ${expected}, got ${r.out.trim()})`;
+    return r.stdout.trim() === expected ? null : `hostname changed (expected ${expected}, got ${r.stdout.trim()})`;
   },
 });
 

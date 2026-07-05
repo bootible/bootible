@@ -2,7 +2,7 @@ import type { Case } from "./payload.mts";
 import type { CaseResult } from "../lib/report.mts";
 import { loadConfig } from "../lib/config.mts";
 import { withTiKey, genDeckProvision } from "../lib/generate.mts";
-import { push, runBash } from "../lib/remote.mts";
+import { push, runBash, waitForSsh } from "../lib/remote.mts";
 import { reset } from "../lib/ti.mts";
 import { receiptHasOk } from "../lib/assert.mts";
 import { writeFileSync } from "node:fs";
@@ -26,6 +26,7 @@ function deckCase(
       const cfg = loadConfig();
       const t = cfg.targets.bazzite;
       await reset(cfg.tiModule, "bazzite");
+      await waitForSsh(t, cfg.keyPath);
       const sh = genDeckProvision(config);
       const tmp = join(tmpdir(), `${id.replace(/[:]/g, "_")}.sh`);
       writeFileSync(tmp, sh);

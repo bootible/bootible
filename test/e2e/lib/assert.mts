@@ -48,7 +48,7 @@ export async function regEquals(
   val: string,
 ): Promise<string | null> {
   const r = await runPwsh(t, `(Get-ItemProperty '${path}' -Name '${name}' -EA SilentlyContinue).'${name}'`, key);
-  return r.out.trim() === val ? null : `${path}\\${name} != ${val} (got ${r.out.trim()})`;
+  return r.stdout.trim() === val ? null : `${path}\\${name} != ${val} (got ${r.stdout.trim()})`;
 }
 
 export async function appxAbsent(t: Target, key: string, pattern: string): Promise<string | null> {
@@ -57,7 +57,7 @@ export async function appxAbsent(t: Target, key: string, pattern: string): Promi
     `Get-AppxPackage -AllUsers ${pattern} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name`,
     key,
   );
-  return r.out.trim().length === 0 ? null : `appx matching ${pattern} still present: ${r.out.trim()}`;
+  return r.stdout.trim().length === 0 ? null : `appx matching ${pattern} still present: ${r.stdout.trim()}`;
 }
 
 export async function portOpen(t: Target, key: string, port: number): Promise<string | null> {
@@ -66,7 +66,7 @@ export async function portOpen(t: Target, key: string, port: number): Promise<st
     `(Test-NetConnection -ComputerName localhost -Port ${port} -WarningAction SilentlyContinue).TcpTestSucceeded`,
     key,
   );
-  return r.out.trim().toLowerCase() === "true" ? null : `port ${port} not open`;
+  return r.stdout.trim().toLowerCase() === "true" ? null : `port ${port} not open`;
 }
 
 export async function firewallGroupEnabled(t: Target, key: string, group: string): Promise<string | null> {
@@ -75,12 +75,12 @@ export async function firewallGroupEnabled(t: Target, key: string, group: string
     `(Get-NetFirewallRule -DisplayGroup '${group}' -ErrorAction SilentlyContinue | Where-Object Enabled -eq 'True').Count`,
     key,
   );
-  return Number.parseInt(r.out.trim(), 10) > 0 ? null : `firewall group ${group} not enabled`;
+  return Number.parseInt(r.stdout.trim(), 10) > 0 ? null : `firewall group ${group} not enabled`;
 }
 
 export async function serviceRunning(t: Target, key: string, name: string): Promise<string | null> {
   const r = await runPwsh(t, `(Get-Service -Name ${name} -ErrorAction SilentlyContinue).Status`, key);
-  return r.out.trim() === "Running" ? null : `service ${name} not running`;
+  return r.stdout.trim() === "Running" ? null : `service ${name} not running`;
 }
 
 export async function fileContains(t: Target, key: string, path: string, needle: string): Promise<string | null> {
