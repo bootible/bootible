@@ -1,9 +1,10 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { HostSshKey } from "@bootible/core";
 import { lastBuild } from "./build-state";
+import { sshReachable, verifyProbe } from "./verify-probe";
 
 // ── host SSH integration (the key-picker replaces paste-a-key) ───────────────
 
@@ -145,14 +146,7 @@ export function verifyDevice(
   os: "windows" | "linux" = "windows",
 ): { reachable: boolean; output: string; alias?: string } {
   const target = `${username || lastBuild.username || "ally"}@${ip}`;
-  // Device-appropriate probe. Windows (ROG): read the bootstrap receipt via cmd.
-  // Linux (Deck): the login shell is bash, so `type`/`C:\` don't exist — read the
-  // provision receipt if present and always fall back to `hostname` so a reachable
-  // Deck reports cleanly even before it writes one (exits 0 either way).
-  const remote =
-    os === "linux"
-      ? "cat ~/.bootible/receipt 2>/dev/null; hostname"
-      : "type C:\\bootible\\status.txt 2>nul & echo. & type C:\\bootible\\receipt.txt 2>nul";
+  const remote = verifyProbe(os);
   const args = [
     "-o",
     "BatchMode=yes",
@@ -169,23 +163,21 @@ export function verifyDevice(
     target,
     remote,
   ];
-  try {
-    const output = execFileSync("ssh", args, { encoding: "utf8", timeout: 20000 });
-    // Reachable → write the `ssh <hostname>` alias so the user can reach it
-    // prompt-free from now on.
-    let alias: string | undefined;
-    if (lastBuild.hostname) {
-      try {
-        writeSshAlias(lastBuild.hostname, ip);
-        alias = lastBuild.hostname;
-      } catch {}
-    }
-    return { reachable: true, output: output.trim(), alias };
-  } catch (error) {
-    const e = error as { stdout?: Buffer | string; stderr?: Buffer | string; message?: string };
+  const r = spawnSync("ssh", args, { encoding: "utf8", timeout: 20000 });
+  if (!sshReachable(r.status)) {
     return {
       reachable: false,
-      output: String(e.stderr ?? e.stdout ?? e.message ?? "connection failed").trim(),
+      output: String(r.stderr || r.error?.message || "connection failed").trim(),
     };
   }
+  // Reachable → write the `ssh <hostname>` alias so the user can reach it
+  // prompt-free from now on.
+  let alias: string | undefined;
+  if (lastBuild.hostname) {
+    try {
+      writeSshAlias(lastBuild.hostname, ip);
+      alias = lastBuild.hostname;
+    } catch {}
+  }
+  return { reachable: true, output: String(r.stdout ?? "").trim(), alias };
 }
