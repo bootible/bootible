@@ -21,6 +21,10 @@ extraResources:
     to: registry
   - from: resources/prepare-usb.ps1
     to: prepare-usb.ps1
+  - from: resources/prepare-deck-usb.ps1
+    to: prepare-deck-usb.ps1
+  - from: resources/deck-gpt.ps1
+    to: deck-gpt.ps1
 win:
   # bootible mark, multi-res (16–256) — exe, taskbar, and window icon.
   icon: build/icon.ico

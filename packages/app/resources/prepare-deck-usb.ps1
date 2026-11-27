@@ -12,8 +12,10 @@
     This script:
       1. confirms the target USB,
       2. takes it offline + raw-writes the .img (block-level, like dd),
-      3. appends an exFAT "BOOTIBLE" partition in the free space,
-      4. copies the payload bundle onto it.
+      3. rewrites the GPT on the same handle so it spans the whole disk and
+         carries a "BOOTIBLE" entry in the free space (deck-gpt.ps1),
+      4. formats that partition exFAT,
+      5. copies the payload bundle onto it.
 
     Run elevated. Destructive — it erases the chosen disk.
 
@@ -46,6 +48,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $PSNativeCommandUseErrorActionPreference = $false
+
+# GPT surgery (relocate the backup header to the disk end + add BOOTIBLE).
+. (Join-Path $PSScriptRoot "deck-gpt.ps1")
 
 function Write-Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Warn($msg) { Write-Host "  ! $msg" -ForegroundColor Yellow }
@@ -111,6 +116,10 @@ if ($disk.BusType -ne "USB" -and -not $Force) {
     throw "Disk $DiskNumber is $($disk.BusType), not USB. Refusing without -Force (this ERASES the disk)."
 }
 $sizeGb = [math]::Round($disk.Size / 1GB, 1)
+# The recovery image's GPT is laid out for 512-byte sectors; a 4Kn stick can't boot it.
+$sectorSize = [int]$disk.LogicalSectorSize
+if ($sectorSize -ne 512) { throw "Disk $DiskNumber uses $sectorSize-byte sectors; the SteamOS image needs 512-byte sectors." }
+$diskSectors = [uint64]([uint64]$disk.Size / $sectorSize)
 if (-not $Force -and -not $PSCmdlet.ShouldProcess("Disk $DiskNumber ($($disk.FriendlyName), $sizeGb GB)", "ERASE and write SteamOS")) {
     throw "Cancelled."
 }
@@ -139,7 +148,7 @@ $imgLen = (Get-Item $ImagePath).Length
 Send-Progress 48 ("Flashing recovery image ({0} GB) -- this takes a while" -f [math]::Round($imgLen / 1GB, 1))
 
 $src = [System.IO.File]::OpenRead($ImagePath)
-$dev = New-Object System.IO.FileStream("\\.\PhysicalDrive$DiskNumber", [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+$dev = New-Object System.IO.FileStream("\\.\PhysicalDrive$DiskNumber", [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
 try {
     $buf = New-Object byte[] (4 * 1024 * 1024)
     $written = [long]0
@@ -155,26 +164,41 @@ try {
         }
     }
     $dev.Flush()
+
+    # --- 3. Make the GPT span the disk + add the BOOTIBLE entry -----------------
+    # The image's GPT describes a disk the size of the IMAGE (backup header at its
+    # end). Left like that, Windows sees a corrupt table and New-Partition would
+    # re-initialise it, wiping SteamOS. Fix it on this raw handle before Windows
+    # rescans, so Windows only ever formats a partition that already exists.
+    Send-Progress 82 "Extending the partition table to the whole disk"
+    $plan = Invoke-GptRelocation -Stream $dev -DiskSectors $diskSectors -SectorSize $sectorSize -Label "BOOTIBLE"
 }
 finally {
     $dev.Dispose(); $src.Dispose()
 }
 
-# --- 3. Bring the disk back + append the BOOTIBLE payload partition -------------
-Send-Progress 82 "Re-reading the new partition table"
+# --- 4. Let Windows pick up the table + format the BOOTIBLE partition ----------
 # Only matters if the offline toggle above actually took (fixed / USB-HDD); on
 # removable media it was a no-op, so tolerate the "Not Supported" here too.
 Set-Disk -Number $DiskNumber -IsOffline $false -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 3   # let Windows mount the flashed partitions
-
-# The recovery image is small; create an exFAT partition in the free space for the
-# payload. exFAT is readable by SteamOS recovery + installed SteamOS (validated).
-Send-Progress 86 "Adding the BOOTIBLE payload partition (exFAT)"
-$part = New-Partition -DiskNumber $DiskNumber -UseMaximumSize -AssignDriveLetter
+Update-Disk -Number $DiskNumber
+Send-Progress 86 "Formatting the BOOTIBLE payload partition (exFAT)"
+$offset = [uint64]$plan.PartitionStartLba * $sectorSize
+$part = $null
+for ($i = 0; $i -lt 10 -and -not $part; $i++) {
+    $part = Get-Partition -DiskNumber $DiskNumber -ErrorAction SilentlyContinue | Where-Object { [uint64]$_.Offset -eq $offset }
+    if (-not $part) { Start-Sleep -Seconds 1; Update-Disk -Number $DiskNumber }
+}
+if (-not $part) { throw "Windows did not see the BOOTIBLE partition after the GPT update." }
+# exFAT is readable by SteamOS recovery + installed SteamOS (validated).
 Format-Volume -Partition $part -FileSystem exFAT -NewFileSystemLabel "BOOTIBLE" -Confirm:$false | Out-Null
+if (-not $part.DriveLetter -or $part.DriveLetter -eq [char]0) {
+    $part | Add-PartitionAccessPath -AssignDriveLetter
+    $part = Get-Partition -DiskNumber $DiskNumber -PartitionNumber $part.PartitionNumber
+}
 $drive = "$($part.DriveLetter):"
 
-# --- 4. Copy the payload bundle ------------------------------------------------
+# --- 5. Copy the payload bundle ------------------------------------------------
 Send-Progress 92 "Copying the bootible payload"
 $payload = if (Test-Path (Join-Path $BundleDir "bootible")) { $BundleDir } else { $BundleDir }
 Copy-Item -Path (Join-Path $payload "*") -Destination "$drive\" -Recurse -Force
