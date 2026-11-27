@@ -105,6 +105,69 @@ const STUBBED_TOOLS = [
 
 const bash = bashPath();
 
+/** Run provision.sh as if from a stick at /dev/sdb6, with the kernel log the
+ *  given lines (real Deck format: `journalctl -k -b -o short-unix`). */
+function runFromStick(klog: string[]) {
+  const dir = mkdtempSync(join(tmpdir(), "bootible-stale-"));
+  const sh = join(dir, "provision.sh");
+  writeFileSync(sh, generateDeckProvision({ createSnapshot: false }));
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  const tool = (name: string, body: string) => {
+    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`);
+    chmodSync(join(bin, name), 0o755);
+  };
+  for (const t of STUBBED_TOOLS) tool(t, STUB.replace("#!/usr/bin/env bash\n", ""));
+  tool("findmnt", 'case "$*" in *SOURCE*) echo /dev/sdb6 ;; *) echo btrfs ;; esac');
+  writeFileSync(join(dir, "klog"), `${klog.join("\n")}\n`);
+  tool("journalctl", `cat '${join(dir, "klog").replace(/\\/g, "/")}'`);
+  const home = join(dir, "home");
+  mkdirSync(home);
+  mkdirSync(join(home, ".bootible"));
+  writeFileSync(join(home, ".bootible", "receipt"), "ok   earlier run\n");
+  const r = spawnSync(bash as string, [sh], {
+    encoding: "utf8",
+    input: "",
+    timeout: 60000,
+    env: {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ""}`,
+      HOME: home,
+      USER: "deck",
+      TRACE: join(dir, "trace.txt"),
+    },
+  });
+  return { r, receipt: readFileSync(join(home, ".bootible", "receipt"), "utf8") };
+}
+
+const ATTACHED =
+  "1795793174.101 VengeanceDeck kernel: sd 1:0:0:0: [sdb] Attached SCSI removable disk";
+const WOKE = "1795814616.670 VengeanceDeck kernel: PM: suspend exit";
+
+describe("deck provisioner — a stick that stayed in through a sleep", () => {
+  it.skipIf(!bash)(
+    "stops before changing anything, and says to replug the stick",
+    () => {
+      const { r, receipt } = runFromStick([ATTACHED, WOKE]);
+      expect(r.status).toBe(1);
+      expect(r.stdout).toContain("Unplug the USB stick, plug it back in, and run this again.");
+      expect(receipt, "an earlier run's receipt is left alone").toBe("ok   earlier run\n");
+    },
+    60000,
+  );
+
+  it.skipIf(!bash)(
+    "runs when the stick was plugged in after the Deck last woke",
+    () => {
+      const later =
+        "1795815571.592 VengeanceDeck kernel: sd 0:0:0:0: [sdb] Attached SCSI removable disk";
+      const { r } = runFromStick([ATTACHED, WOKE, later]);
+      expect(r.status, r.stdout).toBe(0);
+    },
+    60000,
+  );
+});
+
 describe("deck provisioner — full-config dry run", () => {
   it.skipIf(!bash)("parses (bash -n) with every option enabled", () => {
     const dir = mkdtempSync(join(tmpdir(), "bootible-dry-"));

@@ -79,7 +79,7 @@ export function writeDeckProvisionUsb(
 
   emit(
     100,
-    "Done. On the Deck (Desktop Mode), open the BOOTIBLE drive and run bootible/provision.sh — then follow README.txt.",
+    "Done. Plug it into the Deck while it's awake, then in Desktop Mode open the BOOTIBLE drive and run bootible/provision.sh — then follow README.txt.",
     "done",
   );
   return { started: true };

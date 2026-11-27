@@ -90,7 +90,7 @@ function onDeckProgress(event: UsbProgress): void {
   const doneText =
     pfx === "deckre"
       ? "Done — hold Volume Down + Power on the Deck, boot the USB and choose Wipe Device & Install SteamOS."
-      : "Done — eject it and run bootible/provision.sh on your Deck.";
+      : "Done — eject it, plug it into your Deck while it's awake, and run bootible/provision.sh.";
   renderProgress(pfx, event, doneText);
   // Eject lives persistently next to Write (matching the ROG) and find-my-device /
   // verify are the shared DeviceReach block — no gated done-actions row any more.

@@ -40,6 +40,10 @@ After SteamOS is installed, switch to Desktop Mode and:
   3. Run:  passwd   (skip if the Deck already has a password; the script needs it)
   4. Run:  bash /run/media/*/BOOTIBLE/bootible/provision.sh
 
+Plug this stick in while the Deck is awake. If it was in the Deck while it
+slept, unplug it and plug it back in first: a Deck that wakes with a stick
+still in can keep showing that stick's old files, even after it's rewritten.
+
 It takes a btrfs snapshot first and installs everything via update-safe methods
 (Flatpak / Proton-GE / Decky / Distrobox), so a SteamOS update won't wipe it.
 
