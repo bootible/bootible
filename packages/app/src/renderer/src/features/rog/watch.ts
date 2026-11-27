@@ -1,4 +1,5 @@
-import type { DiscoveredDevice } from "@bootible/core";
+import type { DeviceVerifyResult, DiscoveredDevice } from "@bootible/core";
+import { VerifyReport } from "../../components/VerifyReport";
 import { el, fill } from "../../lib/dom";
 import { rog } from "../../lib/rog-state";
 import { session } from "../../lib/session";
@@ -7,7 +8,7 @@ import { gatherUsbRequest, receiptRow } from "./usbwrite";
 // ── device discovery (watch screen) ─────────────────────────────────────────
 const discovered = new Map<string, DiscoveredDevice>();
 // Verify results survive the 5s beacon re-renders, keyed by device IP.
-const verifyResults = new Map<string, { reachable: boolean; output: string; alias?: string }>();
+const verifyResults = new Map<string, DeviceVerifyResult>();
 
 /** Render the discovered devices, the build we just made first. */
 export function renderDiscovered(): void {
@@ -57,20 +58,7 @@ export function renderDiscovered(): void {
       card.append(verify);
 
       const result = verifyResults.get(d.ip);
-      if (result) {
-        if (result.reachable && result.alias) {
-          card.append(el("div", "watch-alias", `✓ verified — now just \`ssh ${result.alias}\``));
-        }
-        card.append(
-          el(
-            "pre",
-            `watch-result ${result.reachable ? "ok" : "fail"}`,
-            result.reachable
-              ? result.output || "Connected, but it returned no receipt yet."
-              : `Couldn't reach it: ${result.output}`,
-          ),
-        );
-      }
+      if (result) card.append(VerifyReport(result));
       return card;
     }),
   );
@@ -89,7 +77,7 @@ document.addEventListener("click", (event) => {
   if (!ip) return;
   const user = btn.dataset.verifyUser || undefined; // the beacon-reported account
   const os = btn.dataset.verifyOs === "linux" ? "linux" : "windows";
-  btn.textContent = "Checking…";
+  btn.textContent = "Checking everything on the device…";
   btn.disabled = true;
   void (async () => {
     const result = (await window.bootible?.verifyDevice?.(ip, user, os)) ?? {

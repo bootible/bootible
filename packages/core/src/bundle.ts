@@ -1,6 +1,7 @@
 import { type AccountMode, generateAutounattend, generateWifiProfileXml } from "./autounattend";
 import { generateBeaconScript } from "./beacon";
 import { generateBootstrapScript } from "./bootstrap";
+import { manifestEdition } from "./build-manifest";
 import { type BootibleConfig, serializeConfig } from "./config";
 import type { Executor } from "./orchestrator";
 import type { DeviceEntry } from "./registry";
@@ -103,6 +104,18 @@ export function buildUsbBundle(
     device: spec.device,
     config: spec.config,
     executorFactory,
+    manifest: {
+      path: "usb",
+      buildId: spec.buildId,
+      hostname: spec.computerName,
+      account:
+        spec.account.mode === "local"
+          ? { mode: "local", username: spec.account.username }
+          : { mode: "microsoft" },
+      edition: manifestEdition(spec.edition),
+      locale: spec.locale,
+      uiLanguage: spec.uiLanguage,
+    },
   });
 
   const files: BundleFile[] = [

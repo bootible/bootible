@@ -29,6 +29,11 @@ function run(cmd: string, args: string[], input: string | null, timeoutMs: numbe
   });
 }
 
+/** Run `command` in the guest's login shell (bash / cmd), feeding `input` on stdin. */
+export function runRemote(t: Target, command: string, input: string, key: string, timeoutMs = 240_000): Promise<RunResult> {
+  return run("ssh", [...sshArgs(key, t.user, t.ip), command], input, timeoutMs);
+}
+
 export function runBash(t: Target, script: string, key: string, timeoutMs = 240_000): Promise<RunResult> {
   return run("ssh", [...sshArgs(key, t.user, t.ip), "bash -s"], script, timeoutMs);
 }

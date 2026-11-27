@@ -10,6 +10,7 @@
  */
 import type { DeckConfig } from "./deck-config";
 import type { StaticIp } from "./static-ip";
+import type { VerifyCheck } from "./verify";
 
 /**
  * The IPC channel names, declared once so preload (ipcRenderer.invoke/on) and main
@@ -172,6 +173,20 @@ export interface HostSshKey {
   type: string;
   /** The full public-key line — exactly what gets authorised on the device. */
   publicKey: string;
+}
+
+/** What Verify returns for a device it reached (or couldn't). */
+export interface DeviceVerifyResult {
+  reachable: boolean;
+  /** The device's receipt, or the ssh error when unreachable. */
+  output: string;
+  /** The `ssh <alias>` written for it, when known. */
+  alias?: string;
+  /** Deep-verify results; absent when there was no manifest to check against. */
+  checks?: VerifyCheck[];
+  summary?: { pass: number; fail: number; skip: number; total: number };
+  /** Why there are no deep-verify results, when there aren't. */
+  checksNote?: string;
 }
 
 export interface DiscoveredDevice {

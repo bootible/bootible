@@ -1,5 +1,7 @@
 import { BEACON_PORT } from "./beacon";
+import { deckManifestJson } from "./build-manifest";
 import { catalogApp } from "./catalog";
+import { toB64 } from "./cloud-crypto";
 import { flatpakRefs, passwordManagers } from "./deck-apps";
 import type { DeckConfig } from "./deck-config";
 import { normalizeDeckConfig } from "./deck-config";
@@ -235,7 +237,7 @@ ok "EmuDeck staged at $EMU — run the wizard from Desktop"`;
 }
 
 /** Single-quote a value for safe embedding in the generated bash. */
-function shq(value: string): string {
+export function shq(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
@@ -294,7 +296,13 @@ ts_onpath() {
 # just because the CLI isn't yet on this shell's PATH.
 if command -v tailscale >/dev/null 2>&1 || [ -x /opt/tailscale/tailscale ]; then
   ts_onpath
-  ok "Tailscale already installed — run 'tailscale up' to log in"
+  # A distro-shipped tailscale (Bazzite) or a re-provision can leave the daemon
+  # off, and \`tailscale up\` then fails with no tailscaled to talk to.
+  if sudo systemctl enable --now tailscaled 2>/dev/null; then
+    ok "Tailscale already installed — run 'tailscale up' to log in"
+  else
+    warn "Tailscale is installed but tailscaled wouldn't start — check 'systemctl status tailscaled'"
+  fi
 else
   rm -rf "$HOME/deck-tailscale"
   # Run the installer FROM its repo dir: tailscale.sh copies an override.conf by
@@ -486,7 +494,13 @@ ok ${shq(`default browser: ${app.name}`)}`;
 
 export function generateDeckProvision(input: Partial<DeckConfig>): string {
   const cfg = normalizeDeckConfig(input);
-  const blocks: string[] = [HEADER];
+  // Saved first so a verify can still compare against it if a later step aborts.
+  // Base64 keeps every config value out of the script text entirely.
+  const manifest = toB64(new TextEncoder().encode(deckManifestJson(input)));
+  const blocks: string[] = [
+    HEADER,
+    `printf '%s' '${manifest}' | base64 -d > "$BOOTIBLE_DIR/build.json"`,
+  ];
 
   if (cfg.createSnapshot) blocks.push(SNAPSHOT);
   if (cfg.hostname) {

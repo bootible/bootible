@@ -5,6 +5,7 @@ import { withTiKey, genDeckProvision } from "../lib/generate.mts";
 import { push, runBash, waitForSsh } from "../lib/remote.mts";
 import { pristine } from "../lib/ti.mts";
 import { receiptHasOk } from "../lib/assert.mts";
+import { deepVerify } from "../lib/deepverify.mts";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -36,6 +37,7 @@ function deckCase(
       const failures = [
         r.out.includes("EXIT=0") ? null : `provision exited non-zero`,
         ...expectOk.map((step) => receiptHasOk(receipt, step)),
+        ...(await deepVerify(t, cfg.keyPath, "linux")),
       ].filter((f): f is string => !!f);
       return { id, vm: "bazzite", tier: "auto", pass: failures.length === 0, failures };
     },

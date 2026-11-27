@@ -2,6 +2,7 @@ import type { Case } from "../cases/payload.mts";
 import type { CaseResult } from "./report.mts";
 import type { Target } from "./config.mts";
 import { loadConfig } from "./config.mts";
+import { deepVerify } from "./deepverify.mts";
 import { push, runPwsh, waitForSsh } from "./remote.mts";
 import { pristine } from "./ti.mts";
 import { writeFileSync } from "node:fs";
@@ -95,6 +96,7 @@ export function winModuleCase(opts: WinModuleCaseOpts): Case {
       for (const check of checks) {
         failures.push(await check.run(t, cfg.keyPath));
       }
+      failures.push(...(await deepVerify(t, cfg.keyPath, "windows")));
       return {
         id,
         vm,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sshReachable, verifyProbe } from "./verify-probe";
+import { splitProbe, sshReachable, verifyProbe } from "./verify-probe";
 
 describe("verifyProbe", () => {
   it("never calls `hostname` on Linux — SteamOS doesn't ship it (exit 127 on a real Deck)", () => {
@@ -10,6 +10,22 @@ describe("verifyProbe", () => {
 
   it("reads the Windows bootstrap status + receipt", () => {
     expect(verifyProbe("windows")).toContain("C:\\bootible\\receipt.txt");
+  });
+});
+
+describe("splitProbe", () => {
+  it("separates the receipt from the manifest that follows the marker", () => {
+    expect(splitProbe('ok x\r\nDeck\r\nBOOTIBLE-MANIFEST\r\n{"schema":1}\r\n')).toEqual({
+      receipt: "ok x\nDeck",
+      manifest: '{"schema":1}',
+    });
+  });
+
+  it("treats output without the marker as receipt only", () => {
+    expect(splitProbe("done\nbootible configured")).toEqual({
+      receipt: "done\nbootible configured",
+      manifest: "",
+    });
   });
 });
 

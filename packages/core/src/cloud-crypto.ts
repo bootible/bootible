@@ -60,7 +60,7 @@ function ab(x: Uint8Array): Uint8Array<ArrayBuffer> {
   return new Uint8Array(x);
 }
 
-function toB64(bytes: Uint8Array): string {
+export function toB64(bytes: Uint8Array): string {
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s);

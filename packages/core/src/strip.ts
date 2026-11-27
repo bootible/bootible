@@ -12,6 +12,7 @@ import { allyCatalog } from "./ally-modules";
 import { getSelectedAppCommands, getSelectedGithubReleases } from "./apps";
 import { UNIVERSAL_FLOOR } from "./bases";
 import { BEACON_PORT } from "./beacon";
+import { writeWindowsManifestPs } from "./build-manifest";
 import { catalogApp } from "./catalog";
 import type { BootibleConfig } from "./config";
 import { generateGithubReleaseInstall } from "./github-install";
@@ -152,7 +153,7 @@ export function resolveRemovals(ids?: string[]): { appx: string[]; win32: string
 
 /** Never uninstall these, even if a strip pattern would match — the ROG/Full-ROG
  *  essentials and Armoury Crate's own dependencies. */
-const KEEP_GUARD = [
+export const KEEP_GUARD = [
   // ASUS essentials (Appx names are space-less, e.g. B9ECED6F.ArmouryCrateSE)
   "Armoury Crate",
   "ArmouryCrate",
@@ -191,13 +192,19 @@ function psArray(items: string[]): string {
   return `@(${items.map(psQuote).join(", ")})`;
 }
 
+/** The modules the strip kit runs: the config's own, or the universal floor
+ *  when it names none (the standalone manual strip). Verify uses this too. */
+export function stripModuleIds(config: BootibleConfig): string[] {
+  return config.modules?.length ? config.modules : [...UNIVERSAL_FLOOR];
+}
+
 /** Build the module command set the same way the install bootstrap does, so the
  *  strip stays in sync with the app. Runs the config's selected modules (floor +
  *  the user's app-picker apps, SSH, EmuDeck, …) in CATALOG order so dependencies
  *  hold (e.g. sunshine before sunshine-creds). With no modules in the config it
  *  defaults to the universal floor — the standalone manual-strip behaviour. */
 function moduleLines(config: BootibleConfig): string {
-  const ids = new Set(config.modules?.length ? config.modules : UNIVERSAL_FLOOR);
+  const ids = new Set(stripModuleIds(config));
   const commands: string[][] = [];
   const rec: Exec = (cmd) => {
     commands.push(cmd);
@@ -348,6 +355,7 @@ $Root = "$env:SystemDrive\\bootible"
 $Log = "$Root\\strip.log"
 New-Item -ItemType Directory -Force -Path $Root | Out-Null
 function Write-Strip($m) { "[$(Get-Date -Format o)] $m" | Tee-Object -FilePath $Log -Append }
+try { ${writeWindowsManifestPs({ schema: 1, os: "windows", path: "strip", buildId: config.settings?.build_id as string | undefined, config }, "$Root")} } catch { Write-Strip "build.json failed: $_" }
 
 # Remember the desktop shortcuts that exist BEFORE installs, so we only sweep the
 # icons the app installers dump (keeps any you already had).

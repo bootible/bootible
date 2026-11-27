@@ -1,16 +1,12 @@
+import type { DeviceVerifyResult } from "@bootible/core";
 import { el } from "../lib/dom";
-
-export interface VerifyResult {
-  reachable: boolean;
-  alias?: string;
-  output: string;
-}
+import { VerifyReport } from "./VerifyReport";
 
 interface DeviceReachOpts {
   /** Navigate to the Watch (find-my-device) screen. */
   onFindDevice: () => void;
   /** SSH-verify the device at an address (device-appropriate command). */
-  onVerify: (ip: string, user: string) => Promise<VerifyResult>;
+  onVerify: (ip: string, user: string) => Promise<DeviceVerifyResult>;
   /** Account-name field placeholder (Windows: OOBE name · Deck: usually "deck"). */
   userPlaceholder?: string;
 }
@@ -62,11 +58,13 @@ export function DeviceReach(opts: DeviceReachOpts): HTMLElement {
   row.append(userIn, ipIn, verifyBtn);
 
   const out = el("p", "sk-status");
+  const report = el("div", "sk-report");
 
   verifyBtn.addEventListener("click", () => {
     void (async () => {
       const ip = ipIn.value.trim();
       const user = userIn.value.trim();
+      report.replaceChildren();
       if (!ip) {
         out.textContent =
           "Enter the device's IP, hostname, Tailscale IP or NordVPN Meshnet IP first.";
@@ -76,18 +74,20 @@ export function DeviceReach(opts: DeviceReachOpts): HTMLElement {
         out.textContent = "Enter the device's account name first.";
         return;
       }
-      out.textContent = `Reaching ${user}@${ip} over SSH…`;
+      out.textContent = `Reaching ${user}@${ip} over SSH and checking everything it was set up with…`;
+      verifyBtn.disabled = true;
       try {
         const r = await opts.onVerify(ip, user);
-        out.textContent = r.reachable
-          ? `✓ Reachable${r.alias ? ` (ssh ${r.alias})` : ""} — ${r.output}`
-          : `✗ Couldn't reach it: ${r.output}`;
+        out.textContent = "";
+        report.replaceChildren(VerifyReport(r));
       } catch (e) {
         out.textContent = `Verify failed: ${e instanceof Error ? e.message : String(e)}`;
+      } finally {
+        verifyBtn.disabled = false;
       }
     })();
   });
 
-  root.append(heading, sub, findWrap, orLine, row, out);
+  root.append(heading, sub, findWrap, orLine, row, out, report);
   return root;
 }

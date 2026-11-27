@@ -1,4 +1,5 @@
 import { getSelectedAppCommands, getSelectedGithubReleases } from "./apps";
+import { type WindowsBuildManifest, writeWindowsManifestPs } from "./build-manifest";
 import type { BootibleConfig } from "./config";
 import { generateGithubReleaseInstall } from "./github-install";
 import { onboard } from "./onboard";
@@ -16,6 +17,9 @@ export interface BootstrapOptions {
   config: BootibleConfig;
   /** Builds the platform executor around a runner — e.g. allyExecutor. */
   executorFactory: (exec: Exec) => Executor;
+  /** How this build was made; saved as C:\bootible\build.json so the app can
+   *  verify the device against it later. */
+  manifest?: Omit<WindowsBuildManifest, "schema" | "os" | "config">;
 }
 
 /** Single-quote a value for PowerShell (literal; doubles embedded quotes). */
@@ -88,6 +92,10 @@ export function generateBootstrapScript(opts: BootstrapOptions): string {
     .filter(Boolean)
     .join("\n\n");
 
+  const manifestLine = opts.manifest
+    ? `try { ${writeWindowsManifestPs({ schema: 1, os: "windows", ...opts.manifest, config: opts.config }, "$BootibleRoot")} } catch { Write-Bootible "  build.json failed: $_" }\n`
+    : "";
+
   return `# bootible bootstrap — generated, self-contained plain PowerShell.
 # No separate runtime or CLI required. Runs once at first logon via the
 # autounattend FirstLogonCommand.
@@ -96,7 +104,7 @@ $BootibleRoot = "$env:SystemDrive\\bootible"
 $BootibleLog = "$BootibleRoot\\bootstrap.log"
 New-Item -ItemType Directory -Force -Path $BootibleRoot | Out-Null
 function Write-Bootible($m) { "[$(Get-Date -Format o)] $m" | Tee-Object -FilePath $BootibleLog -Append }
-
+${manifestLine}
 # winget's WindowsApps PATH alias isn't ready at first logon and the App
 # Installer package can take a minute to register, so add its folder to PATH and
 # wait for it before the module commands run. Without this every install fails

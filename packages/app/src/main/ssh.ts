@@ -1,10 +1,25 @@
-import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import type { HostSshKey } from "@bootible/core";
+import { execFileSync, spawn } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import {
+  type DeviceVerifyResult,
+  type HostSshKey,
+  parseVerifyOutput,
+  readProbedManifest,
+  summarizeChecks,
+  verifyPlan,
+} from "@bootible/core";
 import { lastBuild } from "./build-state";
-import { sshReachable, verifyProbe } from "./verify-probe";
+import { splitProbe, sshReachable, verifyProbe } from "./verify-probe";
 
 // ── host SSH integration (the key-picker replaces paste-a-key) ───────────────
 
@@ -137,17 +152,48 @@ export function identityForKeys(keys: string[]): string {
   return "";
 }
 
-/** Verify a discovered device over SSH (key auth, no prompts): read its status
- *  + receipt to confirm the configure ran. Returns the raw output, or the error
- *  if unreachable. */
-export function verifyDevice(
+/** Run ssh or scp, feeding `input` on stdin. Async so a long verify never
+ *  blocks the main process. */
+function runTool(
+  cmd: "ssh" | "scp",
+  args: string[],
+  input: string,
+  timeoutMs: number,
+): Promise<{ status: number | null; stdout: string; stderr: string; error?: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { windowsHide: true });
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => child.kill(), timeoutMs);
+    child.stdout.setEncoding("utf8").on("data", (d: string) => {
+      stdout += d;
+    });
+    child.stderr.setEncoding("utf8").on("data", (d: string) => {
+      stderr += d;
+    });
+    child.on("error", (e) => {
+      clearTimeout(timer);
+      resolve({ status: null, stdout, stderr, error: e.message });
+    });
+    child.on("close", (status) => {
+      clearTimeout(timer);
+      resolve({ status, stdout, stderr });
+    });
+    child.stdin.end(input);
+  });
+}
+
+/** Verify a discovered device over SSH (key auth, no prompts). First read its
+ *  receipt and build manifest; then, if it has a manifest, generate the check
+ *  script for that build, run it on the device and return each check's result —
+ *  real system state, not what the provisioner said about itself. */
+export async function verifyDevice(
   ip: string,
   username?: string,
   os: "windows" | "linux" = "windows",
-): { reachable: boolean; output: string; alias?: string } {
+): Promise<DeviceVerifyResult> {
   const target = `${username || lastBuild.username || "ally"}@${ip}`;
-  const remote = verifyProbe(os);
-  const args = [
+  const opts = [
     "-o",
     "BatchMode=yes",
     // bootible re-images devices, so a device's SSH host key changes (and the
@@ -160,15 +206,10 @@ export function verifyDevice(
     "-o",
     "ConnectTimeout=8",
     ...(lastBuild.identity ? ["-i", lastBuild.identity, "-o", "IdentitiesOnly=yes"] : []),
-    target,
-    remote,
   ];
-  const r = spawnSync("ssh", args, { encoding: "utf8", timeout: 20000 });
+  const r = await runTool("ssh", [...opts, target, verifyProbe(os)], "", 20000);
   if (!sshReachable(r.status)) {
-    return {
-      reachable: false,
-      output: String(r.stderr || r.error?.message || "connection failed").trim(),
-    };
+    return { reachable: false, output: (r.stderr || r.error || "connection failed").trim() };
   }
   // Reachable → write the `ssh <hostname>` alias so the user can reach it
   // prompt-free from now on.
@@ -179,5 +220,42 @@ export function verifyDevice(
       alias = lastBuild.hostname;
     } catch {}
   }
-  return { reachable: true, output: String(r.stdout ?? "").trim(), alias };
+  const { receipt, manifest: manifestText } = splitProbe(r.stdout);
+  const manifest = readProbedManifest(manifestText);
+  if (!manifest) {
+    return {
+      reachable: true,
+      output: receipt,
+      alias,
+      checksNote:
+        "No build manifest on the device (built before deep verify), so only the receipt was read.",
+    };
+  }
+  const plan = verifyPlan(manifest);
+  const didntRun = (why: string): DeviceVerifyResult => ({
+    reachable: true,
+    output: receipt,
+    alias,
+    checksNote: `The checks didn't run: ${why.trim()}`,
+  });
+  if (plan.upload) {
+    const local = join(mkdtempSync(join(tmpdir(), "bootible-verify-")), "verify.ps1");
+    writeFileSync(local, plan.script, "ascii");
+    const up = await runTool("scp", [...opts, local, `${target}:${plan.upload}`], "", 30000);
+    rmSync(dirname(local), { recursive: true, force: true });
+    if (up.status !== 0)
+      return didntRun(
+        `couldn't copy the check script: ${up.stderr || up.error || `exit ${up.status}`}`,
+      );
+  }
+  // winget export and Get-AppxPackage can take a while on a handheld.
+  const v = await runTool(
+    "ssh",
+    [...opts, target, plan.remote],
+    plan.upload ? "" : plan.script,
+    240000,
+  );
+  const checks = parseVerifyOutput(v.stdout);
+  if (checks.length === 0) return didntRun(v.stderr || v.error || `exit ${v.status}`);
+  return { reachable: true, output: receipt, alias, checks, summary: summarizeChecks(checks) };
 }

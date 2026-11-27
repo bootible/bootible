@@ -6,6 +6,7 @@ export type {
   DeckProvisionUsbRequest,
   DeckReimageUsbRequest,
   DeviceOption,
+  DeviceVerifyResult,
   DiscoveredDevice,
   HostSshKey,
   IsoOption,
@@ -37,6 +38,17 @@ export type { BeaconMessage, BeaconOptions } from "./beacon";
 export { BEACON_PORT, generateBeaconScript, parseBeacon } from "./beacon";
 export type { BootstrapOptions } from "./bootstrap";
 export { generateBootstrapScript } from "./bootstrap";
+export type {
+  BuildManifest,
+  DeckBuildManifest,
+  WindowsBuildManifest,
+} from "./build-manifest";
+export {
+  MANIFEST_MARKER,
+  manifestProbe,
+  readProbedManifest,
+  windowsProbeCommand,
+} from "./build-manifest";
 export type { BundleFile, UsbBuildSpec } from "./bundle";
 export { buildUsbBundle, imageDevicePath } from "./bundle";
 export type { Bundle } from "./bundles";
@@ -207,5 +219,8 @@ export type { SyncTarget, TargetCapabilities, TargetRole } from "./sync-target";
 export { localTarget } from "./sync-target";
 export type { SchemaValidationResult } from "./validate-schema";
 export { parseValidatedYaml, validateYamlAgainstSchema } from "./validate-schema";
+export type { CheckStatus, VerifyCheck } from "./verify";
+export { parseVerifyOutput, summarizeChecks } from "./verify";
+export { verifyPlan } from "./verify-plan";
 export { getWindowsDefaultsCommands } from "./windows-defaults";
 export { getWingetInstallCommands } from "./winget";

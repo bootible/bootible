@@ -9,6 +9,7 @@ import type {
   DeckyStorePlugin,
   DeviceOption,
   DeviceSummary,
+  DeviceVerifyResult,
   DiscoveredDevice,
   FlatpakApp,
   GroupedProfiles,
@@ -57,7 +58,7 @@ export interface BootibleApi {
     ip: string,
     username?: string,
     os?: "windows" | "linux",
-  ): Promise<{ reachable: boolean; output: string; alias?: string }>;
+  ): Promise<DeviceVerifyResult>;
   suggestNetwork(): Promise<{ prefix: number; gateway: string; subnet: string } | null>;
   installHostStreaming(which: {
     sunshine?: boolean;

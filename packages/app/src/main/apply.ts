@@ -98,7 +98,12 @@ export async function applyDevice(
     modules: modules.length ? modules : undefined,
     settings: buildSettings(req),
   });
-  const script = generateBootstrapScript({ device, config, executorFactory: profile.executor });
+  const script = generateBootstrapScript({
+    device,
+    config,
+    executorFactory: profile.executor,
+    manifest: { path: "apply" },
+  });
   const dir = join(app.getPath("temp"), "bootible-apply");
   mkdirSync(dir, { recursive: true });
   const scriptPath = join(dir, "bootstrap.ps1");
