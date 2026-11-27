@@ -1,5 +1,5 @@
 ---
-description: Prioritised work queue for bootible v2 after the 30 Jun hardware-validation + shared-component pass. Reviewed by humans, executed by agents.
+description: Prioritised work queue for bootible v2, re-baselined 27 Nov 2026 after the July hardware round + E2E harness. Reviewed by humans, executed by agents.
 tags: [todo, plan, v2, roadmap]
 audience: { human: 50, agent: 50 }
 purpose: { plan: 90, reference: 10 }
@@ -13,94 +13,59 @@ session. Detailed running context lives in `.claude/session-journal.md`.
 ## Status snapshot
 
 - **Branch:** `docs/v2` (alpha line; merge to `main` when alpha-ready).
-- **Deck Path A (provision-only):** HARDWARE-VALIDATED end-to-end (app-built USB →
-  boot → `provision.sh`) on a real Steam Deck.
-- **Shared device-setup components — done + adopted:** `ProfileBar`,
-  `NetworkSettings`, `SshAccessEditor`, `PasswordField`, `StreamingSettings`,
-  `RemoteAccessSettings`. The Deck device-setup screen is fully composed of them.
-- **Tests:** ~319 green. Gate = `npm test` (run in a separate call before committing —
-  the verify-gate stamps after the whole command).
+- **Deck Path A (provision-only):** hardware-validated end-to-end on a real Steam Deck.
+- **Deck Path B (full reimage):** GPT relocation implemented (`resources/deck-gpt.ps1`,
+  Pester-tested); **not yet boot-tested on a Deck.**
+- **E2E harness:** `npm run test:e2e` against `ti` Hyper-V VMs — see
+  [test/e2e/README.md](../../test/e2e/README.md).
+- **Gate:** `npm test` (vitest) + Pester (`tests/*.Tests.ps1`). Run in a separate call
+  before committing — the verify-gate stamps after the whole command.
 
 ## Build commands
 
 | Goal | Command |
 |------|---------|
-| Staging exe | `BOOTIBLE_API_BASE=https://api.staging.bootible.dev npm run dist -w @bootible/app` |
+| Staging exe | `$env:BOOTIBLE_API_BASE="https://api.staging.bootible.dev"; npm run dist -w @bootible/app` |
 | Prod exe | `npm run dist -w @bootible/app` |
 | Verify | `npm test` (separate call, before any commit) |
+| E2E | `npm run test:e2e -- --vm <bazzite\|win11\|win11home>` |
 
 The built portable lands at `packages/app/dist/bootible.exe`; copy to
 `Downloads\bootible.exe` (ask to close the app first if it's running).
 
 ---
 
-## 1. Unified "report back when done" beacon — DO FIRST
+## 1. Hardware round (rebuild USBs first — fixes are in the scripts/core, not old sticks)
 
-Lower-risk and additive; gives the satisfying "the device reports done to the host"
-payoff. Every device should announce completion the same way (the ROG headless flow
-already does; the Deck doesn't).
-
-- **Device side:** `generateDeckProvision` / `buildDeckBundle` take a `buildId`;
-  `provision.sh` broadcasts `{bootible:1, buildId, ip, hostname, username, status:"done"}`
-  over UDP on `BEACON_PORT` (50474) via `python3` (always present on SteamOS). Mirror
-  the `beaconBody` in `packages/core/src/strip.ts`.
-- **Build side:** `writeDeckProvisionUsb` (and the reimage writer) set `lastBuildId`
-  (see the ROG path, `packages/app/src/main/index.ts:712`).
-- **Host side (the missing piece):** the host only listens while `discovery:start` is
-  active, and the Deck flow has no watch screen. Add a watch screen after the Deck
-  write that calls `startDiscovery` and surfaces `beacon:device` — reuse the ROG watch
-  screen pattern.
-- **Done when:** a Deck running `provision.sh` shows up as "done" on the host watch
-  screen, flagged "mine" via the matching `buildId`.
-
-## 2. ROG account-screen convergence
-
-Behaviour-neutral cohesion refactor — do it when NOT mid-hardware-testing (it rewires
-the build path). Goal: one shared device-setup composition across ROG + Deck.
-
-- Expand `StreamingSettings` with `showHost` (the "also set up Sunshine/Moonlight on
-  this PC (host)" toggles).
-- Use `RemoteAccessSettings` for RDP (option `disabled` when `edition !== "pro"`).
-- Replace the static `ra-*` HTML on the account screen with the mounted components;
-  consolidate the separate `#rog-sunshine-pass-mount` into `StreamingSettings`.
-- Rewire `captureBuildChoice` (`remoteAccess` / `remoteAccessHost` / `sunshineUser`)
-  and profile capture/apply to read JS state — same pattern the Sunshine password
-  already uses (`rogSunshinePass` / `rogSunshinePromptPass`).
-- **Watch out:** the `ra-sunshine` checkbox currently drives the host + creds reveal;
-  preserve that. It all feeds the USB build — verify a built config is unchanged.
-
-## 3. Hardware validation (rebuild USBs first — fixes are in core, not on old sticks)
-
+- **Deck Path B:** build a reimage USB with the new GPT code → boot the Deck from it →
+  Reimage → confirm SteamOS boots AND the BOOTIBLE partition is readable.
+- **ROG:** one real clean-install USB build + account setup (the account screen was
+  rebuilt into shared Section cards, ID-preserving — re-validate the zero-touch path),
+  then SSH in and read `C:\bootible\bootstrap.log`.
 - Greenlight install on a real ROG (GitHub-release Setup.exe, RunOnce/silent).
-- Deck Path B (full reimage) flash on real hardware.
-- Re-test Tailscale + StickDeck on the Deck with a freshly-built USB (the `deck-tailscale`
-  + non-`win`-zip fixes landed in `deck-provision.ts`).
 
-## 4. `GroupedPicker` (cohesion finding U6)
+## 2. Decompose `packages/app/src/main/index.ts` (~1,490 lines)
 
-The app / emulator / password-manager pickers are still hand-built per device
-(ROG `renderApps` vs Deck `renderDeckApps` etc.) — the last big duplication. Extract a
-shared grouped-picker component and adopt on both.
+The renderer god-file is done (`renderer/src/main.ts` 4,022 → ~370). The main-process
+file is the last one over the ~400-line standard
+([coding-standards.md](standards/coding-standards.md) §4). Carve the USB writers,
+Deck writers, discovery and IPC registration into their own modules.
 
-## 5. Finish the device class/instance profile model
+## 3. Merge `docs/v2` → `main` + alpha exe on GitHub
 
-The model+family dropdown grouping is shipped. Remaining: rename `profile.deviceId`
-→ `deviceModel`, add a true `instanceId` for devices we communicate with
-(ssh/wifi/usb), and move the family-grouping main-side so the renderer needn't
-re-implement `deviceFamilyOf`. See the `device-class-vs-instance` memory.
+After the hardware round passes.
 
-## 6. Decompose the `main.ts` / `index.ts` god-files
+## 4. Android (AYN Thor) — next device family
 
-The standards now mandate it ([coding-standards.md](standards/coding-standards.md) §4:
-no file over ~400 lines without a recorded reason; changes near the god-files must
-leave them smaller). Reality: `renderer/src/main.ts` ≈ 4,000 lines and
-`main/index.ts` ≈ 1,500. Carve features out into `app/` / `state/` / `components/`
-/ `features/` / `devices/`. **This is P3 of the unified review** —
-[standards/remediation-plan.md](standards/remediation-plan.md) — which holds the
-full P0→P3 plan (security fixes, finishing the device convergence, retiring the
-parallel seam, then decomposition as a consequence of those slices). Execute
-against that plan, P0 first.
+Scope as a new family (findings → registry entry) once the above is closed.
 
-## 7. Merge `docs/v2` → `main`
+---
 
-When the alpha is ready (and after a clean visual sweep + hardware passes above).
+## Done since the 30 Jun baseline
+
+- Unified "report back when done" beacon on the Deck (`beaconBlock` in `deck-provision.ts`).
+- ROG account-screen convergence (shared Section cards + `ACCESS_LABELS`).
+- `GroupedPicker` extracted and adopted on both devices.
+- Device class/instance model: `deviceId` → `deviceModel` (migrated on read).
+- Renderer decomposition (`features/rog/*`, `features/auth/*`).
+- Default-browser picker (both OSes); E2E harness (`test/e2e`).
