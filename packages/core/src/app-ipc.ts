@@ -184,6 +184,8 @@ export interface DiscoveredDevice {
   status: string;
   /** True when this is the device built by the most recent USB. */
   mine: boolean;
+  /** Beacon-reported OS; absent from older beacons (Verify assumes Windows). */
+  os?: "windows" | "linux";
 }
 
 export interface LanguageOption {

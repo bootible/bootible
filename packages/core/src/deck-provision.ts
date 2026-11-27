@@ -457,7 +457,7 @@ def local_ip():
     except Exception:
         return ''
 for _ in range(120):
-    payload = json.dumps({'bootible': 1, 'buildId': build_id, 'ip': local_ip(), 'hostname': hostname, 'username': username, 'status': 'done'})
+    payload = json.dumps({'bootible': 1, 'buildId': build_id, 'ip': local_ip(), 'hostname': hostname, 'username': username, 'os': 'linux', 'status': 'done'})
     try:
         u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         u.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)

@@ -30,6 +30,10 @@ describe("generateBeaconScript", () => {
     expect(script).toContain("$buildId = 'a''b'");
   });
 
+  it("reports itself as a Windows device", () => {
+    expect(generateBeaconScript({ buildId: "abc" })).toContain('os = "windows"');
+  });
+
   it("is ASCII-only (PowerShell 5.1 reads it without a BOM)", () => {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ASCII-range check
     expect(generateBeaconScript({ buildId: "x" })).toMatch(/^[\x00-\x7F]*$/);
@@ -59,6 +63,13 @@ describe("parseBeacon", () => {
       status: "done",
       mine: true,
     });
+  });
+
+  it("carries the device OS when the beacon reports one (so Verify runs the right probe)", () => {
+    const linux = JSON.stringify({ ...JSON.parse(donePayload("x")), os: "linux" });
+    expect(parseBeacon(Buffer.from(linux), "x")?.os).toBe("linux");
+    const bogus = JSON.stringify({ ...JSON.parse(donePayload("x")), os: "plan9" });
+    expect(parseBeacon(Buffer.from(bogus), "x")?.os).toBeUndefined();
   });
 
   it("flags mine false when the buildId doesn't match", () => {

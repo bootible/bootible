@@ -53,6 +53,7 @@ export function renderDiscovered(): void {
       verify.type = "button";
       verify.dataset.verifyIp = d.ip;
       verify.dataset.verifyUser = d.username || ""; // SSH as the device's own account
+      verify.dataset.verifyOs = d.os ?? ""; // bash probe for a Deck, cmd for a ROG
       card.append(verify);
 
       const result = verifyResults.get(d.ip);
@@ -64,7 +65,9 @@ export function renderDiscovered(): void {
           el(
             "pre",
             `watch-result ${result.reachable ? "ok" : "fail"}`,
-            result.reachable ? result.output : `Couldn't reach it: ${result.output}`,
+            result.reachable
+              ? result.output || "Connected, but it returned no receipt yet."
+              : `Couldn't reach it: ${result.output}`,
           ),
         );
       }
@@ -85,10 +88,11 @@ document.addEventListener("click", (event) => {
   const ip = btn.dataset.verifyIp ?? "";
   if (!ip) return;
   const user = btn.dataset.verifyUser || undefined; // the beacon-reported account
+  const os = btn.dataset.verifyOs === "linux" ? "linux" : "windows";
   btn.textContent = "Checking…";
   btn.disabled = true;
   void (async () => {
-    const result = (await window.bootible?.verifyDevice?.(ip, user)) ?? {
+    const result = (await window.bootible?.verifyDevice?.(ip, user, os)) ?? {
       reachable: false,
       output: "no bridge",
     };

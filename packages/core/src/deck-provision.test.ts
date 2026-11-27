@@ -236,6 +236,7 @@ describe("generateDeckProvision", () => {
     expect(s).toContain("python3");
     expect(s).toContain("'status': 'done'"); // the python source builds the payload
     expect(s).toContain("'bootible': 1");
+    expect(s).toContain("'os': 'linux'"); // so Watch's Verify runs the bash probe
     // buildId is passed as an argv (not interpolated into the python source).
     expect(s).toContain("'deadbeef'");
     // Detached + bounded so it isn't a permanent agent.
