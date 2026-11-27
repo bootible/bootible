@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { DeckConfig } from "./deck-config";
 import { deckVerifyChecks, generateDeckVerify } from "./deck-verify";
@@ -103,6 +103,9 @@ function runVerify(
   cfg: Partial<DeckConfig>,
   fail?: string,
   receipt = "ok   snapshot: /x\nDONE provision finished; 0 warning(s)\n",
+  /** Extra files under the fake $HOME; realPython runs the script's python3
+   *  bodies for real instead of stubbing them to pass. */
+  opts: { files?: Record<string, string>; realPython?: boolean } = {},
 ) {
   if (!BASH) throw new Error("no bash");
   const root = mkdtempSync(join(tmpdir(), "bootible-verify-"));
@@ -125,6 +128,10 @@ function runVerify(
   // MSYS bash only treats a file as executable (-x) when it starts with #!
   writeFileSync(join(home, "homebrew/services/PluginLoader"), "#!/bin/sh\n");
   chmodSync(join(home, "homebrew/services/PluginLoader"), 0o755);
+  for (const [path, body] of Object.entries(opts.files ?? {})) {
+    mkdirSync(dirname(join(home, path)), { recursive: true });
+    writeFileSync(join(home, path), body);
+  }
 
   const stub = (name: string, body: string) => {
     const p = join(bin, name);
@@ -135,7 +142,7 @@ function runVerify(
   stub("systemctl", "exit 0");
   stub("xdg-mime", "echo com.google.Chrome.desktop");
   stub("uname", "echo VengeanceDeck");
-  stub("python3", "cat >/dev/null; exit 0");
+  if (!opts.realPython) stub("python3", "cat >/dev/null; exit 0");
   // /.snapshots is outside $HOME; point the check at a fake by stubbing ls.
   stub("ls", "exit 0");
 
@@ -143,7 +150,13 @@ function runVerify(
   writeFileSync(script, generateDeckVerify(cfg));
   const r = spawnSync(BASH, [script], {
     encoding: "utf8",
-    env: { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH ?? ""}` },
+    // USERPROFILE too: Windows Python's expanduser("~") reads it, not HOME.
+    env: {
+      ...process.env,
+      HOME: home,
+      USERPROFILE: home,
+      PATH: `${bin}:${process.env.PATH ?? ""}`,
+    },
   });
   return { checks: parseVerifyOutput(r.stdout), root, stderr: r.stderr };
 }
@@ -208,5 +221,43 @@ describe.skipIf(!BASH)("generateDeckVerify (executed under bash)", () => {
     const { checks, root } = runVerify({ ...CFG, decky: { enabled: true, plugins: [evil] } });
     expect(existsSync(join(root, "home", "PWNED"))).toBe(false);
     expect(checks.find((c) => c.id === `plugin:${evil}`)).toBeDefined();
+  });
+});
+
+const PYTHON = !!BASH && spawnSync(BASH, ["-c", "python3 -c 'import glob, json'"]).status === 0;
+
+describe.skipIf(!PYTHON)("Decky plugin check (real python3)", () => {
+  const ONLY = { decky: { enabled: true, plugins: ["Syncthing"] } };
+  const PLUGIN = { "homebrew/plugins/decky-syncthing/plugin.json": '{"name": "Syncthing"}' };
+  // The line Decky logs when a plugin's _main() raises (real Deck, 28 Nov).
+  const CRASH =
+    "future: <Task finished name='Task-1' coro=<Plugin._main() done, defined at /x/main.py:91> exception=PermissionError(13, 'Permission denied')>\n";
+  const plugin = (files: Record<string, string>) =>
+    runVerify(ONLY, undefined, undefined, { realPython: true, files }).checks.find(
+      (c) => c.id === "plugin:Syncthing",
+    );
+
+  it("fails a plugin whose last start crashed, naming the error", () => {
+    expect(
+      plugin({ ...PLUGIN, "homebrew/logs/decky-syncthing/2026-11-28 07.33.07.log": CRASH }),
+    ).toMatchObject({
+      status: "fail",
+      detail: "it crashed on its last start: PermissionError(13, 'Permission denied')",
+    });
+  });
+
+  it("passes once a later start is clean, ignoring the plugin's own newer logs", () => {
+    expect(
+      plugin({
+        ...PLUGIN,
+        "homebrew/logs/decky-syncthing/2026-11-28 07.33.07.log": CRASH,
+        "homebrew/logs/decky-syncthing/2026-11-28 07.45.00.log": "INFO started\n",
+        "homebrew/logs/decky-syncthing/watchdog.log": CRASH,
+      })?.status,
+    ).toBe("pass");
+  });
+
+  it("fails a plugin that isn't installed", () => {
+    expect(plugin({})).toMatchObject({ status: "fail", detail: "not in ~/homebrew/plugins" });
   });
 });

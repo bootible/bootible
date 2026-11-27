@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { flatpakRefs } from "./deck-apps";
-import { generateDeckProvision } from "./deck-provision";
+import { generateDeckProvision, ZIP_MODES_PY } from "./deck-provision";
+
+describe("Decky plugin file modes", () => {
+  // zipfile's extract drops the unix modes a zip records; a fresh plugin binary
+  // then isn't executable (Syncthing's watchdog: Permission denied, 28 Nov).
+  it("restores each file's mode from the zip before copying the plugin in", () => {
+    const s = generateDeckProvision({ decky: { enabled: true, plugins: ["Syncthing"] } });
+    const extract = s.indexOf("sudo python3 -m zipfile -e");
+    const modes = s.indexOf(`sudo python3 -c "${ZIP_MODES_PY}" /tmp/decky-plugin.zip "$PTMP"`);
+    const copy = s.indexOf("sudo cp -a --remove-destination");
+    expect(extract).toBeGreaterThan(-1);
+    expect(modes).toBeGreaterThan(extract);
+    expect(copy).toBeGreaterThan(modes);
+    expect(ZIP_MODES_PY).not.toMatch(/["$`\\]/); // safe inside bash double quotes
+  });
+});
 
 describe("flatpakRefs", () => {
   it("resolves ids to Flathub refs and drops unknowns", () => {

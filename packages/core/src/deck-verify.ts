@@ -50,7 +50,8 @@ export function deckVerifyChecks(input: Partial<DeckConfig>): CheckSpec[] {
   # The count on the DONE line, not grep -c '^WARN': the run's own summary
   # ("WARN N step(s) had warnings") is a WARN line too and would count twice.
   w=$(grep '^DONE' "$R" | tail -1 | sed -n 's/.*; \\([0-9][0-9]*\\) warning.*/\\1/p')
-  [ "\${w:-0}" = 0 ] || { echo "$w warning(s), first: $(grep -m1 '^WARN' "$R" | cut -c6-)"; return 1; }`,
+  f=$(grep '^WARN' "$R" | grep -v ' step(s) had warnings' | head -1 | cut -c6-)
+  [ "\${w:-0}" = 0 ] || { echo "$w warning(s)\${f:+, first: $f}"; return 1; }`,
   );
 
   if (cfg.createSnapshot) {
@@ -108,15 +109,30 @@ export function deckVerifyChecks(input: Partial<DeckConfig>): CheckSpec[] {
         // (Syncthing on 28 Nov: new main.py, old bin/ and dist/), so being present
         // isn't enough — the last run must also have installed it.
         `grep -Fxq ${shq(`WARN plugin failed: ${name}`)} "$R" 2>/dev/null && { echo "the last setup run failed to install it, so it may be a mix of old and new files"; return 1; }
-  python3 - ${shq(name)} <<'BOOTIBLE_PY' || { echo "not in ~/homebrew/plugins"; return 1; }
+  python3 - ${shq(name)} <<'BOOTIBLE_PY'
 import glob, json, os, sys
-names = set()
-for f in glob.glob(os.path.expanduser("~/homebrew/plugins/*/plugin.json")):
+home = os.path.expanduser("~/homebrew")
+found = None
+for f in glob.glob(home + "/plugins/*/plugin.json"):
     try:
-        names.add(json.load(open(f)).get("name"))
+        if json.load(open(f)).get("name") == sys.argv[1]:
+            found = os.path.basename(os.path.dirname(f))
     except Exception:
         pass
-sys.exit(0 if sys.argv[1] in names else 1)
+if not found:
+    print("not in ~/homebrew/plugins")
+    sys.exit(1)
+# Present isn't working: Decky logs each start to logs/<dir>/<start time>.log
+# ("2026-11-28 07.33.07.log", so the name sorts by time), and a plugin whose
+# _main() raised is dead (Syncthing, 28 Nov: its watchdog binary had lost +x,
+# so PermissionError). Only those files: a plugin may keep its own logs there
+# too (Syncthing's watchdog.log), which are newer but say nothing about a start.
+logs = sorted(glob.glob(home + "/logs/" + found + "/[0-9][0-9][0-9][0-9]-*.log"))
+if logs:
+    for line in open(logs[-1], errors="replace"):
+        if "Plugin._main() done" in line and "exception=" in line:
+            print("it crashed on its last start: " + line.split("exception=", 1)[1].strip().rstrip(">"))
+            sys.exit(1)
 BOOTIBLE_PY`,
       );
     }
