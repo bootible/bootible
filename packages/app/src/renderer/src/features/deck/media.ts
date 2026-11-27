@@ -89,7 +89,7 @@ function onDeckProgress(event: UsbProgress): void {
   if (!pfx) return;
   const doneText =
     pfx === "deckre"
-      ? "Done — boot the Deck from this USB and choose Reimage."
+      ? "Done — hold Volume Down + Power on the Deck, boot the USB and choose Wipe Device & Install SteamOS."
       : "Done — eject it and run bootible/provision.sh on your Deck.";
   renderProgress(pfx, event, doneText);
   // Eject lives persistently next to Write (matching the ROG) and find-my-device /

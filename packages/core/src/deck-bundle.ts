@@ -15,7 +15,7 @@ import { generateDeckProvision } from "./deck-provision";
 
 /** The honest "finish on the device" steps, tailored to what was enabled. */
 function finishSteps(cfg: DeckConfig): string[] {
-  const steps = ["Run `passwd` first if you haven't set a Deck password (needed for the script)."];
+  const steps: string[] = [];
   if (cfg.decky.enabled) steps.push("Restart to Gaming Mode to see Decky (… menu → plug icon).");
   if (cfg.emudeck) steps.push("Run the EmuDeck wizard from the Desktop, then Steam ROM Manager.");
   if (cfg.sunshine.enabled && !(cfg.sunshine.user && cfg.sunshine.pass))
@@ -33,16 +33,17 @@ function readme(cfg: DeckConfig): string {
   return `bootible — Steam Deck setup
 
 After SteamOS is installed, switch to Desktop Mode and:
-  1. Open Konsole.
-  2. Run:  bash /run/media/*/BOOTIBLE/bootible/provision.sh
+  1. Steam + X opens the on-screen keyboard. If it's cut off at the screen
+     edges, open System Settings > Display & Monitor and lower Scale from the
+     default 135% until the keyboard fits.
+  2. Open Konsole.
+  3. Run:  passwd   (skip if the Deck already has a password; the script needs it)
+  4. Run:  bash /run/media/*/BOOTIBLE/bootible/provision.sh
 
 It takes a btrfs snapshot first and installs everything via update-safe methods
 (Flatpak / Proton-GE / Decky / Distrobox), so a SteamOS update won't wipe it.
 
-Finish on the device (steps SteamOS needs a human for):
-${finish}
-
-Your exact choices are saved in config.json beside this file.
+${finish ? `Finish on the device (steps SteamOS needs a human for):\n${finish}\n\n` : ""}Your exact choices are saved in config.json beside this file.
 `;
 }
 

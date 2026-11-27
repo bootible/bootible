@@ -203,4 +203,4 @@ Send-Progress 92 "Copying the bootible payload"
 $payload = if (Test-Path (Join-Path $BundleDir "bootible")) { $BundleDir } else { $BundleDir }
 Copy-Item -Path (Join-Path $payload "*") -Destination "$drive\" -Recurse -Force
 
-Send-Progress 100 "Done. Boot the Deck from this USB, run Reimage, then follow BOOTIBLE\bootible\README.txt." "done"
+Send-Progress 100 "Done. Boot the Deck from this USB (Volume Down + Power), run Wipe Device & Install SteamOS, then follow BOOTIBLE\bootible\README.txt." "done"

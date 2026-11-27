@@ -2,7 +2,7 @@
  * Resolving the SteamOS recovery image for the full-reimage flow (Path B).
  *
  * Valve publishes images at an open Apache-style directory index. We parse it and
- * pick the newest `.img.zip` (zip, because Windows decompresses it natively — no
+ * pick the newest `steamdeck-*.img.zip` (zip, because Windows decompresses it natively — no
  * bz2 dependency). "Newest" = the greatest YYYYMMDD embedded in the filename: the
  * `steamdeck-repair-<date>` / `steamdeck-oobe-repair-<date>` builds carry a date;
  * the legacy `steamdeck-recovery-N` images don't and rank lowest. We never trust
@@ -31,7 +31,9 @@ export function resolveDeckImage(
   indexHtml: string,
   baseUrl: string = DECK_IMAGE_INDEX,
 ): DeckImage | null {
-  const hrefs = [...indexHtml.matchAll(/href="([^"]+\.img\.zip)"/g)]
+  // `steamdeck-` only: the index also carries other Valve devices' images
+  // (`steamframe-*`, an ARM/u-boot build) that are newer and won't boot a Deck.
+  const hrefs = [...indexHtml.matchAll(/href="(steamdeck-[^"]+\.img\.zip)"/g)]
     .map((m) => m[1])
     .filter((h): h is string => Boolean(h));
   if (hrefs.length === 0) return null;

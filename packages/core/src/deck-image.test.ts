@@ -28,6 +28,16 @@ describe("resolveDeckImage", () => {
     expect(resolveDeckImage(onlyOld)?.name).toMatch(/^steamdeck-recovery-\d\.img\.zip$/);
   });
 
+  it("ignores other Valve devices' images even when they're newer (Steam Frame is ARM, not a Deck)", () => {
+    const withFrame = `${INDEX}
+<tr><td class="link"><a href="steamframe-oobe-repair-20260922.5153644-0.3.0.img.zip" title="x">x</a></td></tr>
+<tr><td class="link"><a href="steamframe-oobe-repair-qdl-20260922.5153644-0.3.0.zip" title="x">x</a></td></tr>
+`;
+    expect(resolveDeckImage(withFrame)?.name).toBe(
+      "steamdeck-oobe-repair-20260618.10-3.8.10.img.zip",
+    );
+  });
+
   it("returns null when there is no .img.zip", () => {
     expect(resolveDeckImage('<a href="readme.txt">x</a>')).toBeNull();
     expect(resolveDeckImage("")).toBeNull();

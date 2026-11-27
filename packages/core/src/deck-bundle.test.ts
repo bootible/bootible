@@ -33,6 +33,18 @@ describe("buildDeckBundle", () => {
     expect(readme?.content).toContain("/run/media/*/BOOTIBLE/bootible/provision.sh");
   });
 
+  it("sets a password before running the script (it needs sudo)", () => {
+    const text = buildDeckBundle({}).find((f) => f.path === "bootible/README.txt")?.content ?? "";
+    expect(text.indexOf("passwd")).toBeGreaterThan(-1);
+    expect(text.indexOf("passwd")).toBeLessThan(text.indexOf("provision.sh"));
+  });
+
+  it("explains the Desktop Mode keyboard and the scaling fix for it being cut off", () => {
+    const text = buildDeckBundle({}).find((f) => f.path === "bootible/README.txt")?.content ?? "";
+    expect(text).toContain("Steam + X");
+    expect(text).toContain("135%");
+  });
+
   it("threads a buildId into the beacon and config.json", () => {
     const files = buildDeckBundle({ buildId: "feedface" });
     const sh = files.find((f) => f.path === "bootible/provision.sh");
