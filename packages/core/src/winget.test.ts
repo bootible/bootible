@@ -2,8 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   generateAppInstallerUpdate,
   generateTwoPassInstall,
+  generateWingetSourceRepair,
   getWingetInstallCommands,
 } from "./winget";
+
+describe("generateWingetSourceRepair", () => {
+  it("registers the winget source package only when it's missing", () => {
+    const block = generateWingetSourceRepair("Write-Strip");
+    expect(block).toContain("Get-AppxPackage Microsoft.Winget.Source");
+    expect(block).toContain("cdn.winget.microsoft.com/cache/source.msix");
+    expect(block).toContain("Add-AppxPackage");
+    expect(block).toMatch(/if \(-not \(Get-AppxPackage Microsoft\.Winget\.Source/);
+    expect(block).toContain("Write-Strip");
+  });
+
+  it("never aborts the script when the repair itself fails", () => {
+    expect(generateWingetSourceRepair("Write-Bootible")).toMatch(/try \{[\s\S]*\} catch \{/);
+  });
+});
 
 describe("generateAppInstallerUpdate", () => {
   it("DISM-provisions the latest App Installer for the Store source", () => {

@@ -5,7 +5,11 @@ import { onboard } from "./onboard";
 import type { Executor } from "./orchestrator";
 import type { DeviceEntry } from "./registry";
 import type { Exec } from "./secrets";
-import { generateAppInstallerUpdate, generateTwoPassInstall } from "./winget";
+import {
+  generateAppInstallerUpdate,
+  generateTwoPassInstall,
+  generateWingetSourceRepair,
+} from "./winget";
 
 export interface BootstrapOptions {
   device: DeviceEntry;
@@ -106,6 +110,7 @@ foreach ($i in 1..24) {
 }
 if ($wingetExe) { Set-Alias -Name winget -Value $wingetExe -Scope Global; Write-Bootible "winget ready: $wingetExe" }
 else { Write-Bootible 'winget did not become available; app installs may fail' }
+${generateWingetSourceRepair("Write-Bootible")}
 
 # Discovery: mark status and start the LAN beacon (if staged) so the desktop can
 # find this device while it configures. The beacon reads $BootibleRoot\\status.txt.

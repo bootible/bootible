@@ -21,6 +21,12 @@ describe("generateBootstrapScript", () => {
     expect(script.toLowerCase()).not.toContain("node");
   });
 
+  it("repairs a missing winget source once winget is ready, before onboard starts", () => {
+    const repair = script.indexOf("Microsoft.Winget.Source");
+    expect(repair).toBeGreaterThan(script.indexOf("winget ready"));
+    expect(repair).toBeLessThan(script.indexOf("bootible onboard starting"));
+  });
+
   it("enables system restore and creates both named checkpoints", () => {
     expect(script).toContain("Enable-ComputerRestore");
     expect(script).toContain("Fresh Windows (pre-bootible)");

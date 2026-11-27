@@ -38,6 +38,12 @@ describe("generateStripScript", () => {
     expect(script).toContain("Press Enter to close"); // window stays open on error
   });
 
+  it("repairs a missing winget source before any module runs winget", () => {
+    const repair = script.indexOf("Microsoft.Winget.Source");
+    expect(repair).toBeGreaterThan(-1);
+    expect(repair).toBeLessThan(script.indexOf("FLOOR + selected modules"));
+  });
+
   it("writes a full inventory before stripping anything", () => {
     expect(script).toContain("inventory-appx.txt");
     expect(script).toContain("inventory-win32.txt");

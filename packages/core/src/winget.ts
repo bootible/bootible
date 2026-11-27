@@ -68,6 +68,26 @@ ${
 }
 
 /**
+ * Emit a PowerShell block that registers winget's source index package
+ * (`Microsoft.Winget.Source`) for the current user when it's missing. A fresh
+ * Windows image — and any non-interactive logon (SSH, a first-logon command) —
+ * can lack it, and then every `winget install` fails with 0x8a15000f "Data
+ * required by the source is missing" even though winget itself runs. Cheap and
+ * idempotent: it only downloads when the package isn't there, and a failure is
+ * logged rather than aborting the script.
+ */
+export function generateWingetSourceRepair(logFn = "Write-Strip"): string {
+  return `# winget's source index package can be missing on a fresh image (installs then
+# fail with 0x8a15000f "Data required by the source is missing") — register it.
+if (-not (Get-AppxPackage Microsoft.Winget.Source -ErrorAction SilentlyContinue)) {
+  try {
+    Add-AppxPackage -Path 'https://cdn.winget.microsoft.com/cache/source.msix' -ErrorAction Stop
+    ${logFn} 'winget source registered'
+  } catch { ${logFn} "  winget source registration failed: $_" }
+}`;
+}
+
+/**
  * Emit a PowerShell block that updates App Installer (winget) to the latest from
  * https://aka.ms/getwinget via DISM provisioning. A factory image ships an old
  * winget whose pinned Store cert can be stale (msstore error 0x8a15005e); this

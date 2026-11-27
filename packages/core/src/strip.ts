@@ -17,7 +17,11 @@ import type { BootibleConfig } from "./config";
 import { generateGithubReleaseInstall } from "./github-install";
 import type { ApplyContext } from "./orchestrator";
 import type { Exec } from "./secrets";
-import { generateAppInstallerUpdate, generateTwoPassInstall } from "./winget";
+import {
+  generateAppInstallerUpdate,
+  generateTwoPassInstall,
+  generateWingetSourceRepair,
+} from "./winget";
 
 /** One removable app/bundle the user can opt into stripping. `appx` patterns
  *  match Get-AppxPackage -AllUsers names; `win32` patterns match Uninstall
@@ -387,9 +391,12 @@ Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
   Format-Table -AutoSize | Out-String | Set-Content "$Root\\inventory-win32.txt"
 Write-Strip 'inventory written (inventory-appx.txt / inventory-win32.txt)'
 
-# ── FLOOR + selected modules (tuning, debloat, and any apps you picked) ──
+# ── winget readiness (the modules below install apps with it) ──
 # winget's WindowsApps alias may not be on PATH for app installs — add it.
 $env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;$env:PATH"
+${generateWingetSourceRepair("Write-Strip")}
+
+# ── FLOOR + selected modules (tuning, debloat, and any apps you picked) ──
 ${moduleLines(config)}
 
 # ── Wallpaper / lock screen: copy any images staged next to this script into the
