@@ -134,7 +134,8 @@ body[data-view="base"] .view[data-view="base"] {
   display: flex;
 }
 
-body[data-view="watch"] .view[data-view="watch"] {
+body[data-view="watch"] .view[data-view="watch"],
+body[data-view="verify"] .view[data-view="verify"] {
   display: flex;
 }
 
