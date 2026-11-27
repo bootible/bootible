@@ -3,7 +3,7 @@ import type { CaseResult } from "../lib/report.mts";
 import { loadConfig } from "../lib/config.mts";
 import { withTiKey, genDeckProvision } from "../lib/generate.mts";
 import { push, runBash, waitForSsh } from "../lib/remote.mts";
-import { reset } from "../lib/ti.mts";
+import { pristine } from "../lib/ti.mts";
 import { receiptHasOk } from "../lib/assert.mts";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,7 +25,7 @@ function deckCase(
     async run(): Promise<CaseResult> {
       const cfg = loadConfig();
       const t = cfg.targets.bazzite;
-      await reset(cfg.tiModule, "bazzite");
+      await pristine(cfg.tiModule, "bazzite");
       await waitForSsh(t, cfg.keyPath);
       const sh = genDeckProvision(config);
       const tmp = join(tmpdir(), `${id.replace(/[:]/g, "_")}.sh`);
@@ -73,7 +73,13 @@ export const deckCases: (Case & { config: any })[] = [
   deckCase("deck:vnc", { ...base, vnc: true }, ["flatpak apps done"]),
   deckCase(
     "deck:static-ip",
-    { ...base, staticIp: { iface: "wifi", ip: "172.30.90.13", prefix: 24 } },
+    // The VM has only eth0 (no Wi-Fi), and the provisioner skips an iface it
+    // can't find — so pin Ethernet to the VM's own ti address. Same values the
+    // ti golden image already uses, so applying them never drops the ssh link.
+    {
+      ...base,
+      staticIp: { iface: "ethernet", ip: "172.30.90.13", prefix: 24, gateway: "172.30.90.1", dns: "1.1.1.1" },
+    },
     ["static IP"],
   ),
   deckCase("deck:stickdeck", { ...base, stickdeck: true }, ["StickDeck installed"]),

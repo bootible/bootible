@@ -9,7 +9,7 @@ import type { CaseResult } from "../lib/report.mts";
 import { loadConfig } from "../lib/config.mts";
 import { withTiKey, genDeckProvision } from "../lib/generate.mts";
 import { push, runBash, waitForSsh } from "../lib/remote.mts";
-import { reset } from "../lib/ti.mts";
+import { pristine } from "../lib/ti.mts";
 
 /** How long, after the provision script returns, to keep listening for the
  *  end-of-provision beacon before giving up (see deck-provision.ts beaconBlock
@@ -73,7 +73,7 @@ const discoveryCase: Case & { config: any } = {
   async run(): Promise<CaseResult> {
     const cfg = loadConfig();
     const t = cfg.targets.bazzite;
-    await reset(cfg.tiModule, "bazzite");
+    await pristine(cfg.tiModule, "bazzite");
     await waitForSsh(t, cfg.keyPath);
 
     const buildId = randomBytes(6).toString("hex");

@@ -3,7 +3,7 @@ import type { CaseResult } from "./report.mts";
 import type { Target } from "./config.mts";
 import { loadConfig } from "./config.mts";
 import { push, runPwsh, waitForSsh } from "./remote.mts";
-import { reset } from "./ti.mts";
+import { pristine } from "./ti.mts";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,6 +19,9 @@ export interface VmCaseArtifact {
 
 export interface VmCheck {
   name: string;
+  /** Optional baseline capture on the pristine VM, before the script runs —
+   *  for checks that assert "unchanged" rather than a fixed value. */
+  prepare?(t: Target, key: string): Promise<void>;
   run(t: Target, key: string): Promise<string | null>;
 }
 
@@ -34,6 +37,27 @@ export interface WinModuleCaseOpts {
   checks: VmCheck[];
   /** Prefix used in the non-zero-exit failure message, e.g. "strip script". */
   failLabel: string;
+}
+
+/** Encode an artifact exactly as the app's writers put it on the USB
+ *  (packages/app/src/main/strip-kit.ts): `.ps1` gets a UTF-8 BOM — without it
+ *  Windows PowerShell 5.1 reads the file as ANSI and an em-dash's 0x94 byte
+ *  becomes a closing quote, breaking the parse — and `.bat` stays ASCII. */
+export function artifactBytes(a: Pick<VmCaseArtifact, "ext" | "content">): [string, BufferEncoding] {
+  if (a.ext === "ps1") return [`﻿${a.content}`, "utf8"];
+  if (a.ext === "bat") return [a.content, "ascii"];
+  return [a.content, "utf8"];
+}
+
+/** The last few non-blank lines of a failed script's output, indented for the
+ *  matrix report — without them a non-zero exit says nothing about why. */
+export function outputTail(out: string, lines = 8): string {
+  const tail = out
+    .split(/\r?\n/)
+    .map((l) => l.trimEnd())
+    .filter((l) => l.trim() !== "")
+    .slice(-lines);
+  return tail.length ? `\n${tail.map((l) => `            ${l}`).join("\n")}` : "";
 }
 
 /** Shared choreography for a Windows VM case: reset the VM, write + push
@@ -52,18 +76,21 @@ export function winModuleCase(opts: WinModuleCaseOpts): Case {
     async run(): Promise<CaseResult> {
       const cfg = loadConfig();
       const t = cfg.targets[vm];
-      await reset(cfg.tiModule, vm);
+      await pristine(cfg.tiModule, vm);
       await waitForSsh(t, cfg.keyPath);
       await runPwsh(t, "New-Item -ItemType Directory -Force -Path C:\\bootible | Out-Null", cfg.keyPath);
+      for (const check of checks) {
+        await check.prepare?.(t, cfg.keyPath);
+      }
       const artifacts = genArtifacts();
       for (const a of artifacts) {
         const tmp = join(tmpdir(), `${id.replace(/[:]/g, "_")}.${a.ext}`);
-        writeFileSync(tmp, a.content);
+        writeFileSync(tmp, ...artifactBytes(a));
         await push(t, tmp, a.remotePath, cfg.keyPath);
       }
       const r = await runPwsh(t, remoteScript, cfg.keyPath, timeoutMs);
       const failures: (string | null)[] = [
-        r.code === 0 ? null : `${failLabel} exited non-zero (code ${r.code})`,
+        r.code === 0 ? null : `${failLabel} exited non-zero (code ${r.code})${outputTail(r.out)}`,
       ];
       for (const check of checks) {
         failures.push(await check.run(t, cfg.keyPath));

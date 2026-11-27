@@ -27,6 +27,13 @@ async function runTi(
 export const up = (module: string, vm: string) => runTi(module, "up", vm);
 export const reset = (module: string, vm: string) =>
   runTi(module, "reset", vm);
+/** Bring a VM to its pristine golden state, creating it first if it doesn't
+ *  exist yet (`ti reset` refuses a missing VM; `ti up` is a no-op on one that
+ *  exists). Every VM case starts here. */
+export async function pristine(module: string, vm: string): Promise<void> {
+  await up(module, vm);
+  await reset(module, vm);
+}
 export const down = (module: string, vm: string) =>
   runTi(module, "down", vm);
 export const ip = (module: string, vm: string) => runTi(module, "ip", vm);

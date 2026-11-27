@@ -35,8 +35,14 @@ function escapeRe(s: string): string {
 
 // ── Windows probes (runPwsh) — used by strip-kit and other Windows-VM cases ──
 
+/** Over SSH there's no one to answer winget's msstore agreement prompt, so a
+ *  bare `winget list` blocks; pin the winget source and never prompt. */
 export async function wingetListed(t: Target, key: string, id: string): Promise<string | null> {
-  const r = await runPwsh(t, `winget list --id ${id} -e 2>$null | Select-String ${id}`, key);
+  const r = await runPwsh(
+    t,
+    `winget list --id ${id} -e --source winget --accept-source-agreements --disable-interactivity 2>$null | Select-String ${id}`,
+    key,
+  );
   return r.out.includes(id) ? null : `winget ${id} not installed`;
 }
 
@@ -83,7 +89,10 @@ export async function serviceRunning(t: Target, key: string, name: string): Prom
   return r.stdout.trim() === "Running" ? null : `service ${name} not running`;
 }
 
+/** `path` is expanded by PowerShell on the guest (double-quoted), so
+ *  `$env:ProgramData\...`-style paths resolve; a single-quoted path was read
+ *  literally and never found the file. */
 export async function fileContains(t: Target, key: string, path: string, needle: string): Promise<string | null> {
-  const r = await runPwsh(t, `Get-Content -Raw '${path}' -ErrorAction SilentlyContinue`, key);
+  const r = await runPwsh(t, `Get-Content -Raw "${path}" -ErrorAction SilentlyContinue`, key);
   return r.out.includes(needle) ? null : `${path} missing expected content`;
 }

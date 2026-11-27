@@ -136,9 +136,11 @@ npm run test:e2e -- --case discovery:beacon-e2e
 Lifecycle commands (`ti up`, `ti reset`, `ti down`) drive Hyper-V and **require elevation** (admin user or Hyper-V Administrators membership).
 
 - **`payload-validate` cases:** Do NOT need elevation (no VMs).
-- **All other cases (`deck-provision`, `strip-kit`, `bootstrap`, `discovery`):** Must run from an elevated PowerShell.
+- **All other cases (`deck-provision`, `strip-kit`, `bootstrap`, `discovery`):** need rights to drive Hyper-V — either membership of the local **Hyper-V Administrators** group (no elevation needed; `ti doctor` warns "Not elevated" but the lifecycle verbs still work) or an elevated PowerShell.
 
-**To run elevated:**
+A VM case creates its `ti` VM from the golden image if it doesn't exist yet (`ti up`, then `ti reset`), so no manual `ti up` is needed first.
+
+**To run elevated (if you're not in Hyper-V Administrators):**
 
 ```powershell
 # Option 1: Open elevated pwsh manually, then:

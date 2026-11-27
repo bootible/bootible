@@ -46,13 +46,25 @@ const reg = (path: string, name: string, val: string): StripCheck => ({
   name: `reg:${path}\\${name}`,
   run: (t, key) => regEquals(t, key, path, name, val),
 });
-const hostnameUnchanged = (expected: string): StripCheck => ({
-  name: "hostname unchanged",
-  run: async (t, key) => {
-    const r = await runPwsh(t, "$env:COMPUTERNAME", key);
-    return r.stdout.trim() === expected ? null : `hostname changed (expected ${expected}, got ${r.stdout.trim()})`;
-  },
-});
+/** Strip must not rename the machine. Compares against the pristine VM's own
+ *  name (captured before the script runs) rather than a hard-coded one — the
+ *  golden images keep Windows' generated DESKTOP-xxxx name. */
+const hostnameUnchanged = (): StripCheck => {
+  let before = "";
+  const hostname = async (t: Parameters<StripCheck["run"]>[0], key: string) =>
+    (await runPwsh(t, "$env:COMPUTERNAME", key)).stdout.trim();
+  return {
+    name: "hostname unchanged",
+    prepare: async (t, key) => {
+      before = await hostname(t, key);
+    },
+    run: async (t, key) => {
+      const after = await hostname(t, key);
+      if (!before) return "hostname baseline was not captured";
+      return after === before ? null : `hostname changed (was ${before}, now ${after})`;
+    },
+  };
+};
 
 export const stripCases: (Case & { req: StripKitRequest })[] = [
   stripCase(
@@ -77,7 +89,7 @@ export const stripCases: (Case & { req: StripKitRequest })[] = [
         "TurnOffWindowsCopilot",
         "1",
       ),
-      hostnameUnchanged("WIN11-TI"),
+      hostnameUnchanged(),
     ],
   ),
   stripCase(
@@ -93,7 +105,7 @@ export const stripCases: (Case & { req: StripKitRequest })[] = [
         "TurnOffWindowsCopilot",
         "1",
       ),
-      hostnameUnchanged("WIN11HOME-TI"),
+      hostnameUnchanged(),
     ],
   ),
 ];
