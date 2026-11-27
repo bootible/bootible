@@ -56,7 +56,7 @@ export function DeviceReach(opts: DeviceReachOpts): HTMLElement {
   const row = el("div", "sk-verify-row");
   const userIn = el("input", "field-input sk-verify-user") as HTMLInputElement;
   userIn.type = "text";
-  userIn.placeholder = opts.userPlaceholder ?? "account name (from OOBE)";
+  userIn.placeholder = opts.userPlaceholder ?? "account from OOBE";
   userIn.autocomplete = "off";
   userIn.spellcheck = false;
   const ipIn = el("input", "field-input") as HTMLInputElement;

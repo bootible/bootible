@@ -21,7 +21,7 @@ export function hydrateVerifyExisting(): void {
       onVerify: (ip, user) =>
         window.bootible?.verifyDevice?.(ip, user, mode) ??
         Promise.resolve({ reachable: false, output: "unavailable" }),
-      userPlaceholder: mode === "linux" ? "account name (usually 'deck')" : "account name",
+      userPlaceholder: mode === "linux" ? "account, e.g. deck" : "account from OOBE",
     }),
   );
 }

@@ -50,7 +50,7 @@ export function hydrateDeckBuild(): void {
         onVerify: (ip, user) =>
           window.bootible?.verifyDevice?.(ip, user, "linux") ??
           Promise.resolve({ reachable: false, output: "unavailable" }),
-        userPlaceholder: "account name (usually 'deck')",
+        userPlaceholder: "account, e.g. deck",
       }),
     );
   }

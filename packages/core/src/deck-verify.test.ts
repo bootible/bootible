@@ -183,6 +183,18 @@ describe.skipIf(!BASH)("generateDeckVerify (executed under bash)", () => {
     });
   });
 
+  it("fails a plugin the last run failed to install, even though its folder is there", () => {
+    const { checks } = runVerify(
+      CFG,
+      undefined,
+      "WARN plugin failed: TabMaster\nDONE provision finished; 1 warning(s)\n",
+    );
+    expect(checks.find((c) => c.id === "plugin:TabMaster")).toMatchObject({
+      status: "fail",
+      detail: "the last setup run failed to install it, so it may be a mix of old and new files",
+    });
+  });
+
   it("names the wrong hostname", () => {
     const { checks } = runVerify({ ...CFG, hostname: "OtherDeck" });
     expect(checks.find((c) => c.id === "hostname")).toMatchObject({

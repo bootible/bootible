@@ -104,7 +104,11 @@ export function deckVerifyChecks(input: Partial<DeckConfig>): CheckSpec[] {
       add(
         `plugin:${name}`,
         `Decky plugin: ${name}`,
-        `python3 - ${shq(name)} <<'BOOTIBLE_PY' || { echo "not in ~/homebrew/plugins"; return 1; }
+        // A failed install can leave the old plugin dir behind, half overwritten
+        // (Syncthing on 28 Nov: new main.py, old bin/ and dist/), so being present
+        // isn't enough — the last run must also have installed it.
+        `grep -Fxq ${shq(`WARN plugin failed: ${name}`)} "$R" 2>/dev/null && { echo "the last setup run failed to install it, so it may be a mix of old and new files"; return 1; }
+  python3 - ${shq(name)} <<'BOOTIBLE_PY' || { echo "not in ~/homebrew/plugins"; return 1; }
 import glob, json, os, sys
 names = set()
 for f in glob.glob(os.path.expanduser("~/homebrew/plugins/*/plugin.json")):

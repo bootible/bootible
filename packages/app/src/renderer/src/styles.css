@@ -2193,7 +2193,7 @@ body[data-view="account"] .summary::before {
   flex: 1;
 }
 .sk-verify-row .sk-verify-user {
-  flex: 0 0 150px;
+  flex: 0 0 220px;
 }
 
 /* Full ROG reuses the account screen for SSH/access — hide clean-install-only bits */
