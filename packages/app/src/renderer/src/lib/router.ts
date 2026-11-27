@@ -31,6 +31,7 @@ export const VIEWS = [
   "deckpm",
   "deckbuild",
   "watch",
+  "verify",
   "connect",
   "provision",
   "done",

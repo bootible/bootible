@@ -110,6 +110,9 @@ export async function selectDeviceAndGo(id: string): Promise<void> {
     '.view[data-view="home"] .actions [data-go]',
   );
   if (setupBtn) setupBtn.dataset.go = isDeck ? "deck" : "base";
+  // Only devices with a verifier get "Verify existing device" (capability rule).
+  const verifyBtn = document.querySelector<HTMLElement>("[data-verify-existing]");
+  if (verifyBtn) verifyBtn.hidden = !cap?.verify;
   const flowLine = document.querySelector<HTMLElement>(
     '.view[data-view="home"] .readout .rline:nth-child(3) .rval',
   );

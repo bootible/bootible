@@ -202,6 +202,7 @@
               <button class="btn-primary" type="button" data-go="base">
                 Set up this device <span class="arrow" aria-hidden="true">→</span>
               </button>
+              <button class="btn-ghost" type="button" data-go="verify" data-verify-existing hidden>Verify existing device</button>
               <button class="btn-ghost" type="button" data-go="platform">Change device</button>
             </div>
           </div>
@@ -865,6 +866,22 @@
           </div>
           <div class="bundle-back">
             <button class="btn-ghost" type="button" data-go="home">Done</button>
+          </div>
+        </main>
+
+        <!-- ───────────────────── VERIFY (a device bootible already set up) ───────────────────── -->
+        <main class="view setup" data-view="verify">
+          <div class="setup-head">
+            <p class="eyebrow" data-field="verify-eyebrow">Verify existing device</p>
+            <h1 class="setup-title">Check a device bootible set up</h1>
+            <p class="setup-sub">
+              Connects over SSH and checks every setting, app and service it was set up with
+              against what's actually on it. Nothing on the device changes.
+            </p>
+          </div>
+          <div class="verify-existing"></div>
+          <div class="bundle-back">
+            <button class="btn-ghost" type="button" data-go="home">Back</button>
           </div>
         </main>
 

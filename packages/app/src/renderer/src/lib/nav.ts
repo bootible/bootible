@@ -1,6 +1,6 @@
 /** Screens that only make sense for a chosen device — they read selectedDeviceId
  *  (device-tagged profiles, the base/customise plan, the Deck config). */
-const DEVICE_VIEWS = new Set(["home", "base", "customise", "deck", "decksetup"]);
+const DEVICE_VIEWS = new Set(["home", "base", "customise", "deck", "decksetup", "verify"]);
 
 /**
  * True when a device-dependent screen was reached without a selected device — i.e.

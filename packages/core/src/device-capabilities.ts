@@ -9,6 +9,10 @@ import type { DeviceFamily } from "./profile-schema";
 
 export type MediaMode = "provision" | "reimage" | "usb-install";
 
+/** How bootible verifies a device it already set up: the shell its check script
+ *  runs under over SSH ("linux" = bash, "windows" = PowerShell). */
+export type VerifyMode = "linux" | "windows";
+
 export interface NetworkCapability {
   /** Can pin a fixed IP at all. */
   staticIp: boolean;
@@ -28,6 +32,10 @@ export interface DeviceCapabilities {
   streaming: boolean;
   /** Which bootable-media outcomes this device offers. */
   media: MediaMode[];
+  /** Deep-verify over SSH, or null when there's no verifier for this device yet.
+   *  Required (not optional) so every new device decides — it drives the
+   *  "Verify existing device" button on the device's page. */
+  verify: VerifyMode | null;
 }
 
 const CAPABILITIES: Record<string, DeviceCapabilities> = {
@@ -39,6 +47,7 @@ const CAPABILITIES: Record<string, DeviceCapabilities> = {
     ssh: true,
     streaming: true,
     media: ["usb-install"],
+    verify: "windows",
   },
   steamdeck: {
     family: "steamos",
@@ -48,6 +57,7 @@ const CAPABILITIES: Record<string, DeviceCapabilities> = {
     ssh: true,
     streaming: true,
     media: ["provision", "reimage"],
+    verify: "linux",
   },
 };
 

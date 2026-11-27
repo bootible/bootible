@@ -47,7 +47,10 @@ export function deckVerifyChecks(input: Partial<DeckConfig>): CheckSpec[] {
     "Setup finished without warnings",
     `[ -f "$R" ] || { echo "no receipt — provision.sh never ran"; return 1; }
   grep -q '^DONE' "$R" || { echo "provision.sh stopped before the end"; return 1; }
-  w=$(grep -c '^WARN' "$R"); [ "$w" = 0 ] || { echo "$w warning(s), first: $(grep -m1 '^WARN' "$R" | cut -c6-)"; return 1; }`,
+  # The count on the DONE line, not grep -c '^WARN': the run's own summary
+  # ("WARN N step(s) had warnings") is a WARN line too and would count twice.
+  w=$(grep '^DONE' "$R" | tail -1 | sed -n 's/.*; \\([0-9][0-9]*\\) warning.*/\\1/p')
+  [ "\${w:-0}" = 0 ] || { echo "$w warning(s), first: $(grep -m1 '^WARN' "$R" | cut -c6-)"; return 1; }`,
   );
 
   if (cfg.createSnapshot) {

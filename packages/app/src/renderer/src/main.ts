@@ -42,6 +42,7 @@ import {
   updateWriteButton,
 } from "./features/rog/usbwrite";
 import { renderDiscovered, runApplyDevice } from "./features/rog/watch";
+import { hydrateVerifyExisting } from "./features/verify/existing";
 import { rog } from "./lib/rog-state";
 import { registerRoute, syncFromHash } from "./lib/router";
 import { session } from "./lib/session";
@@ -346,6 +347,7 @@ registerRoute("deckemu", () => void hydrateDeckEmulators());
 registerRoute("deckplugins", () => void hydrateDeckPlugins());
 registerRoute("deckpm", () => void hydrateDeckPm());
 registerRoute("deckbuild", () => hydrateDeckBuild());
+registerRoute("verify", () => hydrateVerifyExisting());
 registerRoute("watch", () => {
   void window.bootible?.startDiscovery?.();
   renderDiscovered();

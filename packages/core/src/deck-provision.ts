@@ -184,9 +184,15 @@ function deckyBlock(cfg: DeckConfig): string {
       `for NAME in ${arr}; do`,
       `  HASH="$(printf '%s' "$STORE" | N="$NAME" python3 -c "import sys,json,os; d=json.load(sys.stdin); p=next((x for x in d if x.get('name')==os.environ['N']),None); print(p['versions'][0]['hash'] if p and p.get('versions') else '')" 2>/dev/null || echo "")"`,
       `  if [ -z "$HASH" ]; then warn "plugin not found: $NAME"; continue; fi`,
+      `  PTMP="$(mktemp -d)"`,
       `  curl -fsSL "https://cdn.tzatzikiweeb.moe/file/steam-deck-homebrew/versions/$HASH.zip" -o /tmp/decky-plugin.zip && \\`,
-      // extract as root (the plugins dir is root-owned); chown back to deck after.
-      `    sudo python3 -m zipfile -e /tmp/decky-plugin.zip "$HOME/homebrew/plugins/" && ok "plugin: $NAME" || warn "plugin failed: $NAME"`,
+      // Extract as root (the plugins dir is root-owned; chown back to deck after),
+      // into a temp dir first. Some plugins keep a helper running even with the
+      // loader stopped (Syncthing's watchdog), and writing over a running binary is
+      // ETXTBSY, so copy in with --remove-destination: it unlinks each old file
+      // first, which a running binary allows. (Caught by deep verify on hardware.)
+      `    sudo python3 -m zipfile -e /tmp/decky-plugin.zip "$PTMP/" && sudo cp -a --remove-destination "$PTMP/." "$HOME/homebrew/plugins/" && ok "plugin: $NAME" || warn "plugin failed: $NAME"`,
+      `  sudo rm -r "$PTMP"`,
       `done`,
       `rm -f /tmp/decky-plugin.zip`,
       `sudo chown -R "$USER:$USER" "$HOME/homebrew/plugins" 2>/dev/null || true`,

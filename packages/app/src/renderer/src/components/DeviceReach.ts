@@ -3,8 +3,10 @@ import { el } from "../lib/dom";
 import { VerifyReport } from "./VerifyReport";
 
 interface DeviceReachOpts {
-  /** Navigate to the Watch (find-my-device) screen. */
-  onFindDevice: () => void;
+  /** Navigate to the Watch (find-my-device) screen. Omit for a device set up a
+   *  while ago: its beacon only runs for ~10 minutes after setup, so the
+   *  address is the only way to reach it. */
+  onFindDevice?: () => void;
   /** SSH-verify the device at an address (device-appropriate command). */
   onVerify: (ip: string, user: string) => Promise<DeviceVerifyResult>;
   /** Account-name field placeholder (Windows: OOBE name · Deck: usually "deck"). */
@@ -21,26 +23,35 @@ interface DeviceReachOpts {
 export function DeviceReach(opts: DeviceReachOpts): HTMLElement {
   const root = el("div", "sk-save");
 
-  const heading = el("p", "sk-h", "Find your device ");
-  heading.append(el("span", "muted", "(once it's booted / finished)"));
-
-  const sub = el(
-    "p",
-    "setup-sub",
-    "When setup finishes, the device beacons on your network for ~10 minutes — open Find my device and it'll appear, no IP needed.",
-  );
-
-  const findWrap = el("div", "summary-actions");
-  const findBtn = el("button", "btn-primary", "Find my device →") as HTMLButtonElement;
-  findBtn.type = "button";
-  findBtn.addEventListener("click", () => opts.onFindDevice());
-  findWrap.append(findBtn);
-
-  const orLine = el(
-    "p",
-    "setup-sub sk-or",
-    "…or reach it directly by address (handy over Tailscale or NordVPN Meshnet):",
-  );
+  const onFindDevice = opts.onFindDevice;
+  if (onFindDevice) {
+    const heading = el("p", "sk-h", "Find your device ");
+    heading.append(el("span", "muted", "(once it's booted / finished)"));
+    const sub = el(
+      "p",
+      "setup-sub",
+      "When setup finishes, the device beacons on your network for ~10 minutes — open Find my device and it'll appear, no IP needed.",
+    );
+    const findWrap = el("div", "summary-actions");
+    const findBtn = el("button", "btn-primary", "Find my device →") as HTMLButtonElement;
+    findBtn.type = "button";
+    findBtn.addEventListener("click", () => onFindDevice());
+    findWrap.append(findBtn);
+    const orLine = el(
+      "p",
+      "setup-sub sk-or",
+      "…or reach it directly by address (handy over Tailscale or NordVPN Meshnet):",
+    );
+    root.append(heading, sub, findWrap, orLine);
+  } else {
+    root.append(
+      el(
+        "p",
+        "setup-sub",
+        "Its address on your network — an IP, hostname, Tailscale IP or NordVPN Meshnet IP — and the account it signs in as.",
+      ),
+    );
+  }
 
   const row = el("div", "sk-verify-row");
   const userIn = el("input", "field-input sk-verify-user") as HTMLInputElement;
@@ -88,6 +99,6 @@ export function DeviceReach(opts: DeviceReachOpts): HTMLElement {
     })();
   });
 
-  root.append(heading, sub, findWrap, orLine, row, out, report);
+  root.append(row, out, report);
   return root;
 }

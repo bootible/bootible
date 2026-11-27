@@ -99,7 +99,11 @@ const BASH = bashPath();
  *  stubs for flatpak/systemctl/xdg-mime/uname/python3 first on PATH, run the
  *  generated script, and parse what it reports. `fail` names a stub that should
  *  report failure (exit 1) instead. */
-function runVerify(cfg: Partial<DeckConfig>, fail?: string) {
+function runVerify(
+  cfg: Partial<DeckConfig>,
+  fail?: string,
+  receipt = "ok   snapshot: /x\nDONE provision finished; 0 warning(s)\n",
+) {
   if (!BASH) throw new Error("no bash");
   const root = mkdtempSync(join(tmpdir(), "bootible-verify-"));
   const home = join(root, "home");
@@ -113,10 +117,7 @@ function runVerify(cfg: Partial<DeckConfig>, fail?: string) {
   ])
     mkdirSync(join(home, d), { recursive: true });
   mkdirSync(bin);
-  writeFileSync(
-    join(home, ".bootible/receipt"),
-    "ok   snapshot: /x\nDONE provision finished; 0 warning(s)\n",
-  );
+  writeFileSync(join(home, ".bootible/receipt"), receipt);
   writeFileSync(
     join(home, ".ssh/authorized_keys"),
     "# Managed by bootible\nssh-ed25519 AAAAkey me@pc\n",
@@ -168,6 +169,18 @@ describe.skipIf(!BASH)("generateDeckVerify (executed under bash)", () => {
     expect(spotify?.status).toBe("fail");
     expect(spotify?.detail).toBe("com.spotify.Client not installed");
     expect(checks.find((c) => c.id === "hostname")?.status).toBe("pass");
+  });
+
+  it("counts a run's warnings once (its own summary line is a WARN too)", () => {
+    const { checks } = runVerify(
+      CFG,
+      undefined,
+      "WARN plugin failed: Syncthing\nDONE provision finished; 1 warning(s)\nWARN 1 step(s) had warnings — see ~/.bootible/receipt\n",
+    );
+    expect(checks.find((c) => c.id === "receipt")).toMatchObject({
+      status: "fail",
+      detail: "1 warning(s), first: plugin failed: Syncthing",
+    });
   });
 
   it("names the wrong hostname", () => {

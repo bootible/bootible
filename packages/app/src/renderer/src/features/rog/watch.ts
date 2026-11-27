@@ -9,12 +9,20 @@ import { gatherUsbRequest, receiptRow } from "./usbwrite";
 const discovered = new Map<string, DiscoveredDevice>();
 // Verify results survive the 5s beacon re-renders, keyed by device IP.
 const verifyResults = new Map<string, DeviceVerifyResult>();
+// Which devices have their "N passed" list open, so a real re-render keeps it.
+const openPassed = new Set<string>();
+// What the list last showed. Each device re-beacons every 5s with the same data;
+// rebuilding the cards anyway collapsed open lists and dropped text selections.
+let lastRender = "";
 
 /** Render the discovered devices, the build we just made first. */
 export function renderDiscovered(): void {
   const list = document.querySelector<HTMLElement>(".watch-list");
   if (!list) return;
   const devices = [...discovered.values()].sort((a, b) => Number(b.mine) - Number(a.mine));
+  const signature = JSON.stringify([devices, [...verifyResults], rog.intendedStaticIp]);
+  if (signature === lastRender && list.childElementCount > 0) return;
+  lastRender = signature;
   if (devices.length === 0) {
     list.replaceChildren(
       el(
@@ -58,7 +66,18 @@ export function renderDiscovered(): void {
       card.append(verify);
 
       const result = verifyResults.get(d.ip);
-      if (result) card.append(VerifyReport(result));
+      if (result) {
+        const report = VerifyReport(result);
+        const passed = report.querySelector<HTMLDetailsElement>("details.vr-passed");
+        if (passed) {
+          passed.open = openPassed.has(d.ip);
+          passed.addEventListener("toggle", () => {
+            if (passed.open) openPassed.add(d.ip);
+            else openPassed.delete(d.ip);
+          });
+        }
+        card.append(report);
+      }
       return card;
     }),
   );

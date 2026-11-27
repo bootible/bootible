@@ -46,3 +46,21 @@ describe("media capability → setup flow", () => {
     expect(capabilitiesFor("steamdeck")?.media.includes("usb-install")).toBe(false);
   });
 });
+
+describe("verify capability", () => {
+  // Drives the "Verify existing device" button on each device's page, and which
+  // check script (bash vs PowerShell) runs. A verify mode must match the OS the
+  // device runs, or the check script would run under the wrong shell.
+  it("verifies the ROG with PowerShell and the Deck with bash", () => {
+    expect(capabilitiesFor("rog-ally")?.verify).toBe("windows");
+    expect(capabilitiesFor("steamdeck")?.verify).toBe("linux");
+  });
+
+  it("matches every device's verify mode to its OS family", () => {
+    const shellFor = { windows: "windows", steamos: "linux" } as const;
+    for (const id of devicesWithCapabilities()) {
+      const c = capabilitiesFor(id);
+      if (c?.verify) expect(c.verify, id).toBe(shellFor[c.family as keyof typeof shellFor]);
+    }
+  });
+});

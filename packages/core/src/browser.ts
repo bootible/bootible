@@ -14,5 +14,10 @@ export type { CatalogApp } from "./catalog";
 export { browserApps, catalogApp } from "./catalog";
 export { RECOMMENDED_DECKY_PLUGINS } from "./deck-apps";
 export { DEFAULT_DECK_CONFIG } from "./deck-config";
-export type { DeviceCapabilities, MediaMode, NetworkCapability } from "./device-capabilities";
+export type {
+  DeviceCapabilities,
+  MediaMode,
+  NetworkCapability,
+  VerifyMode,
+} from "./device-capabilities";
 export { capabilitiesFor, devicesWithCapabilities } from "./device-capabilities";
