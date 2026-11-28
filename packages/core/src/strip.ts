@@ -14,7 +14,7 @@ import { UNIVERSAL_FLOOR } from "./bases";
 import { BEACON_PORT } from "./beacon";
 import { writeWindowsManifestPs } from "./build-manifest";
 import { catalogApp } from "./catalog";
-import type { BootibleConfig } from "./config";
+import { type BootibleConfig, redactSecrets, secretValues } from "./config";
 import { generateGithubReleaseInstall } from "./github-install";
 import type { ApplyContext } from "./orchestrator";
 import type { Exec } from "./secrets";
@@ -221,10 +221,11 @@ function moduleLines(config: BootibleConfig): string {
   for (const mod of allyCatalog) {
     if (ids.has(mod.id) && !handledSeparately.has(mod.id)) mod.apply({ device, config }, rec);
   }
+  const secrets = secretValues(config);
   return commands
     .map((cmd) => {
       const line = toPowerShellLine(cmd);
-      return `Write-Strip ${psQuote(line)}\ntry { ${line} } catch { Write-Strip "  failed: $_" }`;
+      return `Write-Strip ${psQuote(redactSecrets(line, secrets))}\ntry { ${line} } catch { Write-Strip "  failed: $_" }`;
     })
     .join("\n");
 }

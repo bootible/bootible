@@ -63,6 +63,56 @@ describe("buildUsbBundle", () => {
     expect(beacon?.content).toContain("abc123");
   });
 
+  it("installs the edition the user picked", () => {
+    const auto = buildUsbBundle({ ...base, edition: "Windows 11 Pro" }, allyExecutor).find(
+      (f) => f.path === "autounattend.xml",
+    );
+    expect(auto?.content).toContain("<Value>Windows 11 Pro</Value>");
+    expect(auto?.content).not.toContain("Windows 11 Home");
+  });
+
+  describe("a Sunshine password", () => {
+    const secret = "hunter2'x";
+    const files = buildUsbBundle(
+      {
+        ...base,
+        config: {
+          ...base.config,
+          modules: ["sunshine-creds"],
+          settings: { sunshine_user: "me", sunshine_pass: secret },
+        },
+      },
+      allyExecutor,
+    );
+    const file = (end: string) => files.find((f) => f.path.endsWith(end))?.content ?? "";
+
+    it("is left out of the config.yml kept on the device", () => {
+      expect(file("bootible/config.yml")).toContain("sunshine_user: me");
+      expect(file("bootible/config.yml")).not.toContain("hunter2");
+    });
+
+    it("is used to set the login but never written to bootstrap.log", () => {
+      const boot = file("bootible/bootstrap.ps1");
+      expect(boot).toContain("'--creds' 'me' 'hunter2''x'");
+      const logged = boot.split("\n").filter((l) => l.startsWith("Write-Bootible"));
+      expect(logged.some((l) => l.includes("--creds"))).toBe(true);
+      expect(logged.join("\n")).not.toContain("hunter2");
+    });
+
+    it("is removed from the device with bootstrap.ps1 once the run ends", () => {
+      const boot = file("bootible/bootstrap.ps1");
+      const remove = boot.indexOf("Remove-Item -LiteralPath $PSCommandPath");
+      expect(remove).toBeGreaterThan(boot.indexOf("bootible onboard complete"));
+    });
+
+    it("leaves bootstrap.ps1 in place when there is no secret", () => {
+      const plain = buildUsbBundle(base, allyExecutor).find((f) =>
+        f.path.endsWith("bootstrap.ps1"),
+      );
+      expect(plain?.content).not.toContain("$PSCommandPath");
+    });
+  });
+
   it("bakes the chosen UI language + region into the answer file (so it matches the ISO)", () => {
     const auto = buildUsbBundle(
       { ...base, uiLanguage: "en-US", locale: "en-AU" },

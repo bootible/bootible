@@ -1,6 +1,6 @@
 import { getSelectedAppCommands, getSelectedGithubReleases } from "./apps";
 import { type WindowsBuildManifest, writeWindowsManifestPs } from "./build-manifest";
-import type { BootibleConfig } from "./config";
+import { type BootibleConfig, redactSecrets, secretValues } from "./config";
 import { generateGithubReleaseInstall } from "./github-install";
 import { onboard } from "./onboard";
 import type { Executor } from "./orchestrator";
@@ -68,12 +68,18 @@ export function generateBootstrapScript(opts: BootstrapOptions): string {
     exec: recordingExec,
   });
 
+  const secrets = secretValues(opts.config);
   const steps = commands
     .map((cmd) => {
       const line = toPowerShellLine(cmd);
-      return `Write-Bootible ${psQuote(line)}\ntry { ${line} } catch { Write-Bootible "  failed: $_" }`;
+      return `Write-Bootible ${psQuote(redactSecrets(line, secrets))}\ntry { ${line} } catch { Write-Bootible "  failed: $_" }`;
     })
     .join("\n");
+  // This script holds the secrets it used (the Sunshine password), so it removes
+  // itself once it has run; config.yml and build.json are saved without them.
+  const removeSelf = secrets.length
+    ? "Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
+    : "";
 
   const selectedAppSlugs = hasApps
     ? ((opts.config.settings?.selected_apps as string[] | undefined) ?? [])
@@ -143,5 +149,5 @@ ${appBlock}
 Write-Bootible 'bootible onboard complete'
 'done' | Set-Content "$BootibleRoot\\status.txt"
 "bootible configured $(Get-Date -Format o)" | Set-Content "$BootibleRoot\\receipt.txt"
-`;
+${removeSelf}`;
 }

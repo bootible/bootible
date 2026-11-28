@@ -61,6 +61,18 @@ describe("generateStripScript", () => {
     expect(script).toContain("beacon.ps1");
   });
 
+  it("sets the Sunshine login without writing its password to strip.log", () => {
+    const withCreds = generateStripScript({
+      ...config,
+      modules: ["sunshine-creds"],
+      settings: { ...config.settings, sunshine_user: "me", sunshine_pass: "hunter2" },
+    });
+    expect(withCreds).toContain("'--creds' 'me' 'hunter2'");
+    const logged = withCreds.split("\n").filter((l) => l.startsWith("Write-Strip"));
+    expect(logged.some((l) => l.includes("--creds"))).toBe(true);
+    expect(logged.join("\n")).not.toContain("hunter2");
+  });
+
   it("installs the user's picked apps when the config carries modules", () => {
     const withApps = generateStripScript({
       schema: 2,

@@ -56,6 +56,36 @@ export function serializeConfig(config: BootibleConfig): string {
   return stringify(config);
 }
 
+/** Settings keys that hold secrets (the Sunshine password): never saved on a
+ *  device or into a manifest, and never written to a log. */
+export const SECRET_SETTING = /pass(word)?$|secret|token/i;
+
+/** The config with its secret settings removed — what's safe to leave on disk. */
+export function withoutSecrets(config: BootibleConfig): BootibleConfig {
+  if (!config.settings) return config;
+  const settings = Object.fromEntries(
+    Object.entries(config.settings).filter(([k]) => !SECRET_SETTING.test(k)),
+  );
+  return { ...config, settings };
+}
+
+/** The non-empty secret values in a config's settings. */
+export function secretValues(config: BootibleConfig): string[] {
+  return Object.entries(config.settings ?? {})
+    .filter(([k, v]) => SECRET_SETTING.test(k) && typeof v === "string" && v !== "")
+    .map(([, v]) => v as string);
+}
+
+/** Mask each secret in a generated command line before it is logged. Covers the
+ *  value as written and inside a PowerShell '...' literal (quotes doubled). */
+export function redactSecrets(text: string, secrets: string[]): string {
+  let out = text;
+  for (const s of secrets) {
+    out = out.split(s.replace(/'/g, "''")).join("***").split(s).join("***");
+  }
+  return out;
+}
+
 export interface SyncTargetSpec {
   name: string;
   kind: string;

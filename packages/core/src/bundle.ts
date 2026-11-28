@@ -2,7 +2,7 @@ import { type AccountMode, generateAutounattend, generateWifiProfileXml } from "
 import { generateBeaconScript } from "./beacon";
 import { generateBootstrapScript } from "./bootstrap";
 import { manifestEdition } from "./build-manifest";
-import { type BootibleConfig, serializeConfig } from "./config";
+import { type BootibleConfig, serializeConfig, withoutSecrets } from "./config";
 import type { Executor } from "./orchestrator";
 import type { DeviceEntry } from "./registry";
 import type { Exec } from "./secrets";
@@ -99,6 +99,7 @@ export function buildUsbBundle(
     uiLanguage: spec.uiLanguage,
     locale: spec.locale,
     firstLogonCommand: FIRST_LOGON_COMMAND,
+    edition: spec.edition,
   });
   const bootstrap = generateBootstrapScript({
     device: spec.device,
@@ -121,7 +122,10 @@ export function buildUsbBundle(
   const files: BundleFile[] = [
     { path: "autounattend.xml", content: autounattend },
     { path: "sources/$OEM$/$1/bootible/bootstrap.ps1", content: bootstrap },
-    { path: "sources/$OEM$/$1/bootible/config.yml", content: serializeConfig(spec.config) },
+    {
+      path: "sources/$OEM$/$1/bootible/config.yml",
+      content: serializeConfig(withoutSecrets(spec.config)),
+    },
     { path: "bootible-README.txt", content: readme(spec) },
   ];
 

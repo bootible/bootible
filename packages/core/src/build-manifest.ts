@@ -1,5 +1,5 @@
 import { parse as parseYaml } from "yaml";
-import type { BootibleConfig } from "./config";
+import { type BootibleConfig, withoutSecrets } from "./config";
 import { type DeckConfig, normalizeDeckConfig } from "./deck-config";
 
 /**
@@ -95,14 +95,11 @@ export interface DeckBuildManifest {
 
 export type BuildManifest = WindowsBuildManifest | DeckBuildManifest;
 
-/** Settings keys that hold secrets and never go into a manifest. */
-const SECRET_SETTING = /pass(word)?$|secret|token/i;
-
 export function windowsManifestJson(m: WindowsBuildManifest): string {
-  const settings = Object.fromEntries(
-    Object.entries(m.config.settings ?? {}).filter(([k]) => !SECRET_SETTING.test(k)),
-  );
-  return JSON.stringify({ ...m, config: { ...m.config, settings } });
+  return JSON.stringify({
+    ...m,
+    config: { ...m.config, settings: withoutSecrets(m.config).settings ?? {} },
+  });
 }
 
 export function deckManifestJson(input: Partial<DeckConfig>): string {
